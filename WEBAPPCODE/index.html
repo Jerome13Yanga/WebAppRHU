@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RHU Maternal and Infant Health Monitoring</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="toastHost" class="toast-host"></div>
+
+  <main id="authScreen" class="auth-shell">
+    <section class="auth-panel">
+      <div class="brand-mark">RHU</div>
+      <h1>Maternal and Infant Health Monitoring</h1>
+      <p>Barangay-based monitoring for mothers, infants, check-ups, reminders, and monthly reports.</p>
+
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" data-auth-tab="login">Login</button>
+        <button class="auth-tab" data-auth-tab="register">Register</button>
+      </div>
+
+      <form id="loginForm" class="auth-form">
+        <label>Email / Username
+          <input type="text" id="loginEmail" required autocomplete="username" placeholder="admin@rhu.gov">
+        </label>
+        <label>Password
+          <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="Enter password">
+        </label>
+        <button class="primary-btn" type="submit">Sign in</button>
+        <p class="demo-note">Demo: admin@rhu.gov, mho@rhu.gov, nurse@rhu.gov, doctor@rhu.gov, parent@rhu.gov / password: <strong>demo123</strong></p>
+      </form>
+
+      <form id="registerForm" class="auth-form hidden">
+        <label>Full Name
+          <input type="text" id="regName" required placeholder="Juanita Santos">
+        </label>
+        <label>Email / Username
+          <input type="email" id="regEmail" required placeholder="name@example.com">
+        </label>
+        <div class="two-col">
+          <label>Password
+            <input type="password" id="regPassword" required minlength="6">
+          </label>
+          <label>Confirm Password
+            <input type="password" id="regConfirm" required minlength="6">
+          </label>
+        </div>
+        <div class="two-col">
+          <label>Role
+            <select id="regRole" required></select>
+          </label>
+          <label>Barangay / Clinic Assignment
+            <select id="regBarangay" required></select>
+          </label>
+        </div>
+        <button class="primary-btn" type="submit">Create account</button>
+      </form>
+    </section>
+  </main>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-head">
+        <div class="brand-mark small">RHU</div>
+        <div>
+          <strong>Health Monitor</strong>
+          <span id="rolePill" class="role-pill"></span>
+        </div>
+      </div>
+      <nav id="mainNav" class="main-nav"></nav>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <button id="menuToggle" class="icon-btn" aria-label="Open menu">☰</button>
+        <div>
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="pageSubtitle">Monitoring summary</p>
+        </div>
+        <div class="topbar-actions">
+          <input id="globalSearch" type="search" placeholder="Search records...">
+          <button class="icon-btn notification-btn" aria-label="Notifications">●</button>
+          <div class="user-chip">
+            <span id="userInitials"></span>
+            <div>
+              <strong id="currentUserName"></strong>
+              <small id="currentUserMeta"></small>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div id="content" class="content"></div>
+    </section>
+  </div>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalTitle"></h3>
+        <button class="icon-btn" id="modalClose" aria-label="Close modal">×</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <input id="restoreFile" class="hidden" type="file" accept="application/json">
+  <script src="app.js"></script>
+</body>
+</html>
