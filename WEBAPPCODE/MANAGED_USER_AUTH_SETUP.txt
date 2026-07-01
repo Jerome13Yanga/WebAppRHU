@@ -1,0 +1,45 @@
+ADMIN-GENERATED STAFF PASSWORD SETUP
+
+Purpose:
+The Admin dashboard creates staff login accounts only for MHO, Nurse/Midwife, and Doctor users.
+Parents are not created here because they use the public parent registration form.
+
+How staff login works:
+1. Admin opens Users and Roles.
+2. Admin clicks Add staff account.
+3. The app generates a permanent staff password.
+4. Admin copies/gives the email and generated password to the staff member.
+5. The staff member logs in using the same single login form.
+6. The generated password stays valid until the Admin changes/resets it in Supabase Auth.
+
+Important security rule:
+Do NOT put the Supabase service_role key inside app.js or any browser file.
+This project uses a Supabase Edge Function named admin-create-user for secure staff account creation.
+
+Steps:
+1. Install/login to the Supabase CLI on your computer.
+2. In this project folder, deploy the included Edge Function:
+
+   supabase functions deploy admin-create-user --project-ref rkortcwwnrpvhrxikunb
+
+3. In Supabase Dashboard, make sure the following Edge Function secrets exist:
+   - SUPABASE_URL
+   - SUPABASE_ANON_KEY
+   - SUPABASE_SERVICE_ROLE_KEY
+
+   Supabase usually provides these automatically for Edge Functions.
+   If deployment complains about missing values, add them in:
+   Supabase Dashboard > Edge Functions > Secrets
+
+4. Log in as admin@rhu.gov in the web app.
+5. Open Users and Roles.
+6. Click Add staff account.
+7. Fill name, email, role, barangay/office, and copy the generated password.
+8. Give the email and generated password to the MHO, Nurse/Midwife, or Doctor.
+9. The user logs in using the same login form.
+
+Fallback method if you do not deploy the Edge Function:
+1. Go to Supabase Dashboard > Authentication > Users > Add user.
+2. Create the staff user's email and password there.
+3. In the web app, create or edit the same staff profile in Users and Roles.
+4. The user logs in with that email and password.

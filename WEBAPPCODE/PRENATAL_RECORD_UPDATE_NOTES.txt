@@ -1,0 +1,15 @@
+PRENATAL RECORD FORM UPDATE
+
+Added a dedicated Prenatal Record Form based on the RHU prenatal record references provided.
+
+Parent side:
+- My Health Forms now includes prenatal record fields under the maternal form.
+- Parent can fill initial prenatal check-up details, medical/family history, family planning history, present problems, risk factors, and prenatal visit logs.
+
+Nurse/Midwife side:
+- Maternal Records now includes a Prenatal Form button.
+- Nurse/Midwife can edit prenatal records only for records within their assigned barangay.
+- Doctors and nurses can view the submitted prenatal details using the View button in Maternal Records.
+
+Database:
+- No new SQL is needed if update-mc-cc-template-fields.sql was already run, because the prenatal details are saved inside formDetails/form_details JSON.

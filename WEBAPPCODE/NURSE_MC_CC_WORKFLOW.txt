@@ -1,0 +1,25 @@
+SIMPLIFIED PARENT + NURSE MC/CC WORKFLOW
+
+Parent side:
+- Parents only fill up basic maternal and infant information.
+- Parents can request schedules and view reminders.
+- Parents do not fill the full MC/CC template fields.
+
+Nurse/Midwife side:
+- Nurse/Midwife sees only records from their assigned barangay.
+- The dashboard shows an MC/CC Completion Queue.
+- Maternal records have a Complete MC button.
+- Infant records have a Complete CC button.
+- The nurse/midwife completes the clinical/template fields used for monthly reports.
+
+Monthly Reports:
+- MC = Maternal Care monthly report.
+- CC = Child Immunization monthly report.
+- Reports are generated automatically from the records already stored in the system.
+- Nurse/Midwife accounts can generate MC/CC only for their assigned barangay.
+- Clicking Auto-generate MC/CC creates or updates both reports for the selected month.
+- The report count values are not manually typed; they come from maternal, infant, schedule, and nurse-completed MC/CC data.
+
+Supabase:
+- If you already ran update-mc-cc-template-fields.sql before, no new SQL is needed.
+- The system stores detailed MC/CC answers inside formDetails JSONB.

@@ -1,0 +1,99 @@
+TARGET CLIENT LIST FOR CHILD IMMUNIZATION (1/4),,,,,,,,,TARGET CLIENT LIST FOR CHILD IMMUNIZATION (2/4),,,,,,,,,TARGET CLIENT LIST FOR CHILD IMMUNIZATION (3/4),,,,,,,,,TARGET CLIENT LIST FOR CHILD IMMUNIZATION (4/4),,,,,,
+No.,"Date of Registration
+(mm/dd/yy)",Family Serial Number,"Name of Child
+(LastName, FullName, MI)","Date of Birth
+(mm/dd/yy)","Age
+(in months)","Sex
+
+M - Male
+F- Female","Complete Name of Mother
+(LastName, FullName, MI)",Complete Address,"Children protected at Birth
+(CPAB) 
+Place a ✔ (check)
+(counts should be consistent with
+Maternal TCL Livebirths)",,Immunization,,,,,,,No.,IMMUNIZATION,,,,,,,,IMMUNIZATION,,,,,,"Remarks/
+Actions Taken"
+,,,,,,,,,,,"BCG
+(mm/dd/yy)",,"Hepa B
+(mm/dd/yy)",,DPT-HiB-HepB,,,,OPV,,,IPV,,PCV,,,"
+MMR
+Note: The minimum interval from MMR1 and MMR2 is at least 4 weeks but MMR2 should not be given at <12 months
+",,"FIC
+(0-11 months of previous year)
+
+1 dose BCG
+3 doses DPT-HiB-HepB
+3 doses OPV
+2 doses MMR
+
+d: (mm/dd/yy)",,,"CIC
+(0-11 months of previous year) - FIC of the previous year
+
+1 dose BCG
+3 doses DPT-HiB-HepB
+3 doses OPV
+2 doses MMR
+
+(mm/dd/yy)",
+,,,,,,,,,Td2 given to the mother a month prior to delivery (for mothers pregrant for the first time),Td3 to Td5 (or Td1 to Td5) given to the mother anytime prior to delivery,"
+within 24 hours","
+more than 24 hours to 11 months and 29 days",within 24 hours after birth,more than 24 hours up to 14 days,"1st dose
+1 ½ mos","2nd dose
+2 ½ mos","3rd dose
+3 ½ mos",,"1st dose
+1 ½ mos","2nd dose
+2 ½ mos","3rd dose
+3 ½ mos","1st dose
+3 ½ mos","2nd dose
+9 mos","1st dose
+1 ½ mos","2nd dose
+2 ½ mos","3rd dose
+3 ½ mos","1st dose
+9 mos","2nd dose
+12 mos",,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,"  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)",,"  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)","  A: (age in
+months & weeks)",,,,,
+,,,,,,,,,,,,,,,d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),,d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),d: (mm/dd/yy),,,,,
+,,,,,,,,,,,,,,,A:,A: ,A: ,,A:,A:,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d:,d:,d:,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A:,A: ,A: ,,A:,A:,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d:,d:,d:,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,
+,,,,,,,,,,,,,,,A: ,A: ,A: ,,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,A: ,□ BCG,□ DPT3,    d:,,
+,,,,,,,,,,,,,,,d: ,d: ,d: ,,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,d: ,□ OPV3,□ MMR2,,,

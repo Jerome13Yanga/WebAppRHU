@@ -11,14 +11,9 @@
 
   <main id="authScreen" class="auth-shell">
     <section class="auth-panel">
-      <div class="brand-mark">RHU</div>
+      <div class="brand-mark logo-placeholder"><img src="logo.png" alt="RHU logo" class="brand-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';"><span class="logo-fallback">Logo</span></div>
       <h1>Maternal and Infant Health Monitoring for Padre Burgos</h1>
       <p>Barangay-based monitoring for mothers, infants, check-ups, reminders, and monthly reports.</p>
-
-      <div class="auth-tabs" role="tablist">
-        <button class="auth-tab active" data-auth-tab="login">Login</button>
-        <button class="auth-tab" data-auth-tab="register">Register</button>
-      </div>
 
       <form id="loginForm" class="auth-form">
         <label>Email / Username
@@ -28,10 +23,17 @@
           <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="Enter password">
         </label>
         <button class="primary-btn" type="submit">Sign in</button>
-        <p class="demo-note">Demo: admin@rhu.gov, mho@rhu.gov, nurse@rhu.gov, doctor@rhu.gov, parent@rhu.gov / password: <strong>demo123</strong></p>
+        <p class="help-note">One login form only. Your account role automatically opens the correct dashboard.</p>
+        <button class="ghost-btn full-btn" type="button" id="showParentRegistration">Create parent account</button>
       </form>
 
       <form id="registerForm" class="auth-form hidden">
+        <div class="section-head compact-head">
+          <div>
+            <h3>Parent Registration</h3>
+            <p>This public registration is limited to Mother / Parent accounts only.</p>
+          </div>
+        </div>
         <label>Full Name
           <input type="text" id="regName" required placeholder="Juanita Santos">
         </label>
@@ -47,14 +49,16 @@
           </label>
         </div>
         <div class="two-col">
-          <label>Role
-            <select id="regRole" required></select>
-          </label>
           <label>Barangay / Clinic Assignment
             <select id="regBarangay" required></select>
           </label>
+          <label>Contact Number
+            <input type="tel" id="regContact" required placeholder="09XXXXXXXXX">
+          </label>
         </div>
-        <button class="primary-btn" type="submit">Create account</button>
+        <input type="hidden" id="regRole" value="Mother / Parent">
+        <button class="primary-btn" type="submit">Create parent account</button>
+        <button class="ghost-btn full-btn" type="button" id="backToLogin">Back to login</button>
       </form>
     </section>
   </main>
@@ -62,7 +66,7 @@
   <div id="appShell" class="app-shell hidden">
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-head">
-        <div class="brand-mark small">RHU</div>
+        <div class="brand-mark small logo-placeholder"><img src="logo.png" alt="RHU logo" class="brand-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';"><span class="logo-fallback">Logo</span></div>
         <div>
           <strong>Health Monitor</strong>
           <span id="rolePill" class="role-pill"></span>
@@ -106,6 +110,8 @@
   </div>
 
   <input id="restoreFile" class="hidden" type="file" accept="application/json">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

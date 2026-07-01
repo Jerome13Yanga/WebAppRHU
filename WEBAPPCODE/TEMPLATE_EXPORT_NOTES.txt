@@ -1,0 +1,18 @@
+MC/CC EXACT TEMPLATE EXPORT NOTES
+
+The project now uses the exact XLSX templates supplied by the user:
+
+- reference-templates/MC TCL.xlsx
+- reference-templates/CC Immunization.xlsx
+
+How it works:
+1. Nurses/Midwives complete MC/CC details in the system.
+2. Auto-generate MC/CC from Monthly Reports.
+3. Open a generated report and click Excel (.xlsx).
+4. The app loads the matching uploaded XLSX template, fills the data rows, preserves the worksheet formatting, and downloads an Excel file.
+
+Important:
+- Use a deployed site or a local server such as VS Code Live Server. Browser security may block fetching XLSX templates when opening index.html directly with file://.
+- CSV export is still available for quick checking, but the Excel (.xlsx) export is the exact template-based export.
+- MC uses MC TCL.xlsx.
+- CC uses CC Immunization.xlsx.
