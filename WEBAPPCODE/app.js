@@ -58,18 +58,18 @@ function reportTypeShort(type) {
 }
 
 const pages = [
-  { id: "dashboard", label: "Dashboard", icon: "▦", roles },
-  { id: "maternal", label: "Maternal Records", icon: "M", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "infants", label: "Infant Records", icon: "I", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "schedules", label: "Check-up Schedules", icon: "◷", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
-  { id: "forms", label: "My Health Forms", icon: "F", roles: ["Mother / Parent"] },
-  { id: "reminders", label: "Reminders", icon: "✉", roles: ["Administrator", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "barangay", label: "Barangay Monitoring", icon: "⌂", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "reports", label: "Monthly Reports", icon: "▤", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "users", label: "Users and Roles", icon: "U", roles: ["Administrator"] },
-  { id: "backup", label: "Backup and Recovery", icon: "⇩", roles: ["Administrator"] },
-  { id: "contacts", label: "Emergency Contacts", icon: "☎", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
-  { id: "logout", label: "Logout", icon: "↩", roles }
+  { id: "dashboard", label: "Dashboard", icon: '<i data-lucide="layout-dashboard" class="w-4 h-4 inline-block"></i>', roles },
+  { id: "maternal", label: "Maternal Records", icon: '<i data-lucide="heart-pulse" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "infants", label: "Infant Records", icon: '<i data-lucide="baby" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "schedules", label: "Check-up Schedules", icon: '<i data-lucide="calendar" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
+  { id: "forms", label: "My Health Forms", icon: '<i data-lucide="file-text" class="w-4 h-4 inline-block"></i>', roles: ["Mother / Parent"] },
+  { id: "reminders", label: "Reminders", icon: '<i data-lucide="bell" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "barangay", label: "Barangay Monitoring", icon: '<i data-lucide="building-2" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "reports", label: "Monthly Reports", icon: '<i data-lucide="file-bar-chart" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "users", label: "Users and Roles", icon: '<i data-lucide="users" class="w-4 h-4 inline-block"></i>', roles: ["Administrator"] },
+  { id: "backup", label: "Backup and Recovery", icon: '<i data-lucide="hard-drive-download" class="w-4 h-4 inline-block"></i>', roles: ["Administrator"] },
+  { id: "contacts", label: "Emergency Contacts", icon: '<i data-lucide="phone-call" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
+  { id: "logout", label: "Logout", icon: '<i data-lucide="log-out" class="w-4 h-4 inline-block"></i>', roles }
 ];
 
 // Supabase online setup
@@ -529,6 +529,47 @@ function bindAuth() {
 }
 
 
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.querySelectorAll(".pwa-install-btn").forEach((btn) => btn.classList.remove("hidden"));
+});
+
+function triggerPwaInstall() {
+  if (!deferredPrompt) {
+    toast("To install on mobile, tap your browser's share/menu button and select 'Add to Home Screen'.");
+    return;
+  }
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then((choiceResult) => {
+    if (choiceResult.outcome === "accepted") {
+      toast("Thank you for installing RHU Health App!");
+    }
+    deferredPrompt = null;
+    document.querySelectorAll(".pwa-install-btn").forEach((btn) => btn.classList.add("hidden"));
+  });
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").then(() => {
+      console.log("RHU Health PWA Service Worker registered.");
+    }).catch((err) => console.log("Service Worker registration failed:", err));
+  });
+}
+
+let resizeChartTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeChartTimer);
+  resizeChartTimer = setTimeout(() => {
+    const shell = document.getElementById("appShell");
+    if (shell && !shell.classList.contains("hidden")) {
+      renderPage(activePage);
+    }
+  }, 250);
+});
+
 function bindShell() {
   document.getElementById("menuToggle").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("open"));
   document.getElementById("modalClose").addEventListener("click", closeModal);
@@ -537,6 +578,9 @@ function bindShell() {
   });
   document.getElementById("globalSearch").addEventListener("input", () => renderPage(activePage));
   document.getElementById("restoreFile").addEventListener("change", restoreBackupFile);
+  document.querySelectorAll(".pwa-install-btn").forEach((btn) => {
+    btn.addEventListener("click", triggerPwaInstall);
+  });
 }
 
 function showAuth() {
@@ -601,6 +645,9 @@ function renderPage(page) {
   document.getElementById("pageSubtitle").textContent = titles[page][1];
   const renderers = { dashboard: renderDashboard, maternal: renderMaternal, infants: renderInfants, schedules: renderSchedules, forms: renderParentForms, reminders: renderReminders, barangay: renderBarangay, reports: renderReports, users: renderUsers, backup: renderBackup, contacts: renderContacts };
   renderers[page]();
+  if (typeof window.lucide !== "undefined" && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
 }
 
 
@@ -1469,7 +1516,8 @@ function renderBarChart(containerId, data, options = {}) {
     const barHeight = (chartHeight * value) / max;
     const x = pad + rowIndex * groupWidth + Math.max(6, (groupWidth - barWidth * series.length) / 2) + seriesIndex * barWidth;
     const y = height - bottomPad - barHeight;
-    return `<rect x="${x}" y="${y}" width="${Math.max(4, barWidth - 3)}" height="${barHeight}" rx="5" fill="${colors[seriesIndex % colors.length]}"><title>${escapeHtml(row.fullLabel || row.label)} ${escapeHtml(name)}: ${value}</title></rect>`;
+    const valText = value > 0 ? `<text x="${x + (barWidth - 3) / 2}" y="${Math.max(16, y - 5)}" text-anchor="middle" class="chart-label value-label">${value}</text>` : "";
+    return `<rect x="${x}" y="${y}" width="${Math.max(4, barWidth - 3)}" height="${barHeight}" rx="5" fill="${colors[seriesIndex % colors.length]}"><title>${escapeHtml(row.fullLabel || row.label)} ${escapeHtml(name)}: ${value}</title></rect>${valText}`;
   }).join("")).join("");
   const labels = prepared.map((row, index) => {
     const x = pad + index * groupWidth + groupWidth / 2;
@@ -1540,8 +1588,10 @@ function renderLineChart(containerId, data, options = {}) {
     const points = data.map((row, i) => `${pad + i * step},${height - pad - ((height - pad * 2) * Number(row[name] || 0)) / max}`).join(" ");
     const dots = data.map((row, i) => {
       const x = pad + i * step;
-      const y = height - pad - ((height - pad * 2) * Number(row[name] || 0)) / max;
-      return `<circle cx="${x}" cy="${y}" r="4" fill="${colors[index]}"><title>${escapeHtml(row.label)} ${escapeHtml(name)}: ${row[name]}</title></circle>`;
+      const val = Number(row[name] || 0);
+      const y = height - pad - ((height - pad * 2) * val) / max;
+      const valText = val > 0 ? `<text x="${x}" y="${Math.max(14, y - 7)}" text-anchor="middle" class="chart-label value-label">${val}</text>` : "";
+      return `<circle cx="${x}" cy="${y}" r="5" fill="${colors[index]}"><title>${escapeHtml(row.label)} ${escapeHtml(name)}: ${val}</title></circle>${valText}`;
     }).join("");
     return `<polyline fill="none" stroke="${colors[index]}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${points}"></polyline>${dots}`;
   }).join("");
@@ -1583,7 +1633,7 @@ function updateChartsOnDataChange() {
 }
 
 function chartSvg(width, height, body) {
-  return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Analytics chart" style="height:${height}px">${body}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Analytics chart" class="responsive-svg">${body}</svg>`;
 }
 
 function gridLines(width, height, pad) {
@@ -2775,6 +2825,9 @@ function openModal(title, body) {
   document.getElementById("modalTitle").textContent = title;
   document.getElementById("modalBody").innerHTML = body;
   document.getElementById("modal").classList.remove("hidden");
+  if (typeof window.lucide !== "undefined" && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
 }
 
 function closeModal() {
@@ -2978,9 +3031,12 @@ function setContent(html) {
 
 function toast(message, error = false) {
   const el = document.createElement("div");
-  el.className = `toast${error ? " error" : ""}`;
-  el.textContent = message;
+  el.className = `toast${error ? " error" : ""} flex items-center gap-2`;
+  el.innerHTML = `<i data-lucide="${error ? 'alert-circle' : 'check-circle'}" class="w-4 h-4 text-current shrink-0"></i><span>${escapeHtml(message)}</span>`;
   document.getElementById("toastHost").appendChild(el);
+  if (typeof window.lucide !== "undefined" && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
   setTimeout(() => el.remove(), 3200);
 }
 

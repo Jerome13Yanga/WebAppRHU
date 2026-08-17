@@ -1,0 +1,27 @@
+{
+  "name": "RHU Maternal and Infant Health Monitoring",
+  "short_name": "RHU Health",
+  "description": "Barangay-based maternal and infant health monitoring system for Padre Burgos RHU",
+  "id": "./",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f9fb",
+  "theme_color": "#2778ad",
+  "scope": "./",
+  "categories": ["health", "medical"],
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

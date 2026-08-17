@@ -1,0 +1,24 @@
+{
+  "name": "rhu-maternal-infant-health",
+  "version": "1.0.0",
+  "description": "Barangay-based maternal and infant health monitoring system for Padre Burgos RHU",
+  "main": "index.html",
+  "scripts": {
+    "cap:init": "npx cap init \"RHU Health\" \"com.rhu.padreburgos.health\" --web-dir \".\"",
+    "cap:add": "npx cap add android",
+    "cap:copy": "npx cap copy android",
+    "cap:open": "npx cap open android"
+  },
+  "keywords": [
+    "pwa",
+    "rhu",
+    "health",
+    "maternal",
+    "infant",
+    "capacitor",
+    "android",
+    "apk"
+  ],
+  "author": "Padre Burgos RHU",
+  "license": "MIT"
+}

@@ -1,0 +1,67 @@
+/**
+ * Infant Records & Immunization Tracking UI Module
+ */
+import { escapeHtml, formatDate } from '../utils/sanitize.js';
+import { renderImmunizationBadge } from './components.js';
+
+export function renderInfantsView(state, selectedBarangay) {
+  const records = state.infantRecords.filter(r => !selectedBarangay || r.barangay === selectedBarangay);
+
+  return `
+    <div class="page-header flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <i data-lucide="baby" class="w-6 h-6 text-emerald-600"></i>
+          <span>Infant Immunization & Health Records</span>
+        </h2>
+        <p class="text-sm text-slate-500">Barangay: <strong>${escapeHtml(selectedBarangay || 'All')}</strong> (${records.length} infants)</p>
+      </div>
+      <button class="primary-btn flex items-center gap-1.5" id="addInfantBtn">
+        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+        <span>Add Infant Record</span>
+      </button>
+    </div>
+
+    <div class="panel">
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Infant Name</th>
+              <th>Parent Name</th>
+              <th>Age (Months)</th>
+              <th>Birthdate</th>
+              <th>Barangay</th>
+              <th>Immunization Status</th>
+              <th>Next Visit</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${records.length === 0 ? `
+              <tr><td colspan="8" class="text-center text-muted">No infant records found for ${escapeHtml(selectedBarangay || 'all barangays')}.</td></tr>
+            ` : records.map(i => `
+              <tr>
+                <td><strong>${escapeHtml(i.infantName)}</strong></td>
+                <td>${escapeHtml(i.parentName || 'N/A')}</td>
+                <td>${i.ageMonths || 0} mo</td>
+                <td>${formatDate(i.birthdate)}</td>
+                <td>${escapeHtml(i.barangay)}</td>
+                <td>${renderImmunizationBadge(i.immunizationStatus)}</td>
+                <td><small>${formatDate(i.nextCheckup)}</small></td>
+                <td class="space-x-1">
+                  <button class="icon-btn edit-infant-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(i.id)}" title="Edit">
+                    <i data-lucide="edit-3" class="w-4 h-4 text-blue-600"></i>
+                  </button>
+                  <button class="icon-btn delete-infant-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(i.id)}" title="Delete">
+                    <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
