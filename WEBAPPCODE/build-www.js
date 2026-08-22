@@ -16,7 +16,7 @@ function copyRecursive(src, dest) {
     fs.mkdirSync(dest, { recursive: true });
     fs.readdirSync(src).forEach(childItemName => {
       // Exclude build dirs and dev dirs
-      if (['node_modules', 'android', 'www', '.git', '.vscode', '.gemini', 'reference-templates'].includes(childItemName)) {
+      if (['node_modules', 'android', 'www', '.git', '.vscode', '.gemini'].includes(childItemName)) {
         return;
       }
       copyRecursive(path.join(src, childItemName), path.join(dest, childItemName));
@@ -35,7 +35,10 @@ const filesToCopy = [
   'sw.js',
   'offline.html',
   'logo.jpg',
-  'src'
+  'src',
+  'reference-templates',
+  'CC Template.xlsx',
+  'MC Template.xlsx'
 ];
 
 fs.readdirSync(srcDir).forEach(file => {

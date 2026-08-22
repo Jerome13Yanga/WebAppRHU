@@ -142,13 +142,13 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
       const d = rec.formDetails || {};
 
       lineA[0] = num;
-      lineA[1] = fmtDate(d.registrationDate || rec.created_at || rec.birthdate);
+      lineA[1] = fmtDate(d.registrationDate || rec.created_at || rec.birthdate || rec.birth_date);
       lineA[2] = d.familySerialNumber || `FAM-${2000 + num}`;
-      lineA[3] = rec.infantName || d.child_name || "";
-      lineA[4] = fmtDate(rec.birthdate || d.dob);
-      lineA[5] = rec.ageMonths || d.ageMonths || 0;
-      lineA[6] = (d.sex || "Male").toUpperCase().startsWith("F") ? "F" : "M";
-      lineA[7] = rec.motherName || rec.parentName || d.mother_name || "";
+      lineA[3] = rec.infantName || rec.infant_name || d.child_name || rec.fullName || rec.name || "";
+      lineA[4] = fmtDate(rec.birthdate || rec.birth_date || d.dob || d.birthdate);
+      lineA[5] = rec.ageMonths !== undefined ? rec.ageMonths : (rec.age_months !== undefined ? rec.age_months : (d.ageMonths || 0));
+      lineA[6] = (d.sex || rec.sex || "Male").toUpperCase().startsWith("F") ? "F" : "M";
+      lineA[7] = rec.motherName || rec.mother_name || rec.parentName || rec.parent_name || d.mother_name || d.parentName || "";
       lineA[8] = rec.address || d.address || rec.barangay || "";
       lineA[9] = checkSym(d.cpabTd2BeforeDelivery || d.td2Date);
       lineA[10] = checkSym(d.cpabTd3ToTd5BeforeDelivery || d.td3Date || d.td4Date || d.td5Date);
@@ -203,12 +203,27 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
     });
   }
 
-  try {
-    const res = await fetch(encodeURI(templatePath));
-    if (res.ok) {
-      const buffer = await res.arrayBuffer();
+  const possiblePaths = isMC
+    ? ["reference-templates/MC TCL.xlsx", "MC Template.xlsx", "MC TCL.xlsx"]
+    : ["reference-templates/CC Immunization.xlsx", "CC Template.xlsx", "CC Immunization.xlsx"];
+
+  let templateBuffer = null;
+  for (const p of possiblePaths) {
+    try {
+      const res = await fetch(encodeURI(p));
+      if (res.ok) {
+        templateBuffer = await res.arrayBuffer();
+        break;
+      }
+    } catch (e) {
+      // try next path
+    }
+  }
+
+  if (templateBuffer) {
+    try {
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(buffer);
+      await workbook.xlsx.load(templateBuffer);
       const sheet = workbook.worksheets[0];
 
       dataRows.forEach((rData, rIdx) => {
@@ -230,9 +245,9 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
       return;
+    } catch (err) {
+      console.log("Loading reference XLSX template failed, constructing programmatically:", err);
     }
-  } catch (err) {
-    console.log("Fetching reference XLSX template failed, constructing programmatically:", err);
   }
 
   const workbook = new ExcelJS.Workbook();

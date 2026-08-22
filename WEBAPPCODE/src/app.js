@@ -1121,11 +1121,19 @@ function openPadreBurgosMaternalModal(record = {}) {
 function bindReportsEvents() {
   document.getElementById("generateReportBtn")?.addEventListener("click", async () => {
     const current = getCurrentUser();
-    const targetBgy = (selectedBarangay === "All Barangays" || !selectedBarangay) ? (current?.barangay || "Basiao (Poblacion)") : selectedBarangay;
+    const targetBgy = selectedBarangay || "All Barangays";
     const currMonth = new Date().toISOString().slice(0, 7);
 
-    const mRecs = state.maternalRecords.filter(r => targetBgy === "All Barangays" || !targetBgy || r.barangay === targetBgy);
-    const iRecs = state.infantRecords.filter(r => targetBgy === "All Barangays" || !targetBgy || r.barangay === targetBgy);
+    const matchBgy = (rBgy, tBgy) => {
+      if (!tBgy || tBgy === "All Barangays") return true;
+      if (!rBgy) return true;
+      const a = String(rBgy).toLowerCase().trim();
+      const b = String(tBgy).toLowerCase().trim();
+      return a === b || a.includes(b) || b.includes(a);
+    };
+
+    const mRecs = state.maternalRecords.filter(r => matchBgy(r.barangay, targetBgy));
+    const iRecs = state.infantRecords.filter(r => matchBgy(r.barangay, targetBgy));
 
     const mcReport = {
       id: `rep_mc_${Date.now()}`,
@@ -1158,7 +1166,7 @@ function bindReportsEvents() {
     await persistRecord("monthlyReports", mcReport);
     await persistRecord("monthlyReports", ccReport);
 
-    toast(`Successfully generated MC and CC monthly reports for ${targetBgy}.`);
+    toast(`Successfully generated MC (${mRecs.length} record/s) and CC (${iRecs.length} record/s) monthly reports for ${targetBgy}.`);
     renderPage("reports");
   });
 
@@ -1168,9 +1176,17 @@ function bindReportsEvents() {
       const rep = state.monthlyReports.find(r => r.id === repId);
       if (!rep) return;
 
+      const matchBgy = (rBgy, tBgy) => {
+        if (!tBgy || tBgy === "All Barangays") return true;
+        if (!rBgy) return true;
+        const a = String(rBgy).toLowerCase().trim();
+        const b = String(tBgy).toLowerCase().trim();
+        return a === b || a.includes(b) || b.includes(a);
+      };
+
       const records = rep.type === "MC"
-        ? state.maternalRecords.filter(r => rep.barangay === "All Barangays" || !rep.barangay || r.barangay === rep.barangay)
-        : state.infantRecords.filter(r => rep.barangay === "All Barangays" || !rep.barangay || r.barangay === rep.barangay);
+        ? state.maternalRecords.filter(r => matchBgy(r.barangay, rep.barangay))
+        : state.infantRecords.filter(r => matchBgy(r.barangay, rep.barangay));
 
       exportMcCcReportToExcel(rep.type, rep.barangay, rep.month, records, rep);
     });
