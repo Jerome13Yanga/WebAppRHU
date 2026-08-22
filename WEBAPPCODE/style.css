@@ -514,7 +514,10 @@ textarea {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 860px;
+}
+
+.table-wrap table {
+  min-width: 760px;
 }
 
 th,
@@ -790,6 +793,16 @@ tr:last-child td {
 
   .sidebar.open {
     transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    cursor: pointer;
   }
 
   #menuToggle {
@@ -1094,26 +1107,37 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .chart-card {
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .chart-box {
   width: 100%;
+  max-width: 100%;
   margin-top: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
   position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .donut-box {
   min-height: auto;
-  overflow-x: visible;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
 }
 
 .chart-box svg {
@@ -1121,14 +1145,16 @@ textarea {
   height: auto;
   max-width: 100%;
   display: block;
+  overflow: hidden;
 }
 
 .donut-box svg {
   width: 100%;
-  max-width: 190px;
-  max-height: 190px;
+  max-width: 170px;
+  max-height: 170px;
   margin: 0 auto;
   display: block;
+  overflow: hidden;
 }
 
 .grid-line {
@@ -1141,9 +1167,8 @@ textarea {
   font-size: 12px;
 }
 
-
 .chart-empty {
-  min-height: 200px;
+  min-height: 180px;
   display: grid;
   place-items: center;
   align-content: center;
@@ -1170,48 +1195,74 @@ textarea {
 
 .donut-total {
   fill: var(--text);
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
 }
 
 .donut-layout {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
+  max-width: 100%;
   padding: 6px 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.donut-svg-wrap {
+  flex: 0 0 auto;
+  width: 160px;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
 }
 
 .donut-layout .chart-legend.vertical {
-  flex: 1 1 140px;
-  min-width: 120px;
+  flex: 1 1 120px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .chart-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px 8px;
   color: #455a64;
   font-size: 12px;
   margin-bottom: 6px;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .chart-legend.vertical {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 8px;
+  max-width: 100%;
 }
 
-.chart-legend span {
+.legend-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  font-size: 11px;
+  color: var(--text);
   white-space: nowrap;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-.chart-legend i {
+.legend-pill i {
   width: 9px;
   height: 9px;
   border-radius: 50%;
@@ -1368,7 +1419,11 @@ th {
     align-items: center;
     justify-content: center;
     text-align: center;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .donut-svg-wrap {
+    width: 140px;
   }
 
   .donut-layout .chart-legend.vertical {
@@ -1378,17 +1433,17 @@ th {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px 12px;
+    gap: 6px 8px;
   }
 
-  .chart-legend span {
+  .legend-pill {
     font-size: 11px;
-    white-space: nowrap;
+    padding: 3px 8px;
   }
 
   .donut-box svg {
-    max-width: 150px;
-    max-height: 150px;
+    max-width: 140px;
+    max-height: 140px;
   }
 
   .donut-total {
@@ -1663,6 +1718,92 @@ th {
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+}
+
+/* Panel & Data Table Layout Engine */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table th,
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.data-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.record-details-card {
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.infant-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.infant-item {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
 .contact-header {

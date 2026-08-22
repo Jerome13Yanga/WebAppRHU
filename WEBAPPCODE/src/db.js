@@ -96,12 +96,31 @@ export async function saveCollection(key, dataArray) {
 
 // Data row cleaner for Supabase
 export function cleanRemoteRow(key, row) {
+  if (!row) return {};
   const copy = { ...row };
-  if (key === "users") delete copy.password;
-  ["lmp", "edd", "birthdate", "lastCheckup", "nextCheckup", "date", "scheduleDate", "dateSubmitted"].forEach((field) => {
+
+  if (key === "users") {
+    delete copy.password;
+    delete copy.auth_user_id;
+  }
+
+  if (key === "infantRecords") {
+    if (copy.motherName) {
+      if (!copy.parentName) copy.parentName = copy.motherName;
+      delete copy.motherName;
+    }
+    delete copy.mother_name;
+  }
+
+  // Clean empty string dates/timestamps to null
+  const dateFields = ["lmp", "edd", "birthdate", "lastCheckup", "nextCheckup", "date", "scheduleDate", "dateSubmitted", "created_at", "updated_at", "verified_at"];
+  dateFields.forEach((field) => {
     if (copy[field] === "") copy[field] = null;
   });
+
   if (copy.time === "") copy.time = null;
   if (copy.authUserId === "") copy.authUserId = null;
+  if (copy.user_id === "") copy.user_id = null;
+
   return copy;
 }

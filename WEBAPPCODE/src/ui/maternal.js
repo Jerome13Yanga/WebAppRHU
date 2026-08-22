@@ -33,13 +33,14 @@ export function renderMaternalView(state, selectedBarangay) {
               <th>LMP / EDD</th>
               <th>Risk Level</th>
               <th>Visits Completed</th>
+              <th>Verification Status</th>
               <th>Assigned Nurse</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             ${records.length === 0 ? `
-              <tr><td colspan="8" class="text-center text-muted">No maternal records found for ${escapeHtml(selectedBarangay || 'all barangays')}.</td></tr>
+              <tr><td colspan="9" class="text-center text-muted">No maternal records found for ${escapeHtml(selectedBarangay || 'all barangays')}.</td></tr>
             ` : records.map(r => `
               <tr>
                 <td><strong>${escapeHtml(r.fullName)}</strong><br><small>${escapeHtml(r.contact || 'No contact')}</small></td>
@@ -48,9 +49,24 @@ export function renderMaternalView(state, selectedBarangay) {
                 <td><small>LMP: ${formatDate(r.lmp)}<br>EDD: ${formatDate(r.edd)}</small></td>
                 <td>${renderRiskBadge(r.riskLevel)}</td>
                 <td>${renderProgressBar(r.checkupsCompleted || 0, 8)}</td>
+                <td>
+                  <span class="badge ${r.verification_status === 'Verified' ? 'badge-success' : 'badge-warning'}">
+                    <span class="badge-dot"></span>${escapeHtml(r.verification_status || 'Pending Verification')}
+                  </span>
+                </td>
                 <td>${escapeHtml(r.assignedNurse || 'Unassigned')}</td>
                 <td class="space-x-1">
-                  <button class="icon-btn edit-maternal-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(r.id)}" title="Edit">
+                  ${r.verification_status !== 'Verified' ? `
+                    <button class="primary-btn sm-btn verify-maternal-btn inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded" data-id="${escapeHtml(r.id)}" title="Verify Health Record">
+                      <span class="material-symbols-outlined text-sm">check_circle</span>
+                      <span>Verify</span>
+                    </button>
+                  ` : ''}
+                  <button class="primary-btn sm-btn open-prenatal-clinical-modal-btn inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs" data-id="${escapeHtml(r.id)}" title="Open Prenatal Clinical Record">
+                    <span class="material-symbols-outlined text-sm">clinical_notes</span>
+                    <span>Clinical Record</span>
+                  </button>
+                  <button class="icon-btn edit-maternal-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(r.id)}" title="Edit Padre Burgos Form">
                     <span class="material-symbols-outlined text-blue-600 text-lg">edit</span>
                   </button>
                   <button class="icon-btn delete-maternal-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(r.id)}" title="Delete">

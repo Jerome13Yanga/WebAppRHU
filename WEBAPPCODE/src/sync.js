@@ -52,12 +52,15 @@ export async function flushPendingSyncQueue() {
           if (!error) {
             deleteQueueItem(syncId);
             successCount++;
+          } else if (error.code === 'PGRST204' || error.status === 400 || (error.message && error.message.includes('schema cache'))) {
+            console.warn(`Removing invalid schema payload from sync queue for ${collectionKey}:`, error.message);
+            deleteQueueItem(syncId);
           }
         } else if (actionType === 'DELETE') {
           const { error } = await db.from(tableName).delete().eq('id', payload.id);
-          if (!error) {
+          if (!error || error.status === 400) {
             deleteQueueItem(syncId);
-            successCount++;
+            if (!error) successCount++;
           }
         }
       }

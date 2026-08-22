@@ -570,8 +570,49 @@ window.addEventListener("resize", () => {
   }, 250);
 });
 
+function closeRootSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (sidebar) sidebar.classList.remove("open");
+  if (overlay) overlay.classList.add("hidden");
+}
+
+function openRootSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (sidebar) sidebar.classList.add("open");
+  if (overlay) overlay.classList.remove("hidden");
+}
+
 function bindShell() {
-  document.getElementById("menuToggle").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("open"));
+  const menuToggle = document.getElementById("menuToggle");
+  if (menuToggle) {
+    menuToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const sidebar = document.getElementById("sidebar");
+      if (sidebar?.classList.contains("open")) {
+        closeRootSidebar();
+      } else {
+        openRootSidebar();
+      }
+    });
+  }
+
+  const overlay = document.getElementById("sidebarOverlay");
+  if (overlay) {
+    overlay.addEventListener("click", closeRootSidebar);
+  }
+
+  document.addEventListener("click", (e) => {
+    const sidebar = document.getElementById("sidebar");
+    const menuToggle = document.getElementById("menuToggle");
+    if (sidebar && sidebar.classList.contains("open")) {
+      if (!sidebar.contains(e.target) && !menuToggle?.contains(e.target)) {
+        closeRootSidebar();
+      }
+    }
+  });
+
   document.getElementById("modalClose").addEventListener("click", closeModal);
   document.getElementById("modal").addEventListener("click", (event) => {
     if (event.target.id === "modal") closeModal();
@@ -581,6 +622,13 @@ function bindShell() {
   document.querySelectorAll(".pwa-install-btn").forEach((btn) => {
     btn.addEventListener("click", triggerPwaInstall);
   });
+  const bSelect = document.getElementById("topbarBarangaySelect");
+  if (bSelect) {
+    bSelect.addEventListener("change", (e) => {
+      selectedBarangay = e.target.value;
+      renderPage(activePage);
+    });
+  }
 }
 
 function showAuth() {
@@ -651,6 +699,8 @@ function renderPage(page) {
       bSelect.classList.add("hidden");
     } else {
       bSelect.classList.remove("hidden");
+      const opts = ["All Barangays", ...barangays];
+      bSelect.innerHTML = opts.map((b) => `<option value="${escapeHtml(b)}" ${b === selectedBarangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join("");
     }
   }
   const renderers = { dashboard: renderDashboard, maternal: renderMaternal, infants: renderInfants, schedules: renderSchedules, forms: renderParentForms, reminders: renderReminders, barangay: renderBarangay, reports: renderReports, users: renderUsers, backup: renderBackup, contacts: renderContacts };
@@ -1166,23 +1216,40 @@ function renderInfants() {
 
 function renderSchedules() {
   const current = getCurrentUser();
+  const isParent = current.role === "Mother / Parent";
   const canEdit = ["Administrator", "Nurse / Midwife"].includes(current.role);
-  const canRequest = current.role === "Mother / Parent";
+  const canRequest = isParent;
   const filters = getFilters();
-  let rows = current.role === "Mother / Parent" ? patientSchedules() : scoped(state.checkupSchedules);
+  let rows = isParent ? patientSchedules() : scoped(state.checkupSchedules);
   rows = applySearch(rows, ["patientName", "type", "barangay", "status", "assignedNurse"]);
   if (filters.barangay) rows = rows.filter((r) => r.barangay === filters.barangay);
   if (filters.status) rows = rows.filter((r) => r.status === filters.status);
   if (filters.date) rows = rows.filter((r) => r.date === filters.date);
-  const analytics = getScheduleAnalytics(current.role === "Mother / Parent" ? patientSchedules() : scoped(state.checkupSchedules));
+
   const actions = canEdit
     ? `<button class="primary-btn" data-open-schedule>Add schedule</button>`
     : canRequest
       ? `<button class="primary-btn" data-request-schedule>Request check-up</button>`
       : "";
+
+  if (isParent) {
+    setContent(`
+      <section class="section">
+        ${toolbar("Check-up Schedules", "Request and view your maternal or infant check-up schedules.", actions)}
+        <div class="card card-pad">
+          ${recordTable(rows, ["Patient", "Type", "Barangay", "Date", "Time", "Assigned Doctor", "Status", "Notes", "Actions"], (s) => [s.patientName, s.type, s.barangay, fmtDate(s.date), s.time, s.assignedNurse, badge(s.status), s.notes, scheduleActions(s, canEdit)])}
+        </div>
+      </section>
+    `);
+    if (canRequest) document.querySelector("[data-request-schedule]")?.addEventListener("click", () => openParentScheduleRequestForm());
+    bindRowActions();
+    return;
+  }
+
+  const analytics = getScheduleAnalytics(scoped(state.checkupSchedules));
   setContent(`
     <section class="section">
-      ${toolbar("Check-up Schedules", canRequest ? "Request and view your maternal or infant check-up schedules." : "Upcoming, completed, missed, and rescheduled appointments.", actions)}
+      ${toolbar("Check-up Schedules", "Upcoming, completed, missed, and rescheduled appointments.", actions)}
       ${renderAnalyticsCards(analytics.cards)}
       <div class="chart-grid compact">
         <div class="card card-pad chart-card"><div class="section-head"><div><h3>Check-ups by Status</h3><p>Operational appointment state</p></div></div><div id="scheduleStatusChart" class="chart-box donut-box"></div></div>
@@ -1195,8 +1262,7 @@ function renderSchedules() {
   renderDonutChart("scheduleStatusChart", analytics.status);
   renderBarChart("scheduleTypeChart", analytics.type, { series: ["Check-ups"] });
   bindFilters();
-  if (canEdit) document.querySelector("[data-open-schedule]").addEventListener("click", () => openScheduleForm());
-  if (canRequest) document.querySelector("[data-request-schedule]").addEventListener("click", () => openParentScheduleRequestForm());
+  if (canEdit) document.querySelector("[data-open-schedule]")?.addEventListener("click", () => openScheduleForm());
   bindRowActions();
 }
 
@@ -1541,43 +1607,47 @@ function renderBarChart(containerId, data, options = {}) {
   }
 
   const max = Math.max(1, ...prepared.flatMap((row) => series.map((name) => Number(row[name] || 0))));
-  const width = 640;
-  const height = 270;
-  const pad = 42;
-  const bottomPad = 50;
-  const groupWidth = (width - pad * 2) / Math.max(1, prepared.length);
-  const barWidth = Math.max(8, Math.min(36, (groupWidth - 14) / Math.max(1, series.length)));
-  const colors = ["#1976d2", "#2e7d32", "#ed6c02", "#d32f2f"];
+  const width = 500;
+  const height = 240;
+  const pad = 40;
+  const bottomPad = 60;
   const chartHeight = height - pad - bottomPad;
+  const groupWidth = (width - pad * 2) / Math.max(1, prepared.length);
+  const barWidth = Math.max(10, Math.min(26, (groupWidth - 16) / Math.max(1, series.length)));
+  const colors = ["#1976d2", "#2e7d32", "#ed6c02", "#d32f2f"];
+
   const bars = prepared.map((row, rowIndex) => series.map((name, seriesIndex) => {
     const value = Number(row[name] || 0);
     const barHeight = (chartHeight * value) / max;
-    const x = pad + rowIndex * groupWidth + Math.max(6, (groupWidth - barWidth * series.length) / 2) + seriesIndex * barWidth;
+    const groupX = pad + rowIndex * groupWidth;
+    const x = groupX + (groupWidth - barWidth * series.length) / 2 + seriesIndex * barWidth;
     const y = height - bottomPad - barHeight;
-    const valText = value > 0 ? `<text x="${x + (barWidth - 3) / 2}" y="${Math.max(16, y - 5)}" text-anchor="middle" class="chart-label value-label">${value}</text>` : "";
-    return `<rect x="${x}" y="${y}" width="${Math.max(4, barWidth - 3)}" height="${barHeight}" rx="5" fill="${colors[seriesIndex % colors.length]}"><title>${escapeHtml(row.fullLabel || row.label)} ${escapeHtml(name)}: ${value}</title></rect>${valText}`;
+    const valText = value > 0 ? `<text x="${x + barWidth / 2}" y="${Math.max(16, y - 5)}" text-anchor="middle" class="chart-label value-label">${value}</text>` : "";
+    return `<rect x="${x}" y="${y}" width="${Math.max(4, barWidth - 2)}" height="${Math.max(2, barHeight)}" rx="4" fill="${colors[seriesIndex % colors.length]}"><title>${escapeHtml(row.fullLabel || row.label)} ${escapeHtml(name)}: ${value}</title></rect>${valText}`;
   }).join("")).join("");
+
   const labels = prepared.map((row, index) => {
     const x = pad + index * groupWidth + groupWidth / 2;
-    return `<text x="${x}" y="${height - 26}" text-anchor="end" transform="rotate(-35 ${x} ${height - 26})" class="chart-label"><title>${escapeHtml(row.fullLabel || row.label)}</title>${escapeHtml(row.label)}</text>`;
+    return `<text x="${x}" y="${height - 20}" text-anchor="end" transform="rotate(-30 ${x} ${height - 20})" class="chart-label"><title>${escapeHtml(row.fullLabel || row.label)}</title>${escapeHtml(row.label)}</text>`;
   }).join("");
+
   el.innerHTML = chartSvg(width, height, `${gridLines(width, height - bottomPad + 8, pad)}${bars}${labels}${legend(series, colors, pad)}`);
 }
 
 function renderHorizontalBarChart(el, data, series) {
   const colors = ["#1976d2", "#2e7d32", "#ed6c02", "#d32f2f"];
-  const width = 760;
+  const width = 500;
   const rowHeight = Math.max(28, 18 + series.length * 11);
-  const labelWidth = 160;
-  const topPad = 42;
-  const bottomPad = 24;
-  const rightPad = 40;
+  const labelWidth = 130;
+  const topPad = 36;
+  const bottomPad = 20;
+  const rightPad = 30;
   const barAreaWidth = width - labelWidth - rightPad;
   const height = topPad + bottomPad + data.length * rowHeight;
   const max = Math.max(1, ...data.flatMap((row) => series.map((name) => Number(row[name] || 0))));
   const rows = data.map((row, rowIndex) => {
     const baseY = topPad + rowIndex * rowHeight;
-    const label = `<text x="12" y="${baseY + Math.min(20, rowHeight - 8)}" class="chart-label horizontal-label"><title>${escapeHtml(row.fullLabel || row.label)}</title>${escapeHtml(truncateLabel(row.fullLabel || row.label, 22))}</text>`;
+    const label = `<text x="12" y="${baseY + Math.min(20, rowHeight - 8)}" class="chart-label horizontal-label"><title>${escapeHtml(row.fullLabel || row.label)}</title>${escapeHtml(truncateLabel(row.fullLabel || row.label, 18))}</text>`;
     const guides = `<line x1="${labelWidth}" x2="${width - rightPad}" y1="${baseY + rowHeight - 4}" y2="${baseY + rowHeight - 4}" class="grid-line"></line>`;
     const bars = series.map((name, seriesIndex) => {
       const value = Number(row[name] || 0);
@@ -1600,10 +1670,10 @@ function prepareChartData(data, series, options = {}) {
 }
 
 function formatChartLabel(value) {
-  return truncateLabel(shortBarangay(value), 14);
+  return truncateLabel(shortBarangay(value), 12);
 }
 
-function truncateLabel(value, max = 14) {
+function truncateLabel(value, max = 12) {
   const text = String(value ?? "");
   return text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text;
 }
@@ -1616,43 +1686,55 @@ function renderLineChart(containerId, data, options = {}) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const series = options.series || Object.keys(data[0] || {}).filter((key) => key !== "label");
-  const width = 640;
-  const height = 250;
-  const pad = 34;
+  const width = 500;
+  const height = 220;
+  const padLeft = 42;
+  const padRight = 42;
+  const padTop = 36;
+  const padBottom = 34;
+  const chartWidth = width - padLeft - padRight;
+  const chartHeight = height - padTop - padBottom;
   const max = Math.max(1, ...data.flatMap((row) => series.map((name) => Number(row[name] || 0))));
   const colors = ["#2e7d32", "#d32f2f", "#ed6c02"];
-  const step = (width - pad * 2) / Math.max(1, data.length - 1);
+  const step = chartWidth / Math.max(1, data.length - 1);
   const lines = series.map((name, index) => {
-    const points = data.map((row, i) => `${pad + i * step},${height - pad - ((height - pad * 2) * Number(row[name] || 0)) / max}`).join(" ");
+    const points = data.map((row, i) => `${padLeft + i * step},${height - padBottom - (chartHeight * Number(row[name] || 0)) / max}`).join(" ");
     const dots = data.map((row, i) => {
-      const x = pad + i * step;
+      const x = padLeft + i * step;
       const val = Number(row[name] || 0);
-      const y = height - pad - ((height - pad * 2) * val) / max;
+      const y = height - padBottom - (chartHeight * val) / max;
       const valText = val > 0 ? `<text x="${x}" y="${Math.max(14, y - 7)}" text-anchor="middle" class="chart-label value-label">${val}</text>` : "";
-      return `<circle cx="${x}" cy="${y}" r="5" fill="${colors[index]}"><title>${escapeHtml(row.label)} ${escapeHtml(name)}: ${val}</title></circle>${valText}`;
+      return `<circle cx="${x}" cy="${y}" r="4.5" fill="${colors[index]}"><title>${escapeHtml(row.label)} ${escapeHtml(name)}: ${val}</title></circle>${valText}`;
     }).join("");
-    return `<polyline fill="none" stroke="${colors[index]}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${points}"></polyline>${dots}`;
+    return `<polyline fill="none" stroke="${colors[index]}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${points}"></polyline>${dots}`;
   }).join("");
-  const labels = data.map((row, index) => `<text x="${pad + index * step}" y="${height - 10}" text-anchor="middle" class="chart-label">${escapeHtml(row.label)}</text>`).join("");
-  el.innerHTML = chartSvg(width, height, `${gridLines(width, height, pad)}${lines}${labels}${legend(series, colors, pad)}`);
+  const labels = data.map((row, index) => `<text x="${padLeft + index * step}" y="${height - 10}" text-anchor="middle" class="chart-label">${escapeHtml(row.label)}</text>`).join("");
+  el.innerHTML = chartSvg(width, height, `${gridLines(width, height - padBottom, padLeft)}${lines}${labels}${legend(series, colors, padLeft)}`);
 }
 
 function renderDonutChart(containerId, data) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  const total = Math.max(1, data.reduce((sum, item) => sum + Number(item.value || 0), 0));
-  const radius = 62;
+  const total = Math.max(0, data.reduce((sum, item) => sum + Number(item.value || 0), 0));
+  const radius = 50;
   const circumference = Math.PI * 2 * radius;
-  const colors = ["#2e7d32", "#ed6c02", "#d32f2f", "#1976d2"];
+  const colors = ["#2e7d32", "#ed6c02", "#d32f2f", "#1976d2", "#9c27b0", "#00bcd4"];
   let offset = 0;
   const rings = data.map((item, index) => {
-    const length = (Number(item.value || 0) / total) * circumference;
-    const ring = `<circle cx="110" cy="100" r="${radius}" fill="none" stroke="${colors[index % colors.length]}" stroke-width="24" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" transform="rotate(-90 110 100)"><title>${escapeHtml(item.label)}: ${item.value}</title></circle>`;
+    const val = Number(item.value || 0);
+    const length = total > 0 ? (val / total) * circumference : 0;
+    const ring = `<circle cx="75" cy="75" r="${radius}" fill="none" stroke="${colors[index % colors.length]}" stroke-width="18" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" transform="rotate(-90 75 75)"><title>${escapeHtml(item.label)}: ${val}</title></circle>`;
     offset += length;
     return ring;
   }).join("");
-  const items = data.map((item, index) => `<span><i style="background:${colors[index % colors.length]}"></i>${escapeHtml(item.label)} ${escapeHtml(item.value)}</span>`).join("");
-  el.innerHTML = `<div class="donut-layout">${chartSvg(220, 200, `<circle cx="110" cy="100" r="${radius}" fill="none" stroke="#e8eef3" stroke-width="24"></circle>${rings}<text x="110" y="96" text-anchor="middle" class="donut-total">${total}</text><text x="110" y="116" text-anchor="middle" class="chart-label">Total</text>`)}<div class="chart-legend vertical">${items}</div></div>`;
+  const items = data.map((item, index) => `<span class="legend-pill"><i style="background:${colors[index % colors.length]}"></i>${escapeHtml(item.label)}: <strong>${escapeHtml(item.value)}</strong></span>`).join("");
+  el.innerHTML = `
+    <div class="donut-layout">
+      <div class="donut-svg-wrap">
+        ${chartSvg(150, 150, `<circle cx="75" cy="75" r="${radius}" fill="none" stroke="#e8eef3" stroke-width="18"></circle>${rings}<text x="75" y="71" text-anchor="middle" class="donut-total">${total}</text><text x="75" y="88" text-anchor="middle" class="chart-label">Total</text>`)}
+      </div>
+      <div class="chart-legend vertical">${items}</div>
+    </div>`;
 }
 
 function renderProgressBar(containerId, value, max, label) {
@@ -1671,12 +1753,12 @@ function updateChartsOnDataChange() {
 }
 
 function chartSvg(width, height, body) {
-  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Analytics chart" class="responsive-svg">${body}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Analytics chart" class="responsive-svg" style="overflow: hidden; max-width: 100%; width: 100%; display: block;">${body}</svg>`;
 }
 
 function gridLines(width, height, pad) {
   return [0, 1, 2, 3].map((i) => {
-    const y = pad + ((height - pad * 2) / 3) * i;
+    const y = 36 + ((height - 36 - 30) / 3) * i;
     return `<line x1="${pad}" x2="${width - pad}" y1="${y}" y2="${y}" class="grid-line"></line>`;
   }).join("");
 }
@@ -1685,8 +1767,8 @@ function legend(series, colors, startX) {
   let currentX = startX;
   return series.map((name, index) => {
     const itemX = currentX;
-    currentX += Math.max(84, String(name || "").length * 8 + 24);
-    return `<g transform="translate(${itemX},18)"><circle r="5" fill="${colors[index % colors.length]}"></circle><text x="10" y="4" class="chart-label">${escapeHtml(name)}</text></g>`;
+    currentX += Math.max(76, String(name || "").length * 7 + 22);
+    return `<g transform="translate(${itemX},18)"><circle r="4.5" fill="${colors[index % colors.length]}"></circle><text x="9" y="4" class="chart-label">${escapeHtml(name)}</text></g>`;
   }).join("");
 }
 
