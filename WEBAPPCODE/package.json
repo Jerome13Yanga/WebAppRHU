@@ -4,10 +4,20 @@
   "description": "Barangay-based maternal and infant health monitoring system for Padre Burgos RHU",
   "main": "index.html",
   "scripts": {
-    "cap:init": "npx cap init \"RHU Health\" \"com.rhu.padreburgos.health\" --web-dir \".\"",
-    "cap:add": "npx cap add android",
-    "cap:copy": "npx cap copy android",
-    "cap:open": "npx cap open android"
+    "build": "node build-www.js",
+    "cap:init": "npx cap init \"RHU Health\" \"com.rhu.padreburgos.health\" --web-dir \"www\"",
+    "cap:add": "node build-www.js && npx cap add android",
+    "cap:copy": "node build-www.js && npx cap copy android",
+    "cap:sync": "node build-www.js && npx cap sync android",
+    "cap:open": "npx cap open android",
+    "apk:build": "node build-apk.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0"
   },
   "keywords": [
     "pwa",

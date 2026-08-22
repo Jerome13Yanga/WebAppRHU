@@ -58,18 +58,18 @@ function reportTypeShort(type) {
 }
 
 const pages = [
-  { id: "dashboard", label: "Dashboard", icon: '<i data-lucide="layout-dashboard" class="w-4 h-4 inline-block"></i>', roles },
-  { id: "maternal", label: "Maternal Records", icon: '<i data-lucide="heart-pulse" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "infants", label: "Infant Records", icon: '<i data-lucide="baby" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "schedules", label: "Check-up Schedules", icon: '<i data-lucide="calendar" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
-  { id: "forms", label: "My Health Forms", icon: '<i data-lucide="file-text" class="w-4 h-4 inline-block"></i>', roles: ["Mother / Parent"] },
-  { id: "reminders", label: "Reminders", icon: '<i data-lucide="bell" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "barangay", label: "Barangay Monitoring", icon: '<i data-lucide="building-2" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "reports", label: "Monthly Reports", icon: '<i data-lucide="file-bar-chart" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "users", label: "Users and Roles", icon: '<i data-lucide="users" class="w-4 h-4 inline-block"></i>', roles: ["Administrator"] },
-  { id: "backup", label: "Backup and Recovery", icon: '<i data-lucide="hard-drive-download" class="w-4 h-4 inline-block"></i>', roles: ["Administrator"] },
-  { id: "contacts", label: "Emergency Contacts", icon: '<i data-lucide="phone-call" class="w-4 h-4 inline-block"></i>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
-  { id: "logout", label: "Logout", icon: '<i data-lucide="log-out" class="w-4 h-4 inline-block"></i>', roles }
+  { id: "dashboard", label: "Dashboard", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">dashboard</span>', roles },
+  { id: "maternal", label: "Maternal Records", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">health_and_safety</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "infants", label: "Infant Records", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">child_care</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "schedules", label: "Check-up Schedules", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">event</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
+  { id: "forms", label: "My Health Forms", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">description</span>', roles: ["Mother / Parent"] },
+  { id: "reminders", label: "Reminders", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">notifications</span>', roles: ["Administrator", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "barangay", label: "Barangay Monitoring", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">location_city</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "reports", label: "Monthly Reports", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">analytics</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "users", label: "Users and Roles", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">group</span>', roles: ["Administrator"] },
+  { id: "backup", label: "Backup and Recovery", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">settings_backup_restore</span>', roles: ["Administrator"] },
+  { id: "contacts", label: "Emergency Contacts", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">call</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
+  { id: "logout", label: "Logout", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">logout</span>', roles }
 ];
 
 // Supabase online setup
@@ -838,183 +838,107 @@ function renderParentForms() {
   const current = getCurrentUser();
   const mother = currentMotherRecord();
   const infants = currentInfantRecords();
-  const motherDetails = mother?.formDetails || {};
 
   setContent(`
     <section class="section">
-      ${toolbar("Parent Health Forms", "Parents can choose from three forms: Prenatal Record, Maternal Record, and Infant Immunization Card. The assigned Nurse/Midwife and Doctor in the barangay can review the submitted records.", "")}
-
+      ${toolbar("Parent Health Forms", "Parents can choose from three forms: Prenatal Record, Maternal Record, and Infant Immunization Card. Select a form below to fill up in a pop-up window.", "")}
 
       <div class="card card-pad">
         <div class="section-head">
-          <div><h3>Choose a Form</h3><p>Select the form you want to fill up first. This helps avoid opening the wrong form.</p></div>
-          ${badge("Step 1")}
+          <div><h3>Choose a Form</h3><p>Tap a form card to open the fill-up form in a pop-up modal.</p></div>
+          ${badge("Form Selection")}
         </div>
         <div class="barangay-grid">
-          <button class="card barangay-card" type="button" data-open-parent-form="prenatal">
-            <h4>Prenatal Record</h4>
+          <button class="card barangay-card hover:border-blue-500 cursor-pointer text-left transition-all" type="button" data-open-parent-modal="prenatal">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="material-symbols-outlined text-blue-600 text-2xl">description</span>
+              <h4 class="m-0 text-base font-bold text-slate-800">Prenatal Record</h4>
+            </div>
             <div class="metric-list">
-              <div><span>Use for</span><strong>Initial check-up and prenatal visits</strong></div>
+              <div><span>Use for</span><strong>Initial check-up & prenatal visits</strong></div>
               <div><span>Status</span><strong>${escapeHtml(mother ? "Saved / Update anytime" : "Not submitted")}</strong></div>
             </div>
-          </button>
-          <button class="card barangay-card" type="button" data-open-parent-form="maternal">
-            <h4>Maternal Record</h4>
-            <div class="metric-list">
-              <div><span>Use for</span><strong>Maternal, postpartum, and family planning details</strong></div>
-              <div><span>Status</span><strong>${escapeHtml(mother ? (mother.pregnancyStatus || "For Review") : "Not submitted")}</strong></div>
+            <div class="mt-3 text-xs font-semibold text-blue-600 flex items-center gap-1">
+              <span>Fill up form</span> <span class="material-symbols-outlined text-sm">open_in_new</span>
             </div>
           </button>
-          <button class="card barangay-card" type="button" data-open-parent-form="infant">
-            <h4>Infant Immunization Card</h4>
+
+          <button class="card barangay-card hover:border-blue-500 cursor-pointer text-left transition-all" type="button" data-open-parent-modal="maternal">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="material-symbols-outlined text-pink-600 text-2xl">health_and_safety</span>
+              <h4 class="m-0 text-base font-bold text-slate-800">Maternal Record</h4>
+            </div>
+            <div class="metric-list">
+              <div><span>Use for</span><strong>Maternal, postpartum & family planning</strong></div>
+              <div><span>Status</span><strong>${escapeHtml(mother ? (mother.pregnancyStatus || "For Review") : "Not submitted")}</strong></div>
+            </div>
+            <div class="mt-3 text-xs font-semibold text-pink-600 flex items-center gap-1">
+              <span>Fill up form</span> <span class="material-symbols-outlined text-sm">open_in_new</span>
+            </div>
+          </button>
+
+          <button class="card barangay-card hover:border-blue-500 cursor-pointer text-left transition-all" type="button" data-open-parent-modal="infant">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="material-symbols-outlined text-emerald-600 text-2xl">child_care</span>
+              <h4 class="m-0 text-base font-bold text-slate-800">Infant Immunization Card</h4>
+            </div>
             <div class="metric-list">
               <div><span>Use for</span><strong>Baby / immunization details</strong></div>
-              <div><span>Reminder</span><strong>${mother ? "Ready" : "Save a prenatal or maternal form first"}</strong></div>
+              <div><span>Reminder</span><strong>${mother ? "Ready" : "Save prenatal/maternal form first"}</strong></div>
+            </div>
+            <div class="mt-3 text-xs font-semibold text-emerald-600 flex items-center gap-1">
+              <span>Fill up form</span> <span class="material-symbols-outlined text-sm">open_in_new</span>
             </div>
           </button>
         </div>
       </div>
 
-      <div class="card card-pad hidden" data-parent-form-panel="prenatal">
-        <div class="section-head"><div><h3>Prenatal Record Form</h3><p>Use this for initial prenatal check-up details and visit records. The assigned barangay Nurse/Midwife can edit this later for assistance.</p></div>${badge(mother ? "Saved / Editable" : "Not Submitted")}</div>
-        <div class="actions"><button class="ghost-btn" type="button" data-back-form-menu>Back to form choices</button></div>
-        <form id="parentPrenatalForm" class="form-grid detailed-form">
-          <input type="hidden" name="id" value="${escapeHtml(mother?.id || makeId("M"))}">
-          ${formDivider("Basic Information")}
-          <div class="two-col">${input("Full Name", "fullName", mother?.fullName || current.name)}${input("Age", "age", mother?.age || "", false, "number")}</div>
-          ${input("Address", "address", mother?.address || "")}
-          <div class="two-col">${select("Barangay", "barangay", barangays, mother?.barangay || current.barangay || barangays[0])}${input("Contact Number", "contact", mother?.contact || "", false, "tel")}</div>
-          <div class="two-col">${input("LMP", "lmp", mother?.lmp || "", false, "date")}${input("EDD / EDC", "edd", mother?.edd || "", false, "date")}</div>
-          ${prenatalRecordFieldsHtml(mother)}
-          <input type="hidden" name="pregnancyStatus" value="${escapeHtml(mother?.pregnancyStatus || "For Review")}">
-          <input type="hidden" name="checkupsCompleted" value="${escapeHtml(mother?.checkupsCompleted || 0)}">
-          <input type="hidden" name="riskLevel" value="${escapeHtml(mother?.riskLevel || "Pending")}">
-          <input type="hidden" name="assignedNurse" value="${escapeHtml(mother?.assignedNurse || "For assignment")}">
-          ${textarea("Notes / Concerns", "notes", mother?.notes || "")}
-          <button class="primary-btn" type="submit">Save prenatal record</button>
-        </form>
-      </div>
-
-      <div class="card card-pad hidden" data-parent-form-panel="maternal">
-        <div class="section-head"><div><h3>Maternal Record / Postpartum Form</h3><p>Use this for maternal, postpartum, family planning, action, and laboratory details.</p></div>${badge(mother ? (mother.pregnancyStatus || "For Review") : "Not Submitted")}</div>
-        <div class="actions"><button class="ghost-btn" type="button" data-back-form-menu>Back to form choices</button></div>
-        <form id="parentMaternalForm" class="form-grid detailed-form">
-          <input type="hidden" name="id" value="${escapeHtml(mother?.id || makeId("M"))}">
-
-          ${formDivider("Personal Information")}
-          <div class="three-col">${input("Full Name", "fullName", mother?.fullName || current.name)}${inputOptional("Blood Type", "bloodType", detailValue(mother, "bloodType"))}${inputOptional("Birthday", "birthday", detailValue(mother, "birthday"), "date")}</div>
-          ${input("Address", "address", mother?.address || "")}
-          <div class="three-col">${select("Barangay", "barangay", barangays, mother?.barangay || current.barangay || barangays[0])}${input("Contact Number", "contact", mother?.contact || "", false, "tel")}${input("Age", "age", mother?.age || "", false, "number")}</div>
-          <div class="three-col">${inputOptional("Height", "heightCm", detailValue(mother, "heightCm"))}${inputOptional("Weight", "weightKg", detailValue(mother, "weightKg"))}${inputOptional("BMI", "bmi", detailValue(mother, "bmi"))}</div>
-
-          ${formDivider("Tetanus Toxoid")}
-          <div class="three-col">${selectOptional("Age Category", "tetanusAgeCategory", ["", "Below 18", "18-34", "35+"], detailValue(mother, "tetanusAgeCategory"))}${inputOptional("TT/Td Dose 1 Date", "tetanusDose1Date", detailValue(mother, "tetanusDose1Date"), "date")}${inputOptional("TT/Td Dose 2 Date", "tetanusDose2Date", detailValue(mother, "tetanusDose2Date"), "date")}</div>
-          <div class="three-col">${inputOptional("TT/Td Dose 3 Date", "tetanusDose3Date", detailValue(mother, "tetanusDose3Date"), "date")}${inputOptional("TT/Td Dose 4 Date", "tetanusDose4Date", detailValue(mother, "tetanusDose4Date"), "date")}${inputOptional("TT/Td Dose 5 Date", "tetanusDose5Date", detailValue(mother, "tetanusDose5Date"), "date")}</div>
-
-          ${formDivider("Obstetrical History")}
-          <div class="three-col">${inputOptional("G-P-T-P-A-L", "obstetricGTPAL", detailValue(mother, "obstetricGTPAL"))}${inputOptional("Previous Pregnancies", "previousPregnancies", detailValue(mother, "previousPregnancies"), "number")}${selectOptional("Caesarean Section", "caesareanSection", ["", "Yes", "No"], detailValue(mother, "caesareanSection"))}</div>
-          <div class="three-col">${selectOptional("Stillbirth", "stillbirth", ["", "Yes", "No"], detailValue(mother, "stillbirth"))}${selectOptional("Post-partum Hemorrhage", "postpartumHemorrhage", ["", "Yes", "No"], detailValue(mother, "postpartumHemorrhage"))}${selectOptional("3 Consecutive Miscarriages", "consecutiveMiscarriages", ["", "Yes", "No"], detailValue(mother, "consecutiveMiscarriages"))}</div>
-
-          ${formDivider("Present Health Problems")}
-          <div class="three-col">${selectOptional("Tuberculosis", "tuberculosis", ["", "Yes", "No"], detailValue(mother, "tuberculosis"))}${selectOptional("Heart Disease", "heartDisease", ["", "Yes", "No"], detailValue(mother, "heartDisease"))}${selectOptional("Diabetes", "diabetes", ["", "Yes", "No"], detailValue(mother, "diabetes"))}</div>
-          <div class="three-col">${selectOptional("Bronchial Asthma", "bronchialAsthma", ["", "Yes", "No"], detailValue(mother, "bronchialAsthma"))}${selectOptional("Goiter", "goiter", ["", "Yes", "No"], detailValue(mother, "goiter"))}${selectOptional("Hypertension", "hypertension", ["", "Yes", "No"], detailValue(mother, "hypertension"))}</div>
-
-          ${formDivider("Present Pregnancy")}
-          <div class="three-col">${input("Last Menstrual Period", "lmp", mother?.lmp || "", false, "date")}${input("Expected Date of Confinement / Delivery", "edd", mother?.edd || "", false, "date")}${inputOptional("AOG in Months", "aogMonths", detailValue(mother, "aogMonths"))}</div>
-          <div class="three-col">${inputOptional("Date of Visit", "latestVisitDate", detailValue(mother, "latestVisitDate"), "date")}${inputOptional("Weight in Kg", "weightVisitKg", detailValue(mother, "weightVisitKg"))}${inputOptional("Blood Pressure", "bloodPressure", detailValue(mother, "bloodPressure"))}</div>
-          <div class="three-col">${selectOptional("Vaginal Bleeding", "vaginalBleeding", ["", "Yes", "No"], detailValue(mother, "vaginalBleeding"))}${selectOptional("Urinary Tract Infection", "urinaryTractInfection", ["", "Yes", "No"], detailValue(mother, "urinaryTractInfection"))}${selectOptional("BP 140/90 and above", "bp140Above", ["", "Yes", "No"], detailValue(mother, "bp140Above"))}</div>
-          <div class="three-col">${selectOptional("Fever 39 and above", "fever39Above", ["", "Yes", "No"], detailValue(mother, "fever39Above"))}${selectOptional("Pallor", "pallor", ["", "Yes", "No"], detailValue(mother, "pallor"))}${selectOptional("Edema", "edema", ["", "Yes", "No"], detailValue(mother, "edema"))}</div>
-          <div class="three-col">${selectOptional("Abnormal Fundal Height", "abnormalFundalHeight", ["", "Yes", "No"], detailValue(mother, "abnormalFundalHeight"))}${selectOptional("Abnormal Presentation", "abnormalPresentation", ["", "Yes", "No"], detailValue(mother, "abnormalPresentation"))}${selectOptional("Missing Fetal Heartbeat", "missingFetalHeartbeat", ["", "Yes", "No"], detailValue(mother, "missingFetalHeartbeat"))}</div>
-          <div class="two-col">${selectOptional("Vaginal Infection", "vaginalInfection", ["", "Yes", "No"], detailValue(mother, "vaginalInfection"))}${inputOptional("Lab Test Results", "labTestResults", detailValue(mother, "labTestResults"))}</div>
-
-          ${formDivider("Action and Laboratory")}
-          <div class="three-col">${inputOptional("Iron/Folate #", "ironFolateNumber", detailValue(mother, "ironFolateNumber"))}${inputOptional("Iron/Folate Date", "ironFolateDate", detailValue(mother, "ironFolateDate"), "date")}${inputOptional("Calcium Carbonate #", "calciumCarbonateNumber", detailValue(mother, "calciumCarbonateNumber"))}</div>
-          <div class="three-col">${inputOptional("Calcium Date", "calciumDateGiven", detailValue(mother, "calciumDateGiven"), "date")}${selectOptional("Iodine Supplementation in High Risk Areas", "iodineHighRisk", ["", "Yes", "No"], detailValue(mother, "iodineHighRisk"))}${selectOptional("Mother intends to breastfeed", "intendsBreastfeed", ["", "Yes", "No"], detailValue(mother, "intendsBreastfeed"))}</div>
-          <div class="three-col">${selectOptional("Advice on 4 danger signs", "dangerSignsAdvice", ["", "Yes", "No"], detailValue(mother, "dangerSignsAdvice"))}${selectOptional("Dental Check-up", "dentalCheckup", ["", "Yes", "No"], detailValue(mother, "dentalCheckup"))}${selectOptional("Emergency plan/place of delivery", "emergencyPlan", ["", "Yes", "No"], detailValue(mother, "emergencyPlan"))}</div>
-          <div class="three-col">${selectOptional("Risk", "maternalRisk", ["", "Yes", "No"], detailValue(mother, "maternalRisk"))}${inputOptional("Date of Next Visit", "nextVisitDate", detailValue(mother, "nextVisitDate"), "date")}${inputOptional("Place of Delivery", "placeOfDelivery", detailValue(mother, "placeOfDelivery"))}</div>
-          <div class="three-col">${inputOptional("Type of Laboratory", "laboratoryType", detailValue(mother, "laboratoryType"))}${inputOptional("Laboratory Date", "laboratoryDate", detailValue(mother, "laboratoryDate"), "date")}${inputOptional("Laboratory Remarks", "laboratoryRemarks", detailValue(mother, "laboratoryRemarks"))}</div>
-
-          ${formDivider("Postpartum and Family Planning")}
-          <div class="three-col">${selectOptional("Timing of Postpartum Visit", "postpartumVisitTiming", ["", "24 hrs", "1 week", "2-6 weeks", "Clinic Visit"], detailValue(mother, "postpartumVisitTiming"))}${inputOptional("Postpartum Visit Date", "postpartumVisitDate", detailValue(mother, "postpartumVisitDate"), "date")}${selectOptional("Exclusive Breastfeeding", "exclusiveBreastfeeding", ["", "Yes", "No"], detailValue(mother, "exclusiveBreastfeeding"))}</div>
-          <div class="three-col">${selectOptional("Intends to use Family Planning", "intendsFamilyPlanning", ["", "Yes", "No"], detailValue(mother, "intendsFamilyPlanning"))}${selectOptional("Fever >39", "postpartumFever", ["", "Yes", "No"], detailValue(mother, "postpartumFever"))}${selectOptional("Foul Smelling Vaginal Discharge", "foulSmellingDischarge", ["", "Yes", "No"], detailValue(mother, "foulSmellingDischarge"))}</div>
-          <div class="three-col">${selectOptional("Excessive Bleeding", "excessiveBleeding", ["", "Yes", "No"], detailValue(mother, "excessiveBleeding"))}${selectOptional("Pallor", "postpartumPallor", ["", "Yes", "No"], detailValue(mother, "postpartumPallor"))}${selectOptional("Cord OK", "cordOk", ["", "Yes", "No"], detailValue(mother, "cordOk"))}</div>
-          <div class="three-col">${selectOptional("Vitamin A 20000 IU", "vitaminA20000", ["", "Yes", "No"], detailValue(mother, "vitaminA20000"))}${inputOptional("Iron/Folate Date #", "postpartumIronFolateDate", detailValue(mother, "postpartumIronFolateDate"), "date")}${inputOptional("Family Planning Date of Visit", "familyPlanningDate", detailValue(mother, "familyPlanningDate"), "date")}</div>
-          <div class="three-col">${inputOptional("Family Planning Follow-up", "familyPlanningFollowUpDate", detailValue(mother, "familyPlanningFollowUpDate"), "date")}${inputOptional("Family Planning Method", "familyPlanningMethod", detailValue(mother, "familyPlanningMethod"))}${inputOptional("Quantity Given", "familyPlanningQuantity", detailValue(mother, "familyPlanningQuantity"))}</div>
-          ${textareaOptional("Family Planning Remarks", "familyPlanningRemarks", detailValue(mother, "familyPlanningRemarks"))}
-          <div class="three-col">${selectOptional("Refer to Physician/RHU", "referPhysicianRhu", ["", "Yes", "No"], detailValue(mother, "referPhysicianRhu"))}${selectOptional("Close Observation of Action by Midwife/Nurse", "closeObservation", ["", "Yes", "No"], detailValue(mother, "closeObservation"))}${selectOptional("Hospital Delivery Recommended", "hospitalDeliveryRecommended", ["", "Yes", "No"], detailValue(mother, "hospitalDeliveryRecommended"))}</div>
-
-          <input type="hidden" name="pregnancyStatus" value="${escapeHtml(mother?.pregnancyStatus || "For Review")}">
-          <input type="hidden" name="checkupsCompleted" value="${escapeHtml(mother?.checkupsCompleted || 0)}">
-          <input type="hidden" name="riskLevel" value="${escapeHtml(mother?.riskLevel || "Pending")}">
-          <input type="hidden" name="assignedNurse" value="${escapeHtml(mother?.assignedNurse || "For assignment")}">
-          ${textarea("Notes / Concerns", "notes", mother?.notes || "")}
-          <button class="primary-btn" type="submit">Save maternal form</button>
-        </form>
-      </div>
-
-      <div class="card card-pad hidden" data-parent-form-panel="infant">
-        <div class="section-head"><div><h3>Infant Immunization Card Form</h3><p>Based on the infant immunization card. Use this if the parent has a child/infant record to submit.</p></div>${badge(infants.length ? `${infants.length} linked` : "Optional")}</div>
-        <div class="actions"><button class="ghost-btn" type="button" data-back-form-menu>Back to form choices</button></div>
-        <form id="parentInfantForm" class="form-grid detailed-form">
-          <input type="hidden" name="id" value="${makeId("I")}">
-          ${formDivider("Infant Information")}
-          <div class="three-col">${input("Infant Name", "infantName", "")}${input("Birthdate", "birthdate", "", false, "date")}${input("Age in Months", "ageMonths", "", false, "number")}</div>
-          ${input("Address", "address", mother?.address || "")}
-          <div class="three-col">${select("Barangay", "barangay", barangays, mother?.barangay || current.barangay || barangays[0])}${selectOptional("Sex", "sex", ["", "M", "F"], "")}${inputOptional("Contact Number", "birthContactNumber", mother?.contact || "")}</div>
-          <div class="three-col">${inputOptional("Place of Birth", "placeOfBirth", "")}${inputOptional("Birth Height", "birthHeight", "")}${inputOptional("Birth Weight", "birthWeight", "")}</div>
-          <div class="two-col">${inputOptional("Mother's Name", "motherName", mother?.fullName || current.name)}${inputOptional("Father's Name", "fatherName", "")}</div>
-
-          ${formDivider("Vaccination Dates")}
-          <div class="three-col">${inputOptional("BCG Vaccine", "bcgDate", "", "date")}${inputOptional("Hepatitis B Vaccine", "hepatitisBDate", "", "date")}${inputOptional("Pentavalent 1", "pentavalentDose1Date", "", "date")}</div>
-          <div class="three-col">${inputOptional("Pentavalent 2", "pentavalentDose2Date", "", "date")}${inputOptional("Pentavalent 3", "pentavalentDose3Date", "", "date")}${inputOptional("OPV 1", "opvDose1Date", "", "date")}</div>
-          <div class="three-col">${inputOptional("OPV 2", "opvDose2Date", "", "date")}${inputOptional("OPV 3", "opvDose3Date", "", "date")}${inputOptional("IPV 1", "ipvDose1Date", "", "date")}</div>
-          <div class="three-col">${inputOptional("IPV 2", "ipvDose2Date", "", "date")}${inputOptional("PCV 1", "pcvDose1Date", "", "date")}${inputOptional("PCV 2", "pcvDose2Date", "", "date")}</div>
-          <div class="three-col">${inputOptional("PCV 3", "pcvDose3Date", "", "date")}${inputOptional("MMR 1", "mmrDose1Date", "", "date")}${inputOptional("MMR 2", "mmrDose2Date", "", "date")}</div>
-          <div class="three-col">${inputOptional("MCV MR / MMR Grade 1", "mcvMrGrade1Date", "", "date")}${inputOptional("MCV MR / MMR Grade 7", "mcvMmrGrade7Date", "", "date")}${inputOptional("Tetanus Diphtheria", "tetanusDiphtheriaDate", "", "date")}</div>
-          <div class="three-col">${inputOptional("HPV Vaccine", "hpvDate", "", "date")}${inputOptional("Influenza Vaccine", "influenzaDate", "", "date")}${inputOptional("Pneumococcal Vaccine", "pneumococcalDate", "", "date")}</div>
-          ${textareaOptional("Other Vaccines", "otherVaccines", "")}
-          ${textareaOptional("Vaccine Remarks", "vaccineRemarks", "")}
-          ${textareaOptional("Remarks / Actions Taken", "remarksActionsTaken", "")}
-          <input type="hidden" name="parentName" value="${escapeHtml(mother?.fullName || current.name)}">
-          <input type="hidden" name="contact" value="${escapeHtml(mother?.contact || "")}">
-          <input type="hidden" name="immunizationStatus" value="For Review">
-          <input type="hidden" name="lastCheckup" value="">
-          <input type="hidden" name="nextCheckup" value="">
-          <input type="hidden" name="assignedNurse" value="${escapeHtml(mother?.assignedNurse || "For assignment")}">
-          ${textarea("Notes / Concerns", "notes", "")}
-          <button class="secondary-btn" type="submit">Add infant immunization form</button>
-        </form>
-      </div>
-
-      <div class="card card-pad">
-        <div class="section-head"><div><h3>Submitted Infant Records</h3><p>Records linked to your maternal profile.</p></div></div>
+      <div class="card card-pad mt-4">
+        <div class="section-head"><div><h3>Submitted Infant Records</h3><p>Immunization & infant records linked to your profile.</p></div></div>
         ${recordTable(infants, ["Infant", "Birthdate", "Age", "Sex", "Status"], (i) => [i.infantName, fmtDate(i.birthdate), `${i.ageMonths || 0} mo.`, detailValue(i, "sex"), badge(i.immunizationStatus || "For Review")])}
       </div>
     </section>
   `);
 
-  document.querySelectorAll("[data-open-parent-form]").forEach((btn) => {
+  document.querySelectorAll("[data-open-parent-modal]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const target = btn.dataset.openParentForm;
-      if (target === "infant" && !currentMotherRecord()) {
-        toast("Please save your prenatal or maternal form first before adding an infant immunization form.", true);
-        return;
-      }
-      document.querySelectorAll("[data-parent-form-panel]").forEach((panel) => panel.classList.add("hidden"));
-      const panel = document.querySelector(`[data-parent-form-panel="${target}"]`);
-      if (panel) {
-        panel.classList.remove("hidden");
-        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      const type = btn.dataset.openParentModal;
+      if (type === "prenatal") openParentPrenatalModal();
+      else if (type === "maternal") openParentMaternalModal();
+      else if (type === "infant") {
+        if (!currentMotherRecord()) {
+          toast("Please save your prenatal or maternal form first before adding an infant immunization form.", true);
+          return;
+        }
+        openParentInfantModal();
       }
     });
   });
+}
 
-  document.querySelectorAll("[data-back-form-menu]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("[data-parent-form-panel]").forEach((panel) => panel.classList.add("hidden"));
-      document.querySelector("[data-open-parent-form]")?.closest(".card")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  });
+function openParentPrenatalModal() {
+  const current = getCurrentUser();
+  const mother = currentMotherRecord();
+  openModal("Prenatal Record Form", `
+    <form id="parentPrenatalForm" class="form-grid detailed-form">
+      <input type="hidden" name="id" value="${escapeHtml(mother?.id || makeId("M"))}">
+      ${formDivider("Basic Information")}
+      <div class="two-col">${input("Full Name", "fullName", mother?.fullName || current.name)}${input("Age", "age", mother?.age || "", false, "number")}</div>
+      ${input("Address", "address", mother?.address || "")}
+      <div class="two-col">${select("Barangay", "barangay", barangays, mother?.barangay || current.barangay || barangays[0])}${input("Contact Number", "contact", mother?.contact || "", false, "tel")}</div>
+      <div class="two-col">${input("LMP", "lmp", mother?.lmp || "", false, "date")}${input("EDD / EDC", "edd", mother?.edd || "", false, "date")}</div>
+      ${prenatalRecordFieldsHtml(mother)}
+      <input type="hidden" name="pregnancyStatus" value="${escapeHtml(mother?.pregnancyStatus || "For Review")}">
+      <input type="hidden" name="checkupsCompleted" value="${escapeHtml(mother?.checkupsCompleted || 0)}">
+      <input type="hidden" name="riskLevel" value="${escapeHtml(mother?.riskLevel || "Pending")}">
+      <input type="hidden" name="assignedNurse" value="${escapeHtml(mother?.assignedNurse || "For assignment")}">
+      ${textarea("Notes / Concerns", "notes", mother?.notes || "")}
+      <div class="flex justify-end gap-2 mt-4">
+        <button class="ghost-btn" type="button" onclick="closeModal()">Cancel</button>
+        <button class="primary-btn" type="submit">Save Prenatal Record</button>
+      </div>
+    </form>
+  `);
 
   document.getElementById("parentPrenatalForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1028,10 +952,73 @@ function renderParentForms() {
     if (index >= 0) state.users[index] = updated;
     save("currentUser", updated);
     await persistRecord("users", updated);
-    toast("Prenatal record saved. Barangay staff can review and assist with it.");
+    closeModal();
+    toast("Prenatal record saved successfully.");
     renderParentForms();
     renderNav();
   });
+}
+
+function openParentMaternalModal() {
+  const current = getCurrentUser();
+  const mother = currentMotherRecord();
+  openModal("Maternal Record / Postpartum Form", `
+    <form id="parentMaternalForm" class="form-grid detailed-form">
+      <input type="hidden" name="id" value="${escapeHtml(mother?.id || makeId("M"))}">
+
+      ${formDivider("Personal Information")}
+      <div class="three-col">${input("Full Name", "fullName", mother?.fullName || current.name)}${inputOptional("Blood Type", "bloodType", detailValue(mother, "bloodType"))}${inputOptional("Birthday", "birthday", detailValue(mother, "birthday"), "date")}</div>
+      ${input("Address", "address", mother?.address || "")}
+      <div class="three-col">${select("Barangay", "barangay", barangays, mother?.barangay || current.barangay || barangays[0])}${input("Contact Number", "contact", mother?.contact || "", false, "tel")}${input("Age", "age", mother?.age || "", false, "number")}</div>
+      <div class="three-col">${inputOptional("Height", "heightCm", detailValue(mother, "heightCm"))}${inputOptional("Weight", "weightKg", detailValue(mother, "weightKg"))}${inputOptional("BMI", "bmi", detailValue(mother, "bmi"))}</div>
+
+      ${formDivider("Tetanus Toxoid")}
+      <div class="three-col">${selectOptional("Age Category", "tetanusAgeCategory", ["", "Below 18", "18-34", "35+"], detailValue(mother, "tetanusAgeCategory"))}${inputOptional("TT/Td Dose 1 Date", "tetanusDose1Date", detailValue(mother, "tetanusDose1Date"), "date")}${inputOptional("TT/Td Dose 2 Date", "tetanusDose2Date", detailValue(mother, "tetanusDose2Date"), "date")}</div>
+      <div class="three-col">${inputOptional("TT/Td Dose 3 Date", "tetanusDose3Date", detailValue(mother, "tetanusDose3Date"), "date")}${inputOptional("TT/Td Dose 4 Date", "tetanusDose4Date", detailValue(mother, "tetanusDose4Date"), "date")}${inputOptional("TT/Td Dose 5 Date", "tetanusDose5Date", detailValue(mother, "tetanusDose5Date"), "date")}</div>
+
+      ${formDivider("Obstetrical History")}
+      <div class="three-col">${inputOptional("G-P-T-P-A-L", "obstetricGTPAL", detailValue(mother, "obstetricGTPAL"))}${inputOptional("Previous Pregnancies", "previousPregnancies", detailValue(mother, "previousPregnancies"), "number")}${selectOptional("Caesarean Section", "caesareanSection", ["", "Yes", "No"], detailValue(mother, "caesareanSection"))}</div>
+      <div class="three-col">${selectOptional("Stillbirth", "stillbirth", ["", "Yes", "No"], detailValue(mother, "stillbirth"))}${selectOptional("Post-partum Hemorrhage", "postpartumHemorrhage", ["", "Yes", "No"], detailValue(mother, "postpartumHemorrhage"))}${selectOptional("3 Consecutive Miscarriages", "consecutiveMiscarriages", ["", "Yes", "No"], detailValue(mother, "consecutiveMiscarriages"))}</div>
+
+      ${formDivider("Present Health Problems")}
+      <div class="three-col">${selectOptional("Tuberculosis", "tuberculosis", ["", "Yes", "No"], detailValue(mother, "tuberculosis"))}${selectOptional("Heart Disease", "heartDisease", ["", "Yes", "No"], detailValue(mother, "heartDisease"))}${selectOptional("Diabetes", "diabetes", ["", "Yes", "No"], detailValue(mother, "diabetes"))}</div>
+      <div class="three-col">${selectOptional("Bronchial Asthma", "bronchialAsthma", ["", "Yes", "No"], detailValue(mother, "bronchialAsthma"))}${selectOptional("Goiter", "goiter", ["", "Yes", "No"], detailValue(mother, "goiter"))}${selectOptional("Hypertension", "hypertension", ["", "Yes", "No"], detailValue(mother, "hypertension"))}</div>
+
+      ${formDivider("Present Pregnancy")}
+      <div class="three-col">${input("Last Menstrual Period", "lmp", mother?.lmp || "", false, "date")}${input("Expected Date of Confinement / Delivery", "edd", mother?.edd || "", false, "date")}${inputOptional("AOG in Months", "aogMonths", detailValue(mother, "aogMonths"))}</div>
+      <div class="three-col">${inputOptional("Date of Visit", "latestVisitDate", detailValue(mother, "latestVisitDate"), "date")}${inputOptional("Weight in Kg", "weightVisitKg", detailValue(mother, "weightVisitKg"))}${inputOptional("Blood Pressure", "bloodPressure", detailValue(mother, "bloodPressure"))}</div>
+      <div class="three-col">${selectOptional("Vaginal Bleeding", "vaginalBleeding", ["", "Yes", "No"], detailValue(mother, "vaginalBleeding"))}${selectOptional("Urinary Tract Infection", "urinaryTractInfection", ["", "Yes", "No"], detailValue(mother, "urinaryTractInfection"))}${selectOptional("BP 140/90 and above", "bp140Above", ["", "Yes", "No"], detailValue(mother, "bp140Above"))}</div>
+      <div class="three-col">${selectOptional("Fever 39 and above", "fever39Above", ["", "Yes", "No"], detailValue(mother, "fever39Above"))}${selectOptional("Pallor", "pallor", ["", "Yes", "No"], detailValue(mother, "pallor"))}${selectOptional("Edema", "edema", ["", "Yes", "No"], detailValue(mother, "edema"))}</div>
+      <div class="three-col">${selectOptional("Abnormal Fundal Height", "abnormalFundalHeight", ["", "Yes", "No"], detailValue(mother, "abnormalFundalHeight"))}${selectOptional("Abnormal Presentation", "abnormalPresentation", ["", "Yes", "No"], detailValue(mother, "abnormalPresentation"))}${selectOptional("Missing Fetal Heartbeat", "missingFetalHeartbeat", ["", "Yes", "No"], detailValue(mother, "missingFetalHeartbeat"))}</div>
+      <div class="two-col">${selectOptional("Vaginal Infection", "vaginalInfection", ["", "Yes", "No"], detailValue(mother, "vaginalInfection"))}${inputOptional("Lab Test Results", "labTestResults", detailValue(mother, "labTestResults"))}</div>
+
+      ${formDivider("Action and Laboratory")}
+      <div class="three-col">${inputOptional("Iron/Folate #", "ironFolateNumber", detailValue(mother, "ironFolateNumber"))}${inputOptional("Iron/Folate Date", "ironFolateDate", detailValue(mother, "ironFolateDate"), "date")}${inputOptional("Calcium Carbonate #", "calciumCarbonateNumber", detailValue(mother, "calciumCarbonateNumber"))}</div>
+      <div class="three-col">${inputOptional("Calcium Date", "calciumDateGiven", detailValue(mother, "calciumDateGiven"), "date")}${selectOptional("Iodine Supplementation in High Risk Areas", "iodineHighRisk", ["", "Yes", "No"], detailValue(mother, "iodineHighRisk"))}${selectOptional("Mother intends to breastfeed", "intendsBreastfeed", ["", "Yes", "No"], detailValue(mother, "intendsBreastfeed"))}</div>
+      <div class="three-col">${selectOptional("Advice on 4 danger signs", "dangerSignsAdvice", ["", "Yes", "No"], detailValue(mother, "dangerSignsAdvice"))}${selectOptional("Dental Check-up", "dentalCheckup", ["", "Yes", "No"], detailValue(mother, "dentalCheckup"))}${selectOptional("Emergency plan/place of delivery", "emergencyPlan", ["", "Yes", "No"], detailValue(mother, "emergencyPlan"))}</div>
+      <div class="three-col">${selectOptional("Risk", "maternalRisk", ["", "Yes", "No"], detailValue(mother, "maternalRisk"))}${inputOptional("Date of Next Visit", "nextVisitDate", detailValue(mother, "nextVisitDate"), "date")}${inputOptional("Place of Delivery", "placeOfDelivery", detailValue(mother, "placeOfDelivery"))}</div>
+      <div class="three-col">${inputOptional("Type of Laboratory", "laboratoryType", detailValue(mother, "laboratoryType"))}${inputOptional("Laboratory Date", "laboratoryDate", detailValue(mother, "laboratoryDate"), "date")}${inputOptional("Laboratory Remarks", "laboratoryRemarks", detailValue(mother, "laboratoryRemarks"))}</div>
+
+      ${formDivider("Postpartum and Family Planning")}
+      <div class="three-col">${selectOptional("Timing of Postpartum Visit", "postpartumVisitTiming", ["", "24 hrs", "1 week", "2-6 weeks", "Clinic Visit"], detailValue(mother, "postpartumVisitTiming"))}${inputOptional("Postpartum Visit Date", "postpartumVisitDate", detailValue(mother, "postpartumVisitDate"), "date")}${selectOptional("Exclusive Breastfeeding", "exclusiveBreastfeeding", ["", "Yes", "No"], detailValue(mother, "exclusiveBreastfeeding"))}</div>
+      <div class="three-col">${selectOptional("Intends to use Family Planning", "intendsFamilyPlanning", ["", "Yes", "No"], detailValue(mother, "intendsFamilyPlanning"))}${selectOptional("Fever >39", "postpartumFever", ["", "Yes", "No"], detailValue(mother, "postpartumFever"))}${selectOptional("Foul Smelling Vaginal Discharge", "foulSmellingDischarge", ["", "Yes", "No"], detailValue(mother, "foulSmellingDischarge"))}</div>
+      <div class="three-col">${selectOptional("Excessive Bleeding", "excessiveBleeding", ["", "Yes", "No"], detailValue(mother, "excessiveBleeding"))}${selectOptional("Pallor", "postpartumPallor", ["", "Yes", "No"], detailValue(mother, "postpartumPallor"))}${selectOptional("Cord OK", "cordOk", ["", "Yes", "No"], detailValue(mother, "cordOk"))}</div>
+      <div class="three-col">${selectOptional("Vitamin A 20000 IU", "vitaminA20000", ["", "Yes", "No"], detailValue(mother, "vitaminA20000"))}${inputOptional("Iron/Folate Date #", "postpartumIronFolateDate", detailValue(mother, "postpartumIronFolateDate"), "date")}${inputOptional("Family Planning Date of Visit", "familyPlanningDate", detailValue(mother, "familyPlanningDate"), "date")}</div>
+      <div class="three-col">${inputOptional("Family Planning Follow-up", "familyPlanningFollowUpDate", detailValue(mother, "familyPlanningFollowUpDate"), "date")}${inputOptional("Family Planning Method", "familyPlanningMethod", detailValue(mother, "familyPlanningMethod"))}${inputOptional("Quantity Given", "familyPlanningQuantity", detailValue(mother, "familyPlanningQuantity"))}</div>
+      ${textareaOptional("Family Planning Remarks", "familyPlanningRemarks", detailValue(mother, "familyPlanningRemarks"))}
+      <div class="three-col">${selectOptional("Refer to Physician/RHU", "referPhysicianRhu", ["", "Yes", "No"], detailValue(mother, "referPhysicianRhu"))}${selectOptional("Close Observation of Action by Midwife/Nurse", "closeObservation", ["", "Yes", "No"], detailValue(mother, "closeObservation"))}${selectOptional("Hospital Delivery Recommended", "hospitalDeliveryRecommended", ["", "Yes", "No"], detailValue(mother, "hospitalDeliveryRecommended"))}</div>
+
+      <input type="hidden" name="pregnancyStatus" value="${escapeHtml(mother?.pregnancyStatus || "For Review")}">
+      <input type="hidden" name="checkupsCompleted" value="${escapeHtml(mother?.checkupsCompleted || 0)}">
+      <input type="hidden" name="riskLevel" value="${escapeHtml(mother?.riskLevel || "Pending")}">
+      <input type="hidden" name="assignedNurse" value="${escapeHtml(mother?.assignedNurse || "For assignment")}">
+      ${textarea("Notes / Concerns", "notes", mother?.notes || "")}
+      <div class="flex justify-end gap-2 mt-4">
+        <button class="ghost-btn" type="button" onclick="closeModal()">Cancel</button>
+        <button class="primary-btn" type="submit">Save Maternal Form</button>
+      </div>
+    </form>
+  `);
 
   document.getElementById("parentMaternalForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1045,10 +1032,50 @@ function renderParentForms() {
     if (index >= 0) state.users[index] = updated;
     save("currentUser", updated);
     await persistRecord("users", updated);
-    toast("Maternal form saved. Barangay staff can now review it.");
+    closeModal();
+    toast("Maternal form saved successfully.");
     renderParentForms();
     renderNav();
   });
+}
+
+function openParentInfantModal() {
+  const current = getCurrentUser();
+  const mother = currentMotherRecord();
+  openModal("Infant Immunization Card Form", `
+    <form id="parentInfantForm" class="form-grid detailed-form">
+      <input type="hidden" name="id" value="${makeId("I")}">
+      ${formDivider("Infant Information")}
+      <div class="three-col">${input("Infant Name", "infantName", "")}${input("Birthdate", "birthdate", "", false, "date")}${input("Age in Months", "ageMonths", "", false, "number")}</div>
+      ${input("Address", "address", mother?.address || "")}
+      <div class="three-col">${select("Barangay", "barangay", barangays, mother?.barangay || current.barangay || barangays[0])}${selectOptional("Sex", "sex", ["", "M", "F"], "")}${inputOptional("Contact Number", "birthContactNumber", mother?.contact || "")}</div>
+      <div class="three-col">${inputOptional("Place of Birth", "placeOfBirth", "")}${inputOptional("Birth Height", "birthHeight", "")}${inputOptional("Birth Weight", "birthWeight", "")}</div>
+      <div class="two-col">${inputOptional("Mother's Name", "motherName", mother?.fullName || current.name)}${inputOptional("Father's Name", "fatherName", "")}</div>
+
+      ${formDivider("Vaccination Dates")}
+      <div class="three-col">${inputOptional("BCG Vaccine", "bcgDate", "", "date")}${inputOptional("Hepatitis B Vaccine", "hepatitisBDate", "", "date")}${inputOptional("Pentavalent 1", "pentavalentDose1Date", "", "date")}</div>
+      <div class="three-col">${inputOptional("Pentavalent 2", "pentavalentDose2Date", "", "date")}${inputOptional("Pentavalent 3", "pentavalentDose3Date", "", "date")}${inputOptional("OPV 1", "opvDose1Date", "", "date")}</div>
+      <div class="three-col">${inputOptional("OPV 2", "opvDose2Date", "", "date")}${inputOptional("OPV 3", "opvDose3Date", "", "date")}${inputOptional("IPV 1", "ipvDose1Date", "", "date")}</div>
+      <div class="three-col">${inputOptional("IPV 2", "ipvDose2Date", "", "date")}${inputOptional("PCV 1", "pcvDose1Date", "", "date")}${inputOptional("PCV 2", "pcvDose2Date", "", "date")}</div>
+      <div class="three-col">${inputOptional("PCV 3", "pcvDose3Date", "", "date")}${inputOptional("MMR 1", "mmrDose1Date", "", "date")}${inputOptional("MMR 2", "mmrDose2Date", "", "date")}</div>
+      <div class="three-col">${inputOptional("MCV MR / MMR Grade 1", "mcvMrGrade1Date", "", "date")}${inputOptional("MCV MR / MMR Grade 7", "mcvMmrGrade7Date", "", "date")}${inputOptional("Tetanus Diphtheria", "tetanusDiphtheriaDate", "", "date")}</div>
+      <div class="three-col">${inputOptional("HPV Vaccine", "hpvDate", "", "date")}${inputOptional("Influenza Vaccine", "influenzaDate", "", "date")}${inputOptional("Pneumococcal Vaccine", "pneumococcalDate", "", "date")}</div>
+      ${textareaOptional("Other Vaccines", "otherVaccines", "")}
+      ${textareaOptional("Vaccine Remarks", "vaccineRemarks", "")}
+      ${textareaOptional("Remarks / Actions Taken", "remarksActionsTaken", "")}
+      <input type="hidden" name="parentName" value="${escapeHtml(mother?.fullName || current.name)}">
+      <input type="hidden" name="contact" value="${escapeHtml(mother?.contact || "")}">
+      <input type="hidden" name="immunizationStatus" value="For Review">
+      <input type="hidden" name="lastCheckup" value="">
+      <input type="hidden" name="nextCheckup" value="">
+      <input type="hidden" name="assignedNurse" value="${escapeHtml(mother?.assignedNurse || "For assignment")}">
+      ${textarea("Notes / Concerns", "notes", "")}
+      <div class="flex justify-end gap-2 mt-4">
+        <button class="ghost-btn" type="button" onclick="closeModal()">Cancel</button>
+        <button class="secondary-btn" type="submit">Add Infant Form</button>
+      </div>
+    </form>
+  `);
 
   document.getElementById("parentInfantForm").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1060,7 +1087,8 @@ function renderParentForms() {
     const detailUpdates = packFormDetails(row, [...infantDetailFields, ...parentInfantClinicFields]);
     row.formDetails = detailUpdates;
     upsert("infantRecords", row, "id");
-    toast("Infant immunization form added. Barangay staff can now review it.");
+    closeModal();
+    toast("Infant immunization form added successfully.");
     renderParentForms();
   });
 }
@@ -1643,8 +1671,13 @@ function gridLines(width, height, pad) {
   }).join("");
 }
 
-function legend(series, colors, x) {
-  return series.map((name, index) => `<g transform="translate(${x + index * 116},18)"><circle r="5" fill="${colors[index % colors.length]}"></circle><text x="10" y="4" class="chart-label">${escapeHtml(name)}</text></g>`).join("");
+function legend(series, colors, startX) {
+  let currentX = startX;
+  return series.map((name, index) => {
+    const itemX = currentX;
+    currentX += Math.max(84, String(name || "").length * 8 + 24);
+    return `<g transform="translate(${itemX},18)"><circle r="5" fill="${colors[index % colors.length]}"></circle><text x="10" y="4" class="chart-label">${escapeHtml(name)}</text></g>`;
+  }).join("");
 }
 
 function countBy(rows, key, labels) {

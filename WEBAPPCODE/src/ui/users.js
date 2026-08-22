@@ -11,13 +11,13 @@ export function renderUsersView(state) {
     <div class="page-header flex items-center justify-between mb-6">
       <div>
         <h2 class="text-xl font-bold flex items-center gap-2">
-          <i data-lucide="users" class="w-6 h-6 text-indigo-600"></i>
+          <span class="material-symbols-outlined text-indigo-600 text-2xl">group</span>
           <span>Users and Roles Management</span>
         </h2>
         <p class="text-sm text-slate-500">Manage healthcare staff accounts (MHO, Nurses, Doctors) and Parent access (${users.length} total users)</p>
       </div>
       <button class="primary-btn flex items-center gap-1.5" id="addStaffBtn">
-        <i data-lucide="user-plus" class="w-4 h-4"></i>
+        <span class="material-symbols-outlined text-lg">person_add</span>
         <span>Add Staff Account</span>
       </button>
     </div>
@@ -45,11 +45,11 @@ export function renderUsersView(state) {
                 <td>${escapeHtml(u.barangay)}</td>
                 <td class="space-x-1">
                   <button class="icon-btn edit-user-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(u.id)}" title="Edit">
-                    <i data-lucide="edit-3" class="w-4 h-4 text-blue-600"></i>
+                    <span class="material-symbols-outlined text-blue-600 text-lg">edit</span>
                   </button>
                   ${u.role !== 'Administrator' ? `
                     <button class="icon-btn delete-user-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(u.id)}" title="Delete">
-                      <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
+                      <span class="material-symbols-outlined text-red-600 text-lg">delete</span>
                     </button>
                   ` : ''}
                 </td>

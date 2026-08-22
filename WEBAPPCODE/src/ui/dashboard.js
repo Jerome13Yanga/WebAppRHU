@@ -36,7 +36,7 @@ export function renderDashboardView(state = {}, currentUser = {}, selectedBarang
       <!-- Quick Stats Metrics Cards -->
       <div class="stat-card">
         <div class="stat-icon icon-blue">
-          <i data-lucide="heart-pulse" class="w-6 h-6 text-blue-600"></i>
+          <span class="material-symbols-outlined text-blue-600 text-2xl">health_and_safety</span>
         </div>
         <div class="stat-content">
           <h3>${maternal.length}</h3>
@@ -47,7 +47,7 @@ export function renderDashboardView(state = {}, currentUser = {}, selectedBarang
 
       <div class="stat-card">
         <div class="stat-icon icon-green">
-          <i data-lucide="baby" class="w-6 h-6 text-emerald-600"></i>
+          <span class="material-symbols-outlined text-emerald-600 text-2xl">child_care</span>
         </div>
         <div class="stat-content">
           <h3>${infants.length}</h3>
@@ -58,7 +58,7 @@ export function renderDashboardView(state = {}, currentUser = {}, selectedBarang
 
       <div class="stat-card">
         <div class="stat-icon icon-amber">
-          <i data-lucide="calendar" class="w-6 h-6 text-amber-600"></i>
+          <span class="material-symbols-outlined text-amber-600 text-2xl">event</span>
         </div>
         <div class="stat-content">
           <h3>${upcomingSchedules.length}</h3>
@@ -71,7 +71,7 @@ export function renderDashboardView(state = {}, currentUser = {}, selectedBarang
     <!-- High Risk Alert Panel -->
     ${highRiskCount > 0 ? `
       <div class="alert-box alert-danger flex items-start gap-3">
-        <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600 shrink-0 mt-0.5"></i>
+        <span class="material-symbols-outlined text-red-600 text-xl shrink-0 mt-0.5">warning</span>
         <div>
           <div class="alert-title font-semibold">High-Risk Maternal Alert</div>
           <p class="text-sm">There are ${highRiskCount} pregnant mothers flagged for high-risk obstetric/medical factors in ${escapeHtml(targetBarangay || 'your assigned barangay')}. Immediate follow-up is recommended.</p>
@@ -84,7 +84,7 @@ export function renderDashboardView(state = {}, currentUser = {}, selectedBarang
       <div class="panel">
         <div class="panel-head flex items-center justify-between">
           <h3 class="flex items-center gap-2">
-            <i data-lucide="heart-pulse" class="w-4 h-4 text-blue-600"></i>
+            <span class="material-symbols-outlined text-blue-600 text-lg">health_and_safety</span>
             <span>Maternal Care Summary</span>
           </h3>
           <span class="badge badge-info">${escapeHtml(targetBarangay || 'All')}</span>
@@ -118,7 +118,7 @@ export function renderDashboardView(state = {}, currentUser = {}, selectedBarang
       <div class="panel">
         <div class="panel-head flex items-center justify-between">
           <h3 class="flex items-center gap-2">
-            <i data-lucide="baby" class="w-4 h-4 text-emerald-600"></i>
+            <span class="material-symbols-outlined text-emerald-600 text-lg">child_care</span>
             <span>Infant Care Summary</span>
           </h3>
           <span class="badge badge-info">${escapeHtml(targetBarangay || 'All')}</span>
@@ -163,7 +163,7 @@ function renderParentDashboardView(state = {}, currentUser = {}) {
     <div class="welcome-banner p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl mb-6 shadow-sm">
       <h2 class="text-2xl font-bold flex items-center gap-2">
         <span>Welcome back, ${escapeHtml(motherName)}!</span>
-        <i data-lucide="sparkles" class="w-5 h-5 text-amber-300"></i>
+        <span class="material-symbols-outlined text-amber-300 text-xl">auto_awesome</span>
       </h2>
       <p class="text-blue-100 text-sm mt-1">Barangay: <strong>${escapeHtml(currentUser?.barangay || 'Padre Burgos')}</strong> | Keep track of your health visits and infant immunization schedules.</p>
     </div>
@@ -171,7 +171,7 @@ function renderParentDashboardView(state = {}, currentUser = {}) {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="panel">
         <h3 class="flex items-center gap-2 mb-4">
-          <i data-lucide="heart-pulse" class="w-5 h-5 text-blue-600"></i>
+          <span class="material-symbols-outlined text-blue-600 text-xl">health_and_safety</span>
           <span>Maternal Record Status</span>
         </h3>
         ${maternalRec ? `
@@ -189,7 +189,7 @@ function renderParentDashboardView(state = {}, currentUser = {}) {
 
       <div class="panel">
         <h3 class="flex items-center gap-2 mb-4">
-          <i data-lucide="baby" class="w-5 h-5 text-emerald-600"></i>
+          <span class="material-symbols-outlined text-emerald-600 text-xl">child_care</span>
           <span>Registered Infants (${myInfants.length})</span>
         </h3>
         ${myInfants.length === 0 ? `<p class="text-muted">No infants registered yet.</p>` : `

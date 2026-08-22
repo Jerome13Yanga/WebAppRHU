@@ -11,13 +11,13 @@ export function renderInfantsView(state, selectedBarangay) {
     <div class="page-header flex items-center justify-between mb-6">
       <div>
         <h2 class="text-xl font-bold flex items-center gap-2">
-          <i data-lucide="baby" class="w-6 h-6 text-emerald-600"></i>
+          <span class="material-symbols-outlined text-emerald-600 text-2xl">child_care</span>
           <span>Infant Immunization & Health Records</span>
         </h2>
         <p class="text-sm text-slate-500">Barangay: <strong>${escapeHtml(selectedBarangay || 'All')}</strong> (${records.length} infants)</p>
       </div>
       <button class="primary-btn flex items-center gap-1.5" id="addInfantBtn">
-        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+        <span class="material-symbols-outlined text-lg">add_circle</span>
         <span>Add Infant Record</span>
       </button>
     </div>
@@ -51,10 +51,10 @@ export function renderInfantsView(state, selectedBarangay) {
                 <td><small>${formatDate(i.nextCheckup)}</small></td>
                 <td class="space-x-1">
                   <button class="icon-btn edit-infant-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(i.id)}" title="Edit">
-                    <i data-lucide="edit-3" class="w-4 h-4 text-blue-600"></i>
+                    <span class="material-symbols-outlined text-blue-600 text-lg">edit</span>
                   </button>
                   <button class="icon-btn delete-infant-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(i.id)}" title="Delete">
-                    <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
+                    <span class="material-symbols-outlined text-red-600 text-lg">delete</span>
                   </button>
                 </td>
               </tr>

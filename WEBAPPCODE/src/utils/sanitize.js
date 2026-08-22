@@ -44,11 +44,8 @@ export function toast(msg, isError = false) {
   if (!host) return;
   const div = document.createElement('div');
   div.className = `toast ${isError ? 'toast-error' : 'toast-success'} flex items-center gap-2`;
-  div.innerHTML = `<i data-lucide="${isError ? 'alert-circle' : 'check-circle'}" class="w-4 h-4 text-current"></i><span>${escapeHtml(msg)}</span>`;
+  div.innerHTML = `<span class="material-symbols-outlined text-lg ${isError ? 'text-red-500' : 'text-emerald-500'} shrink-0">${isError ? 'warning' : 'check_circle'}</span><span>${escapeHtml(msg)}</span>`;
   host.appendChild(div);
-  if (typeof window.lucide !== 'undefined' && typeof window.lucide.createIcons === 'function') {
-    window.lucide.createIcons();
-  }
   setTimeout(() => {
     div.classList.add('fade-out');
     setTimeout(() => div.remove(), 400);

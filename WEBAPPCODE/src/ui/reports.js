@@ -11,14 +11,14 @@ export function renderReportsView(state, selectedBarangay) {
     <div class="page-header flex items-center justify-between mb-6">
       <div>
         <h2 class="text-xl font-bold flex items-center gap-2">
-          <i data-lucide="file-bar-chart" class="w-6 h-6 text-purple-600"></i>
+          <span class="material-symbols-outlined text-purple-600 text-2xl">analytics</span>
           <span>DOH Monthly Reports & Target Client Lists</span>
         </h2>
         <p class="text-sm text-slate-500">Maternal Care (MC) and Child Immunization (CC) Indicators | Barangay: <strong>${escapeHtml(selectedBarangay || 'All')}</strong></p>
       </div>
       <div class="header-actions">
         <button class="primary-btn flex items-center gap-1.5" id="generateReportBtn">
-          <i data-lucide="file-plus" class="w-4 h-4"></i>
+          <span class="material-symbols-outlined text-lg">note_add</span>
           <span>Auto-Generate Report</span>
         </button>
       </div>
@@ -57,11 +57,11 @@ export function renderReportsView(state, selectedBarangay) {
                 <td>${formatDate(rep.dateSubmitted)}</td>
                 <td class="space-x-1">
                   <button class="primary-btn sm-btn export-excel-btn inline-flex items-center gap-1" data-id="${escapeHtml(rep.id)}">
-                    <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                    <span class="material-symbols-outlined text-base">description</span>
                     <span>Export Excel</span>
                   </button>
                   <button class="icon-btn delete-report-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(rep.id)}" title="Delete">
-                    <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
+                    <span class="material-symbols-outlined text-red-600 text-lg">delete</span>
                   </button>
                 </td>
               </tr>

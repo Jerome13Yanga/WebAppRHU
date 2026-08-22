@@ -73,4 +73,4 @@ This adds/keeps formDetails JSON columns for maternal_records and infant_records
 
 
 LOGO PLACEHOLDER:
-To replace the round logo, put your image in the same folder as index.html and name it logo.png. The app will automatically use it in the login screen and sidebar.
+To replace the round logo, put your image in the same folder as index.html and name it logo.jpg (or logo.png). The app will automatically use it in the login screen and sidebar.

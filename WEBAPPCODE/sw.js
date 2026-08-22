@@ -1,10 +1,20 @@
-const CACHE_NAME = "rhu-health-shell-v1";
+const CACHE_NAME = "rhu-health-shell-v2";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
+  "./offline.html",
   "./style.css",
   "./app.js",
-  "./logo.png",
+  "./logo.jpg",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./icon-192-maskable.png",
+  "./icon-512-maskable.png",
+  "./icon-180.png",
+  "./icon-32.png",
+  "./icon-16.png",
+  "./screenshot-wide.png",
+  "./screenshot-narrow.png",
   "./manifest.json"
 ];
 
@@ -33,8 +43,19 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Always use Network-First / Network-Only for Supabase API or Edge Function network requests
+  // Always use Network-First / Network-Only for Supabase API or non-GET requests
   if (url.hostname.includes("supabase") || event.request.method !== "GET") {
+    return;
+  }
+
+  // Handle navigation requests (HTML pages)
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match("./index.html")
+          .then((response) => response || caches.match("./offline.html"));
+      })
+    );
     return;
   }
 
@@ -51,7 +72,7 @@ self.addEventListener("fetch", (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        .catch(() => cachedResponse || caches.match("./offline.html"));
 
       return cachedResponse || fetchPromise;
     })

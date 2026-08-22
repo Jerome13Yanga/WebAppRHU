@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Generated Web App Bundle
+www/
+
+# Portable JDK and Android SDK
+jdk21/
+android-sdk/
+sdk-temp/
+*.zip
+
+# Android Build Outputs & Local Config
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+.gradle/
+
+# Logs & Temporary Files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System Files
+.DS_Store
+Thumbs.db

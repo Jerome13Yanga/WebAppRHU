@@ -1,0 +1,12 @@
+{
+  "appId": "com.rhu.padreburgos.health",
+  "appName": "RHU Health",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true
+  }
+}
