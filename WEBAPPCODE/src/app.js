@@ -186,15 +186,38 @@ function renderPage(pageId) {
   const vis = visibleBarangays();
   const options = current?.role === "Nurse / Midwife" ? vis : ["All Barangays", ...barangays];
 
+  const isParent = current?.role === "Mother / Parent";
+  const isNurse = current?.role === "Nurse / Midwife";
+  const showSelect = !isParent && !isNurse && vis.length > 1;
+
   if (bSelect) {
-    bSelect.innerHTML = options.map(b => `<option value="${escapeHtml(b)}" ${b === selectedBarangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
+    if (!showSelect) {
+      bSelect.classList.add("hidden");
+    } else {
+      bSelect.classList.remove("hidden");
+      bSelect.innerHTML = options.map(b => `<option value="${escapeHtml(b)}" ${b === selectedBarangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
+    }
   }
 
   if (!options.includes(selectedBarangay)) selectedBarangay = options[0] || barangays[0];
 
+  const subtitles = {
+    dashboard: "Monitoring summary",
+    maternal: "Pregnancy monitoring and risk tracking",
+    infants: "Immunization and check-up monitoring",
+    schedules: "Maternal and infant appointments",
+    forms: "Parent-submitted maternal and infant information",
+    reminders: "Check-up and follow-up reminders",
+    barangay: "Monthly records by barangay clinic",
+    reports: "MC maternal care and CC child immunization summaries",
+    users: "Account and assignment management",
+    backup: "LocalStorage data export and restore",
+    contacts: "Nurse and midwife contact information"
+  };
+
   const pg = pages.find(p => p.id === pageId);
   if (titleEl) titleEl.textContent = pg ? pg.label : "Dashboard";
-  if (subEl) subEl.textContent = "Barangay:";
+  if (subEl) subEl.textContent = subtitles[pageId] || "Monitoring summary";
 
   const searchInput = document.getElementById("globalSearch");
   const searchTerm = searchInput ? searchInput.value.trim() : "";

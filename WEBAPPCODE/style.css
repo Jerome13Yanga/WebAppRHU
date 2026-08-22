@@ -1279,15 +1279,48 @@ th {
   }
 
   .analytics-grid,
-  .chart-grid {
+  .chart-grid,
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
 
-  .topbar-actions {
+  .topbar {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     flex-wrap: wrap;
+    padding: 10px 14px;
+    gap: 8px;
+    min-height: auto;
+  }
+
+  .topbar-title-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .topbar h2 {
+    font-size: 18px;
+    line-height: 1.2;
+    margin-bottom: 2px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    display: flex;
     align-items: center;
     gap: 8px;
+    margin-left: 0;
+  }
+
+  #globalSearch {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .user-chip {
+    display: none;
   }
 
   .metric-card strong {
@@ -1296,25 +1329,70 @@ th {
 }
 
 @media (max-width: 640px) {
+  html, body {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
   .workspace {
-    padding: 12px;
+    padding: 8px;
+    max-width: 100vw;
+  }
+
+  .content {
+    padding: 10px;
+    max-width: 100vw;
+  }
+
+  .dashboard-grid,
+  .analytics-grid,
+  .stat-grid,
+  .split-grid,
+  .patient-grid,
+  .two-col,
+  .three-col,
+  .filter-row,
+  .detail-grid,
+  .barangay-grid,
+  .visit-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
   }
 
   .chart-card {
-    padding: 14px 12px;
+    padding: 14px 10px;
   }
 
-  .chart-box svg {
-    min-width: 280px;
+  .donut-layout {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .donut-layout .chart-legend.vertical {
+    flex: 1 1 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 12px;
+  }
+
+  .chart-legend span {
+    font-size: 11px;
+    white-space: nowrap;
   }
 
   .donut-box svg {
-    max-width: 160px;
-    max-height: 160px;
+    max-width: 150px;
+    max-height: 150px;
   }
 
   .donut-total {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .stat-card {
@@ -1326,10 +1404,42 @@ th {
     width: 44px;
     height: 44px;
     font-size: 20px;
+    flex-shrink: 0;
   }
 
   .stat-content h3 {
     font-size: 22px;
+  }
+
+  .welcome-banner {
+    padding: 14px;
+  }
+
+  .welcome-banner h2 {
+    font-size: 18px;
+  }
+
+  .table-container,
+  .table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 540px;
+  }
+
+  th, td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 }
 

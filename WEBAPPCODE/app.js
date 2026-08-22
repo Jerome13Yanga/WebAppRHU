@@ -643,6 +643,16 @@ function renderPage(page) {
   };
   document.getElementById("pageTitle").textContent = titles[page][0];
   document.getElementById("pageSubtitle").textContent = titles[page][1];
+  const bSelect = document.getElementById("topbarBarangaySelect");
+  if (bSelect) {
+    const curUser = typeof getCurrentUser === "function" ? getCurrentUser() : null;
+    const isParentOrNurse = curUser && (curUser.role === "Mother / Parent" || curUser.role === "Nurse / Midwife");
+    if (isParentOrNurse) {
+      bSelect.classList.add("hidden");
+    } else {
+      bSelect.classList.remove("hidden");
+    }
+  }
   const renderers = { dashboard: renderDashboard, maternal: renderMaternal, infants: renderInfants, schedules: renderSchedules, forms: renderParentForms, reminders: renderReminders, barangay: renderBarangay, reports: renderReports, users: renderUsers, backup: renderBackup, contacts: renderContacts };
   renderers[page]();
   if (typeof window.lucide !== "undefined" && typeof window.lucide.createIcons === "function") {
