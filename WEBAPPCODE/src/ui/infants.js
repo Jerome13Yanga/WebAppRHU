@@ -1,75 +1,105 @@
 /**
  * Infant Records & Immunization Tracking UI Module
+ * Padre Burgos RHU Maternal & Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
 import { renderImmunizationBadge } from './components.js';
+import { isNurse, isParent, isDoctor, isMho, isAdmin } from '../auth.js';
 
-export function renderInfantsView(state, selectedBarangay) {
-  const records = state.infantRecords.filter(r => !selectedBarangay || r.barangay === selectedBarangay);
+function isMatchingParentRecord(record, currentUser) {
+  if (!currentUser || !record) return false;
+  if (record.user_id && record.user_id === currentUser.id) return true;
+  if (currentUser.motherId && (record.id === currentUser.motherId || record.maternalRecordId === currentUser.motherId || record.motherId === currentUser.motherId)) return true;
+
+  const targetName = (currentUser.name || currentUser.fullName || '').toLowerCase().trim();
+  if (!targetName) return false;
+
+  const recName = (record.fullName || record.parentName || record.motherName || '').toLowerCase().trim();
+  if (!recName) return false;
+
+  if (recName === targetName) return true;
+  if (recName.includes(targetName) || targetName.includes(recName)) return true;
+
+  const parts = targetName.split(/\s+/).filter(p => p.length > 2);
+  if (parts.length >= 2 && parts.every(p => recName.includes(p))) return true;
+
+  return false;
+}
+
+export function renderInfantsView(state, selectedBarangay = "All Barangays", currentUser = null) {
+  const isUserNurse = isNurse(currentUser);
+  const isUserParent = isParent(currentUser);
+
+  let records = state.infantRecords || [];
+
+  if (isUserParent) {
+    records = records.filter(i => isMatchingParentRecord(i, currentUser));
+  } else if (isUserNurse && currentUser?.barangay) {
+    records = records.filter(r => r.barangay === currentUser.barangay);
+  } else if (selectedBarangay && selectedBarangay !== "All Barangays") {
+    records = records.filter(r => r.barangay === selectedBarangay);
+  }
 
   return `
-    <div class="page-header flex items-center justify-between mb-6">
+    <div class="page-header flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <span class="material-symbols-outlined text-emerald-600 text-2xl">child_care</span>
-          <span>Infant Immunization & Health Records</span>
+        <h2 class="text-xl font-bold flex items-center gap-2 text-text">
+          <span class="material-symbols-outlined text-indigo-600 text-2xl">child_care</span>
+          <span>Infant & Child Immunization Records</span>
         </h2>
-        <p class="text-sm text-slate-500">Barangay: <strong>${escapeHtml(selectedBarangay || 'All')}</strong> (${records.length} infants)</p>
+        <p class="text-xs text-text-muted">
+          ${isUserParent ? 'Your children’s digitized DOH Todo Ligtas health cards' : `Barangay Station: ${escapeHtml(isUserNurse ? currentUser.barangay : selectedBarangay)} (${records.length} children)`}
+        </p>
       </div>
-      <button class="primary-btn flex items-center gap-1.5" id="addInfantBtn">
-        <span class="material-symbols-outlined text-lg">add_circle</span>
-        <span>Add Infant Record</span>
+
+      <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addInfantBtn">
+        <span class="material-symbols-outlined text-base">person_add</span>
+        <span>${isUserParent ? 'Register My Child' : 'Register Child Health Record'}</span>
       </button>
     </div>
 
     <div class="panel">
-      <div class="table-container">
-        <table class="data-table">
+      <div class="table-container overflow-x-auto">
+        <table class="data-table text-xs">
           <thead>
             <tr>
-              <th>Infant Name</th>
-              <th>Parent / Mother Name</th>
+              <th>Child Full Name</th>
+              <th>Mother / Parent</th>
               <th>Age (Months)</th>
               <th>Birthdate</th>
               <th>Barangay</th>
               <th>Immunization Status</th>
-              <th>Verification Status</th>
+              <th>Assigned Provider</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             ${records.length === 0 ? `
-              <tr><td colspan="8" class="text-center text-muted">No infant records found for ${escapeHtml(selectedBarangay || 'all barangays')}.</td></tr>
+              <tr><td colspan="8" class="text-center py-6 text-text-muted">No child immunization records found.</td></tr>
             ` : records.map(i => `
               <tr>
                 <td><strong>${escapeHtml(i.infantName)}</strong></td>
                 <td>${escapeHtml(i.parentName || i.motherName || 'N/A')}</td>
                 <td>${i.ageMonths || 0} mo</td>
                 <td>${formatDate(i.birthdate)}</td>
-                <td>${escapeHtml(i.barangay)}</td>
+                <td><span class="badge badge-info text-[11px]">${escapeHtml(i.barangay)}</span></td>
                 <td>${renderImmunizationBadge(i.immunizationStatus)}</td>
-                <td>
-                  <span class="badge ${i.verification_status === 'Verified' ? 'badge-success' : 'badge-warning'}">
-                    <span class="badge-dot"></span>${escapeHtml(i.verification_status || 'Pending Verification')}
-                  </span>
-                </td>
-                <td class="space-x-1">
-                  ${i.verification_status !== 'Verified' ? `
-                    <button class="primary-btn sm-btn verify-infant-btn inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded" data-id="${escapeHtml(i.id)}" title="Verify Health Record">
-                      <span class="material-symbols-outlined text-sm">check_circle</span>
-                      <span>Verify</span>
+                <td class="text-text-muted">${escapeHtml(i.assignedNurse || 'RHU Staff')}</td>
+                <td class="space-x-1 whitespace-nowrap">
+                  <button type="button" class="primary-btn sm-btn view-card-btn text-[11px] py-1 px-2.5" data-id="${escapeHtml(i.id)}" title="Open DOH Todo Ligtas Card">
+                    <span class="material-symbols-outlined text-sm">badge</span>
+                    <span>Todo Ligtas Card</span>
+                  </button>
+                  ${!isUserParent ? `
+                    <button type="button" class="secondary-btn sm-btn edit-infant-btn text-[11px] py-1 px-2" data-id="${escapeHtml(i.id)}" title="Edit Infant Details">
+                      <span class="material-symbols-outlined text-sm">edit</span>
                     </button>
+                    ${isAdmin(currentUser) || isNurse(currentUser) ? `
+                      <button type="button" class="icon-btn delete-infant-btn p-1 text-red-600 hover:bg-red-50" data-id="${escapeHtml(i.id)}" title="Delete">
+                        <span class="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    ` : ''}
                   ` : ''}
-                  <button class="primary-btn sm-btn view-card-btn inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded" data-id="${escapeHtml(i.id)}" title="Digital Immunization Card">
-                    <span class="material-symbols-outlined text-sm">medical_information</span>
-                    <span>Card</span>
-                  </button>
-                  <button class="icon-btn edit-infant-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(i.id)}" title="Edit">
-                    <span class="material-symbols-outlined text-blue-600 text-lg">edit</span>
-                  </button>
-                  <button class="icon-btn delete-infant-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(i.id)}" title="Delete">
-                    <span class="material-symbols-outlined text-red-600 text-lg">delete</span>
-                  </button>
                 </td>
               </tr>
             `).join('')}

@@ -1,5 +1,6 @@
 /**
  * Configuration & Constants for RHU Maternal and Infant Health System
+ * Padre Burgos, Quezon
  */
 
 export const STORE_KEYS = [
@@ -7,6 +8,8 @@ export const STORE_KEYS = [
   "currentUser",
   "maternalRecords",
   "infantRecords",
+  "maternalCheckupHistory",
+  "infantCheckupHistory",
   "checkupSchedules",
   "reminders",
   "monthlyReports",
@@ -14,12 +17,12 @@ export const STORE_KEYS = [
   "backupMeta"
 ];
 
-export const roles = ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"];
-export const staffRoles = ["MHO", "Nurse / Midwife", "Doctor"];
+export const roles = ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"];
+export const staffRoles = ["Doctor", "MHO", "Nurse / Midwife"];
 export const publicRegisterRole = "Mother / Parent";
-export const embeddedAdminEmails = ["admin@rhu.gov"];
+export const embeddedAdminEmails = ["admin@rhu.gov", "administrator@rhu.gov"];
 
-export const barangays = [
+export const defaultBarangays = [
   "Basiao (Poblacion)",
   "Burgos (Poblacion)",
   "Cabuyao Norte",
@@ -44,6 +47,16 @@ export const barangays = [
   "Yawe"
 ];
 
+export const barangays = defaultBarangays;
+
+export function getDynamicBarangays(state = {}) {
+  const set = new Set(defaultBarangays);
+  (state.maternalRecords || []).forEach(r => { if (r.barangay) set.add(r.barangay); });
+  (state.infantRecords || []).forEach(r => { if (r.barangay) set.add(r.barangay); });
+  (state.users || []).forEach(u => { if (u.barangay && u.barangay !== 'All Barangays') set.add(u.barangay); });
+  return Array.from(set).sort();
+}
+
 export const reportTypes = ["MC", "CC"];
 export const reportTypeNames = {
   MC: "MC - Maternal Care Monthly Report",
@@ -63,18 +76,18 @@ export function reportTypeShort(type) {
 }
 
 export const pages = [
-  { id: "dashboard", label: "Dashboard", icon: "layout-dashboard", roles },
-  { id: "maternal", label: "Maternal Records", icon: "heart-pulse", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "infants", label: "Infant Records", icon: "baby", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "schedules", label: "Check-up Schedules", icon: "calendar", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
-  { id: "forms", label: "My Health Forms", icon: "file-text", roles: ["Mother / Parent"] },
-  { id: "reminders", label: "Reminders", icon: "bell", roles: ["Administrator", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "barangay", label: "Barangay Monitoring", icon: "building-2", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "reports", label: "Monthly Reports", icon: "file-bar-chart", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
+  { id: "dashboard", label: "Dashboard", icon: "layout-dashboard", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "maternal", label: "Maternal Records", icon: "heart-pulse", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "infants", label: "Infant Records", icon: "baby", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "history", label: "Checkup History", icon: "clipboard-list", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "schedules", label: "Check-up Schedules", icon: "calendar", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "reminders", label: "Reminders & Advisories", icon: "bell", roles: ["Administrator", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "barangay", label: "Barangay Monitoring", icon: "building-2", roles: ["Administrator", "Doctor", "MHO"] },
+  { id: "reports", label: "Monthly Reports", icon: "file-bar-chart", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife"] },
   { id: "users", label: "Users and Roles", icon: "users", roles: ["Administrator"] },
   { id: "backup", label: "Backup and Recovery", icon: "hard-drive-download", roles: ["Administrator"] },
-  { id: "contacts", label: "Emergency Contacts", icon: "phone-call", roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
-  { id: "logout", label: "Logout", icon: "log-out", roles }
+  { id: "contacts", label: "Emergency Contacts", icon: "phone-call", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "logout", label: "Logout", icon: "log-out", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] }
 ];
 
 export const SUPABASE_URL = "https://rkortcwwnrpvhrxikunb.supabase.co";
@@ -84,6 +97,8 @@ export const TABLES = {
   users: "profiles",
   maternalRecords: "maternal_records",
   infantRecords: "infant_records",
+  maternalCheckupHistory: "maternal_checkup_history",
+  infantCheckupHistory: "infant_checkup_history",
   checkupSchedules: "checkup_schedules",
   reminders: "reminders",
   monthlyReports: "monthly_reports",

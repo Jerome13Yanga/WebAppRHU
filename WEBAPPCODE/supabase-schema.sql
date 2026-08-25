@@ -1,7 +1,10 @@
--- RHU Maternal and Infant Health Monitoring - Production Supabase Schema & Security Rules
+-- ============================================================================
+-- Padre Burgos RHU Maternal & Infant Health Monitoring System
+-- Production Database Schema, Column Migrations & Row Level Security (RLS)
 -- Run this in Supabase Dashboard > SQL Editor.
+-- ============================================================================
 
--- 1. TABLES DEFINITION
+-- 1. BASE TABLES DEFINITION
 create table if not exists public.profiles (
   id text primary key,
   "authUserId" uuid references auth.users(id) on delete cascade,
@@ -23,31 +26,90 @@ create table if not exists public.maternal_records (
   contact text,
   lmp date,
   edd date,
-  "pregnancyStatus" text,
+  "pregnancyStatus" text default 'Active',
   "checkupsCompleted" integer default 0,
-  "riskLevel" text,
+  "riskLevel" text default 'Normal',
   "assignedNurse" text,
   notes text,
-  "formDetails" jsonb default '{}'::jsonb
+  created_at timestamptz default now()
 );
 
 create table if not exists public.infant_records (
   id text primary key,
   "infantName" text not null,
   "parentName" text,
+  "motherName" text,
   address text,
   barangay text not null,
   birthdate date,
   "ageMonths" integer default 0,
   contact text,
-  "immunizationStatus" text,
+  "immunizationStatus" text default 'Incomplete',
   "lastCheckup" date,
   "nextCheckup" date,
   "assignedNurse" text,
   notes text,
-  "formDetails" jsonb default '{}'::jsonb
+  created_at timestamptz default now()
 );
 
+-- 2. SCHEMA COLUMN MIGRATIONS (Ensures existing tables get new required columns)
+alter table public.profiles add column if not exists "authUserId" uuid references auth.users(id) on delete cascade;
+alter table public.profiles add column if not exists "motherId" text default '';
+
+alter table public.maternal_records add column if not exists "user_id" uuid references auth.users(id) on delete set null;
+alter table public.maternal_records add column if not exists verification_status text default 'Verified';
+alter table public.maternal_records add column if not exists "formDetails" jsonb default '{}'::jsonb;
+alter table public.maternal_records add column if not exists "pregnancyStatus" text default 'Active';
+alter table public.maternal_records add column if not exists "checkupsCompleted" integer default 0;
+alter table public.maternal_records add column if not exists "riskLevel" text default 'Normal';
+alter table public.maternal_records add column if not exists "assignedNurse" text;
+
+alter table public.infant_records add column if not exists "user_id" uuid references auth.users(id) on delete set null;
+alter table public.infant_records add column if not exists "maternalRecordId" text references public.maternal_records(id) on delete set null;
+alter table public.infant_records add column if not exists "motherName" text;
+alter table public.infant_records add column if not exists verification_status text default 'Verified';
+alter table public.infant_records add column if not exists "formDetails" jsonb default '{}'::jsonb;
+alter table public.infant_records add column if not exists "immunizationStatus" text default 'Incomplete';
+alter table public.infant_records add column if not exists "lastCheckup" date;
+alter table public.infant_records add column if not exists "nextCheckup" date;
+alter table public.infant_records add column if not exists "assignedNurse" text;
+
+-- 3. APPEND-ONLY CHECKUP VISIT HISTORIES
+create table if not exists public.maternal_checkup_history (
+  id text primary key,
+  "maternalRecordId" text not null references public.maternal_records(id) on delete cascade,
+  "patientName" text not null,
+  barangay text not null,
+  "checkupDate" date not null,
+  "aogWeeks" text,
+  "bloodPressure" text not null,
+  "weightKg" text,
+  "fundicHeight" text,
+  "fetalHeartRate" text,
+  assessment text not null,
+  "treatmentIntervention" text,
+  "nextCheckupDate" date,
+  "recordedBy" text not null,
+  "createdAt" timestamptz default now()
+);
+
+create table if not exists public.infant_checkup_history (
+  id text primary key,
+  "infantRecordId" text not null references public.infant_records(id) on delete cascade,
+  "infantName" text not null,
+  "parentName" text,
+  barangay text not null,
+  "checkupDate" date not null,
+  "weightKg" text,
+  "heightCm" text,
+  "immunizationGiven" text,
+  assessment text,
+  "nextCheckupDate" date,
+  "recordedBy" text not null,
+  "createdAt" timestamptz default now()
+);
+
+-- 4. APPOINTMENTS, REMINDERS, REPORTS, & EMERGENCY CONTACTS
 create table if not exists public.checkup_schedules (
   id text primary key,
   "patientName" text not null,
@@ -56,7 +118,7 @@ create table if not exists public.checkup_schedules (
   date date,
   time time,
   "assignedNurse" text,
-  status text,
+  status text default 'Scheduled',
   notes text
 );
 
@@ -67,7 +129,7 @@ create table if not exists public.reminders (
   "messageType" text,
   message text,
   "scheduleDate" date,
-  status text
+  status text default 'Active'
 );
 
 create table if not exists public.monthly_reports (
@@ -83,7 +145,7 @@ create table if not exists public.monthly_reports (
   "completedOrMissed" integer default 0,
   "preparedBy" text,
   "dateSubmitted" date,
-  status text,
+  status text default 'Submitted',
   "reportDetails" jsonb default '{}'::jsonb
 );
 
@@ -96,140 +158,123 @@ create table if not exists public.emergency_contacts (
   hotline text
 );
 
--- 2. INDEXES FOR HIGH-PERFORMANCE BARANGAY & REPORT SEARCHES
+-- 5. INDEXES FOR PERFORMANCE
 create index if not exists idx_maternal_barangay on public.maternal_records(barangay);
-create index if not exists idx_maternal_risk on public.maternal_records("riskLevel");
 create index if not exists idx_infant_barangay on public.infant_records(barangay);
-create index if not exists idx_infant_status on public.infant_records("immunizationStatus");
-create index if not exists idx_schedules_barangay_date on public.checkup_schedules(barangay, date);
-create index if not exists idx_profiles_email on public.profiles(email);
+create index if not exists idx_maternal_checkup_history_rec on public.maternal_checkup_history("maternalRecordId");
+create index if not exists idx_infant_checkup_history_rec on public.infant_checkup_history("infantRecordId");
+create index if not exists idx_checkup_schedules_barangay on public.checkup_schedules(barangay);
+create index if not exists idx_monthly_reports_lookup on public.monthly_reports(barangay, month, type);
 
--- 3. ROW LEVEL SECURITY (RLS) & HELPER FUNCTIONS
+-- 6. ENABLE ROW LEVEL SECURITY (RLS)
 alter table public.profiles enable row level security;
 alter table public.maternal_records enable row level security;
 alter table public.infant_records enable row level security;
+alter table public.maternal_checkup_history enable row level security;
+alter table public.infant_checkup_history enable row level security;
 alter table public.checkup_schedules enable row level security;
 alter table public.reminders enable row level security;
 alter table public.monthly_reports enable row level security;
 alter table public.emergency_contacts enable row level security;
 
--- Function to get the logged-in user's profile role
-create or replace function public.current_user_role()
-returns text language sql security definer as $$
-  select role from public.profiles where "authUserId" = auth.uid() or email = lower(auth.jwt()->>'email') limit 1;
-$$;
+-- 7. CLEAN UP OLD POLICIES TO PREVENT DUPLICATES
+drop policy if exists "Allow authenticated read on profiles" on public.profiles;
+drop policy if exists "Allow user self-management on profiles" on public.profiles;
+drop policy if exists "Allow staff or owner read on maternal_records" on public.maternal_records;
+drop policy if exists "Allow staff write on maternal_records" on public.maternal_records;
+drop policy if exists "Allow staff or parent read on infant_records" on public.infant_records;
+drop policy if exists "Allow staff write on infant_records" on public.infant_records;
+drop policy if exists "Allow staff or patient read on maternal_checkup_history" on public.maternal_checkup_history;
+drop policy if exists "Allow staff write on maternal_checkup_history" on public.maternal_checkup_history;
+drop policy if exists "Allow staff or patient read on infant_checkup_history" on public.infant_checkup_history;
+drop policy if exists "Allow staff write on infant_checkup_history" on public.infant_checkup_history;
+drop policy if exists "Allow authenticated read on schedules" on public.checkup_schedules;
+drop policy if exists "Allow staff write on schedules" on public.checkup_schedules;
+drop policy if exists "Allow authenticated read on monthly_reports" on public.monthly_reports;
+drop policy if exists "Allow staff write on monthly_reports" on public.monthly_reports;
+drop policy if exists "Allow read on emergency_contacts" on public.emergency_contacts;
+drop policy if exists "Allow admin write on emergency_contacts" on public.emergency_contacts;
 
--- Function to get the logged-in user's assigned barangay
-create or replace function public.current_user_barangay()
-returns text language sql security definer as $$
-  select barangay from public.profiles where "authUserId" = auth.uid() or email = lower(auth.jwt()->>'email') limit 1;
-$$;
+-- 8. CREATE ROBUST RLS POLICIES
+create policy "Allow authenticated read on profiles" on public.profiles for select using (auth.role() = 'authenticated');
+create policy "Allow user self-management on profiles" on public.profiles for all using (auth.uid() = "authUserId");
 
--- Clean up old prototype policies
-do $$
-declare
-  t text;
-begin
-  foreach t in array array[
-    'profiles', 'maternal_records', 'infant_records', 
-    'checkup_schedules', 'reminders', 'monthly_reports', 'emergency_contacts'
-  ] loop
-    execute format('drop policy if exists "authenticated_select" on public.%I', t);
-    execute format('drop policy if exists "authenticated_insert" on public.%I', t);
-    execute format('drop policy if exists "authenticated_update" on public.%I', t);
-    execute format('drop policy if exists "authenticated_delete" on public.%I', t);
-  end loop;
-end $$;
-
--- Drop legacy custom policies if existing
-drop policy if exists "profile_read_policy" on public.profiles;
-drop policy if exists "profile_write_policy" on public.profiles;
-drop policy if exists "maternal_records_policy" on public.maternal_records;
-drop policy if exists "infant_records_policy" on public.infant_records;
-drop policy if exists "schedules_policy" on public.checkup_schedules;
-drop policy if exists "reminders_policy" on public.reminders;
-drop policy if exists "reports_policy" on public.monthly_reports;
-drop policy if exists "contacts_policy" on public.emergency_contacts;
-
--- PROFILES POLICY
-create policy "profile_read_policy" on public.profiles for select to authenticated
-  using (
-    "authUserId" = auth.uid() 
-    or lower(email) = lower(auth.jwt()->>'email')
-    or public.current_user_role() in ('Administrator', 'MHO', 'Doctor', 'Nurse / Midwife')
-  );
-
-create policy "profile_write_policy" on public.profiles for all to authenticated
-  using (
-    "authUserId" = auth.uid()
-    or lower(email) = lower(auth.jwt()->>'email')
-    or public.current_user_role() = 'Administrator'
+-- Maternal Records RLS
+create policy "Allow staff or owner read on maternal_records" on public.maternal_records for select
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = maternal_records.barangay)
+    OR user_id = auth.uid()
   )
-  with check (
-    "authUserId" = auth.uid()
-    or lower(email) = lower(auth.jwt()->>'email')
-    or public.current_user_role() = 'Administrator'
-  );
+);
 
--- MATERNAL RECORDS POLICY
-create policy "maternal_records_policy" on public.maternal_records for all to authenticated
-  using (
-    public.current_user_role() in ('Administrator', 'MHO', 'Doctor')
-    or (public.current_user_role() = 'Nurse / Midwife' and barangay = public.current_user_barangay())
-    or (public.current_user_role() = 'Mother / Parent' and lower("fullName") = (select lower(name) from public.profiles where "authUserId" = auth.uid() limit 1))
+create policy "Allow staff write on maternal_records" on public.maternal_records for all
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = maternal_records.barangay)
   )
-  with check (
-    public.current_user_role() in ('Administrator', 'MHO', 'Doctor')
-    or (public.current_user_role() = 'Nurse / Midwife' and barangay = public.current_user_barangay())
-    or (public.current_user_role() = 'Mother / Parent')
-  );
+);
 
--- INFANT RECORDS POLICY
-create policy "infant_records_policy" on public.infant_records for all to authenticated
-  using (
-    public.current_user_role() in ('Administrator', 'MHO', 'Doctor')
-    or (public.current_user_role() = 'Nurse / Midwife' and barangay = public.current_user_barangay())
-    or (public.current_user_role() = 'Mother / Parent' and lower("parentName") = (select lower(name) from public.profiles where "authUserId" = auth.uid() limit 1))
+-- Infant Records RLS
+create policy "Allow staff or parent read on infant_records" on public.infant_records for select
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = infant_records.barangay)
+    OR user_id = auth.uid()
   )
-  with check (
-    public.current_user_role() in ('Administrator', 'MHO', 'Doctor')
-    or (public.current_user_role() = 'Nurse / Midwife' and barangay = public.current_user_barangay())
-    or (public.current_user_role() = 'Mother / Parent')
-  );
+);
 
--- SCHEDULES POLICY
-create policy "schedules_policy" on public.checkup_schedules for all to authenticated
-  using (
-    public.current_user_role() in ('Administrator', 'MHO', 'Doctor')
-    or (public.current_user_role() = 'Nurse / Midwife' and barangay = public.current_user_barangay())
-    or (public.current_user_role() = 'Mother / Parent' and lower("patientName") = (select lower(name) from public.profiles where "authUserId" = auth.uid() limit 1))
+create policy "Allow staff write on infant_records" on public.infant_records for all
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = infant_records.barangay)
   )
-  with check (
-    public.current_user_role() in ('Administrator', 'MHO', 'Doctor', 'Mother / Parent')
-  );
+);
 
--- REMINDERS POLICY
-create policy "reminders_policy" on public.reminders for all to authenticated
-  using (
-    public.current_user_role() in ('Administrator', 'Nurse / Midwife')
-    or (public.current_user_role() = 'Mother / Parent' and lower("recipientName") = (select lower(name) from public.profiles where "authUserId" = auth.uid() limit 1))
+-- Checkup History RLS
+create policy "Allow staff or patient read on maternal_checkup_history" on public.maternal_checkup_history for select
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = maternal_checkup_history.barangay)
+    OR exists (select 1 from public.maternal_records where id = maternal_checkup_history."maternalRecordId" and user_id = auth.uid())
   )
-  with check (
-    public.current_user_role() in ('Administrator', 'Nurse / Midwife')
-  );
+);
 
--- MONTHLY REPORTS POLICY (Staff only)
-create policy "reports_policy" on public.monthly_reports for all to authenticated
-  using (
-    public.current_user_role() in ('Administrator', 'MHO', 'Doctor')
-    or (public.current_user_role() = 'Nurse / Midwife' and barangay = public.current_user_barangay())
+create policy "Allow staff write on maternal_checkup_history" on public.maternal_checkup_history for all
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO', 'Nurse / Midwife'))
   )
-  with check (
-    public.current_user_role() in ('Administrator', 'MHO', 'Doctor', 'Nurse / Midwife')
-  );
+);
 
--- EMERGENCY CONTACTS POLICY (Read for all signed in, Edit for Admin)
-create policy "contacts_policy" on public.emergency_contacts for select to authenticated using (true);
-create policy "contacts_edit_policy" on public.emergency_contacts for all to authenticated
-  using (public.current_user_role() = 'Administrator')
-  with check (public.current_user_role() = 'Administrator');
+create policy "Allow staff or patient read on infant_checkup_history" on public.infant_checkup_history for select
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = infant_checkup_history.barangay)
+    OR exists (select 1 from public.infant_records where id = infant_checkup_history."infantRecordId" and user_id = auth.uid())
+  )
+);
+
+create policy "Allow staff write on infant_checkup_history" on public.infant_checkup_history for all
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO', 'Nurse / Midwife'))
+  )
+);
+
+-- Schedules & Reports RLS
+create policy "Allow authenticated read on schedules" on public.checkup_schedules for select using (auth.role() = 'authenticated');
+create policy "Allow staff write on schedules" on public.checkup_schedules for all using (auth.role() = 'authenticated');
+
+create policy "Allow authenticated read on monthly_reports" on public.monthly_reports for select using (auth.role() = 'authenticated');
+create policy "Allow staff write on monthly_reports" on public.monthly_reports for all using (auth.role() = 'authenticated');
+
+create policy "Allow read on emergency_contacts" on public.emergency_contacts for select using (true);
+create policy "Allow admin write on emergency_contacts" on public.emergency_contacts for all
+using (exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Administrator'));

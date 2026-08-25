@@ -1,77 +1,120 @@
 /**
  * Maternal Care Records UI Module
+ * Padre Burgos RHU Maternal & Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
 import { renderRiskBadge, renderProgressBar } from './components.js';
+import { isNurse, isParent, isDoctor, isMho, isAdmin } from '../auth.js';
 
-export function renderMaternalView(state, selectedBarangay) {
-  const records = state.maternalRecords.filter(r => !selectedBarangay || r.barangay === selectedBarangay);
+function isMatchingParentRecord(record, currentUser) {
+  if (!currentUser || !record) return false;
+  if (record.user_id && record.user_id === currentUser.id) return true;
+  if (currentUser.motherId && (record.id === currentUser.motherId || record.maternalRecordId === currentUser.motherId)) return true;
+
+  const targetName = (currentUser.name || currentUser.fullName || '').toLowerCase().trim();
+  if (!targetName) return false;
+
+  const recName = (record.fullName || record.parentName || record.motherName || '').toLowerCase().trim();
+  if (!recName) return false;
+
+  if (recName === targetName) return true;
+  if (recName.includes(targetName) || targetName.includes(recName)) return true;
+
+  const parts = targetName.split(/\s+/).filter(p => p.length > 2);
+  if (parts.length >= 2 && parts.every(p => recName.includes(p))) return true;
+
+  return false;
+}
+
+export function renderMaternalView(state, selectedBarangay = "All Barangays", currentUser = null) {
+  const isUserNurse = isNurse(currentUser);
+  const isUserParent = isParent(currentUser);
+
+  let records = state.maternalRecords || [];
+
+  if (isUserParent) {
+    records = records.filter(r => isMatchingParentRecord(r, currentUser));
+  } else if (isUserNurse && currentUser?.barangay) {
+    records = records.filter(r => r.barangay === currentUser.barangay);
+  } else if (selectedBarangay && selectedBarangay !== "All Barangays") {
+    records = records.filter(r => r.barangay === selectedBarangay);
+  }
 
   return `
-    <div class="page-header flex items-center justify-between mb-6">
+    <div class="page-header flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <span class="material-symbols-outlined text-blue-600 text-2xl">health_and_safety</span>
+        <h2 class="text-xl font-bold flex items-center gap-2 text-text">
+          <span class="material-symbols-outlined text-pink-600 text-2xl">pregnant_woman</span>
           <span>Maternal Care Records</span>
         </h2>
-        <p class="text-sm text-slate-500">Barangay: <strong>${escapeHtml(selectedBarangay || 'All')}</strong> (${records.length} patients)</p>
+        <p class="text-xs text-text-muted">
+          ${isUserParent ? 'Your personal pregnancy timeline and health records' : `Barangay Station: ${escapeHtml(isUserNurse ? currentUser.barangay : selectedBarangay)} (${records.length} patients)`}
+        </p>
       </div>
-      <button class="primary-btn flex items-center gap-1.5" id="addMaternalBtn">
-        <span class="material-symbols-outlined text-lg">add_circle</span>
-        <span>Add Maternal Record</span>
-      </button>
+
+      ${!isUserParent ? `
+        <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addMaternalBtn">
+          <span class="material-symbols-outlined text-base">person_add</span>
+          <span>Register Pregnant Mother</span>
+        </button>
+      ` : ''}
     </div>
 
     <div class="panel">
-      <div class="table-container">
-        <table class="data-table">
+      <div class="table-container overflow-x-auto">
+        <table class="data-table text-xs">
           <thead>
             <tr>
-              <th>Patient Name</th>
+              <th>Patient Full Name</th>
               <th>Age</th>
               <th>Barangay</th>
               <th>LMP / EDD</th>
               <th>Risk Level</th>
-              <th>Visits Completed</th>
-              <th>Verification Status</th>
-              <th>Assigned Nurse</th>
+              <th>8ANC Progress</th>
+              <th>Assigned Midwife</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             ${records.length === 0 ? `
-              <tr><td colspan="9" class="text-center text-muted">No maternal records found for ${escapeHtml(selectedBarangay || 'all barangays')}.</td></tr>
+              <tr><td colspan="8" class="text-center py-6 text-text-muted">No maternal records found.</td></tr>
             ` : records.map(r => `
               <tr>
-                <td><strong>${escapeHtml(r.fullName)}</strong><br><small>${escapeHtml(r.contact || 'No contact')}</small></td>
-                <td>${r.age || 'N/A'}</td>
-                <td>${escapeHtml(r.barangay)}</td>
-                <td><small>LMP: ${formatDate(r.lmp)}<br>EDD: ${formatDate(r.edd)}</small></td>
-                <td>${renderRiskBadge(r.riskLevel)}</td>
-                <td>${renderProgressBar(r.checkupsCompleted || 0, 8)}</td>
                 <td>
-                  <span class="badge ${r.verification_status === 'Verified' ? 'badge-success' : 'badge-warning'}">
-                    <span class="badge-dot"></span>${escapeHtml(r.verification_status || 'Pending Verification')}
-                  </span>
+                  <strong>${escapeHtml(r.fullName)}</strong>
+                  <div class="text-[11px] text-text-muted">${escapeHtml(r.contact || 'No contact')}</div>
                 </td>
-                <td>${escapeHtml(r.assignedNurse || 'Unassigned')}</td>
-                <td class="space-x-1">
-                  ${r.verification_status !== 'Verified' ? `
-                    <button class="primary-btn sm-btn verify-maternal-btn inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded" data-id="${escapeHtml(r.id)}" title="Verify Health Record">
-                      <span class="material-symbols-outlined text-sm">check_circle</span>
-                      <span>Verify</span>
-                    </button>
-                  ` : ''}
-                  <button class="primary-btn sm-btn open-prenatal-clinical-modal-btn inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs" data-id="${escapeHtml(r.id)}" title="Open Prenatal Clinical Record">
+                <td>${r.age || 'N/A'}</td>
+                <td><span class="badge badge-info text-[11px]">${escapeHtml(r.barangay)}</span></td>
+                <td>
+                  <div class="text-[11px]">
+                    <div>LMP: ${formatDate(r.lmp)}</div>
+                    <div>EDD: <strong>${formatDate(r.edd)}</strong></div>
+                  </div>
+                </td>
+                <td>${renderRiskBadge(r.riskLevel)}</td>
+                <td class="w-40">${renderProgressBar(r.checkupsCompleted || 0, 8)}</td>
+                <td class="text-text-muted">${escapeHtml(r.assignedNurse || 'RHU Staff')}</td>
+                <td class="space-x-1 whitespace-nowrap">
+                  <button type="button" class="primary-btn sm-btn open-prenatal-clinical-modal-btn text-[11px] py-1 px-2.5" data-id="${escapeHtml(r.id)}" title="Open Prenatal Clinical Record">
                     <span class="material-symbols-outlined text-sm">clinical_notes</span>
-                    <span>Clinical Record</span>
+                    <span>Clinical Form</span>
                   </button>
-                  <button class="icon-btn edit-maternal-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(r.id)}" title="Edit Padre Burgos Form">
-                    <span class="material-symbols-outlined text-blue-600 text-lg">edit</span>
+                  <button type="button" class="secondary-btn sm-btn edit-maternal-btn text-[11px] py-1 px-2.5" data-id="${escapeHtml(r.id)}" title="DOH Maternal Card">
+                    <span class="material-symbols-outlined text-sm">edit_document</span>
+                    <span>Card</span>
                   </button>
-                  <button class="icon-btn delete-maternal-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(r.id)}" title="Delete">
-                    <span class="material-symbols-outlined text-red-600 text-lg">delete</span>
-                  </button>
+                  ${!isUserParent ? `
+                    <button type="button" class="primary-btn sm-btn record-visit-maternal-btn bg-pink-700 hover:bg-pink-800 text-white text-[11px] py-1 px-2.5" data-id="${escapeHtml(r.id)}" title="Record Checkup Visit">
+                      <span class="material-symbols-outlined text-sm">add</span>
+                      <span>Visit</span>
+                    </button>
+                    ${isAdmin(currentUser) || isNurse(currentUser) ? `
+                      <button type="button" class="icon-btn delete-maternal-btn p-1 text-red-600 hover:bg-red-50" data-id="${escapeHtml(r.id)}" title="Delete">
+                        <span class="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    ` : ''}
+                  ` : ''}
                 </td>
               </tr>
             `).join('')}

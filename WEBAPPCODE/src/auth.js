@@ -1,8 +1,9 @@
 /**
  * Authentication & User Session Management Module
+ * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow } from './db.js';
-import { embeddedAdminEmails, TABLES } from './config.js';
+import { embeddedAdminEmails, TABLES, SUPABASE_URL } from './config.js';
 import { toast } from './utils/sanitize.js';
 
 let currentUser = null;
@@ -15,9 +16,33 @@ export function setCurrentUser(user) {
   currentUser = user;
 }
 
+export function isAdmin(user = currentUser) {
+  return user?.role === 'Administrator' || embeddedAdminEmails.includes(String(user?.email || '').toLowerCase());
+}
+
+export function isDoctor(user = currentUser) {
+  return user?.role === 'Doctor';
+}
+
+export function isMho(user = currentUser) {
+  return user?.role === 'MHO';
+}
+
+export function isNurse(user = currentUser) {
+  return user?.role === 'Nurse / Midwife' || user?.role === 'Nurse' || user?.role === 'Midwife';
+}
+
+export function isParent(user = currentUser) {
+  return user?.role === 'Mother / Parent';
+}
+
+export function isStaff(user = currentUser) {
+  return !isParent(user);
+}
+
 export async function createManagedAuthAccount(row, password) {
   if (!isOnlineMode()) {
-    toast("Created staff account in local offline store. To log in online, deploy the Supabase Edge Function.", false);
+    toast("Created staff account in local store.", false);
     return;
   }
   const { data: sessionData } = await db.auth.getSession();

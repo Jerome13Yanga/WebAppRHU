@@ -1,8 +1,8 @@
 /**
  * Database & Storage Abstraction Layer (Supabase + IndexedDB Engine)
+ * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { SUPABASE_URL, SUPABASE_ANON_KEY, TABLES, STORE_KEYS } from './config.js';
-import { toast } from './utils/sanitize.js';
 
 export const isSupabaseConfigured = () =>
   typeof window.supabase !== "undefined" &&
@@ -15,13 +15,13 @@ export const db = isSupabaseConfigured() ? window.supabase.createClient(SUPABASE
 export const isOnlineMode = () => Boolean(db);
 
 const DB_NAME = 'rhu_health_indexed_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let idbInstance = null;
 
 // Initialize IndexedDB Engine
 export async function openIndexedDB() {
   if (idbInstance) return idbInstance;
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = (e) => {
       console.error('IndexedDB Error:', e);
@@ -32,14 +32,14 @@ export async function openIndexedDB() {
       resolve(idbInstance);
     };
     request.onupgradeneeded = (e) => {
-      const db = e.target.result;
+      const idb = e.target.result;
       STORE_KEYS.forEach(key => {
-        if (!db.objectStoreNames.contains(key)) {
-          db.createObjectStore(key, { keyPath: 'id', autoIncrement: false });
+        if (!idb.objectStoreNames.contains(key)) {
+          idb.createObjectStore(key, { keyPath: 'id', autoIncrement: false });
         }
       });
-      if (!db.objectStoreNames.contains('pendingSyncQueue')) {
-        db.createObjectStore('pendingSyncQueue', { keyPath: 'syncId', autoIncrement: true });
+      if (!idb.objectStoreNames.contains('pendingSyncQueue')) {
+        idb.createObjectStore('pendingSyncQueue', { keyPath: 'syncId', autoIncrement: true });
       }
     };
   });
@@ -113,7 +113,10 @@ export function cleanRemoteRow(key, row) {
   }
 
   // Clean empty string dates/timestamps to null
-  const dateFields = ["lmp", "edd", "birthdate", "lastCheckup", "nextCheckup", "date", "scheduleDate", "dateSubmitted", "created_at", "updated_at", "verified_at"];
+  const dateFields = [
+    "lmp", "edd", "birthdate", "lastCheckup", "nextCheckup", "checkupDate", "nextCheckupDate",
+    "date", "scheduleDate", "dateSubmitted", "created_at", "updated_at", "verified_at"
+  ];
   dateFields.forEach((field) => {
     if (copy[field] === "") copy[field] = null;
   });

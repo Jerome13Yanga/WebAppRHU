@@ -87,10 +87,10 @@ export function renderPrenatalClinicalRecordHtml(record = {}) {
           </div>
           <div>
             <label class="block font-semibold mb-1 text-slate-700">Flow</label>
-            <div class="flex items-center gap-2 pt-1.5 text-xs">
-              <label><input type="checkbox" id="pc_flow_scant" ${check(d.flowScant)}> Scant</label>
-              <label><input type="checkbox" id="pc_flow_mod" ${check(d.flowMod)}> Mod</label>
-              <label><input type="checkbox" id="pc_flow_prof" ${check(d.flowProf)}> Profuse</label>
+            <div class="flex items-center gap-3 pt-2">
+              <label class="checkbox-label"><input type="checkbox" id="pc_flow_scant" ${check(d.flowScant)}> <span>Scant</span></label>
+              <label class="checkbox-label"><input type="checkbox" id="pc_flow_mod" ${check(d.flowMod)}> <span>Mod</span></label>
+              <label class="checkbox-label"><input type="checkbox" id="pc_flow_prof" ${check(d.flowProf)}> <span>Profuse</span></label>
             </div>
           </div>
           <div>
@@ -190,23 +190,23 @@ export function renderPrenatalClinicalRecordHtml(record = {}) {
             <span class="material-symbols-outlined text-blue-700 text-base">monitor_heart</span>
             <span>Medical History</span>
           </h4>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_dm" ${check(d.medDm)}> Diabetes</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_heart" ${check(d.medHeart)}> Heart Disease</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_tb" ${check(d.medTb)}> TB</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_anemia" ${check(d.medAnemia)}> Anemia</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_hpn" ${check(d.medHpn)}> HPN</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_pneumo" ${check(d.medPneumo)}> Pneumonia</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_allergy" ${check(d.medAllergy)}> Allergy</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_transfusion" ${check(d.medTransfusion)}> Transfusion</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_renal" ${check(d.medRenal)}> Renal</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_rhd" ${check(d.medRhd)}> Rheumatic</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_jaundice" ${check(d.medJaundice)}> Jaundice</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_med_std" ${check(d.medStd)}> STD</label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_dm" ${check(d.medDm)}> <span>Diabetes</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_heart" ${check(d.medHeart)}> <span>Heart Disease</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_tb" ${check(d.medTb)}> <span>TB</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_anemia" ${check(d.medAnemia)}> <span>Anemia</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_hpn" ${check(d.medHpn)}> <span>HPN</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_pneumo" ${check(d.medPneumo)}> <span>Pneumonia</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_allergy" ${check(d.medAllergy)}> <span>Allergy</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_transfusion" ${check(d.medTransfusion)}> <span>Transfusion</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_renal" ${check(d.medRenal)}> <span>Renal</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_rhd" ${check(d.medRhd)}> <span>Rheumatic</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_jaundice" ${check(d.medJaundice)}> <span>Jaundice</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_med_std" ${check(d.medStd)}> <span>STD</span></label>
           </div>
           <div class="space-y-2 pt-2 border-t border-slate-100">
-            <div><label class="block font-semibold text-slate-700">Others (Medical):</label><input type="text" id="pc_med_others" class="input-field py-1 text-xs" value="${escapeHtml(d.medOthers || '')}"></div>
-            <div><label class="block font-semibold text-slate-700">Operation:</label><input type="text" id="pc_med_operation" class="input-field py-1 text-xs" value="${escapeHtml(d.medOperation || '')}"></div>
+            <div><label class="block font-semibold text-slate-700 mb-1">Others (Medical):</label><input type="text" id="pc_med_others" class="input-field py-1 text-xs" value="${escapeHtml(d.medOthers || '')}"></div>
+            <div><label class="block font-semibold text-slate-700 mb-1">Operation:</label><input type="text" id="pc_med_operation" class="input-field py-1 text-xs" value="${escapeHtml(d.medOperation || '')}"></div>
           </div>
         </div>
 
@@ -216,14 +216,14 @@ export function renderPrenatalClinicalRecordHtml(record = {}) {
             <span class="material-symbols-outlined text-blue-700 text-base">family_history</span>
             <span>Family History</span>
           </h4>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_fam_hpn" ${check(d.famHpn)}> HPN</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_fam_dm" ${check(d.famDm)}> DM</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_fam_multi" ${check(d.famMulti)}> Multiple Preg</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_fam_tb" ${check(d.famTb)}> TB</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_fam_heart" ${check(d.famHeart)}> Heart Disease</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_fam_dystocia" ${check(d.famDystocia)}> Dystocia</label>
-            <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_fam_psych" ${check(d.famPsych)}> Psychiatric</label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <label class="checkbox-label"><input type="checkbox" id="pc_fam_hpn" ${check(d.famHpn)}> <span>HPN</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_fam_dm" ${check(d.famDm)}> <span>DM</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_fam_multi" ${check(d.famMulti)}> <span>Multiple Preg</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_fam_tb" ${check(d.famTb)}> <span>TB</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_fam_heart" ${check(d.famHeart)}> <span>Heart Disease</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_fam_dystocia" ${check(d.famDystocia)}> <span>Dystocia</span></label>
+            <label class="checkbox-label"><input type="checkbox" id="pc_fam_psych" ${check(d.famPsych)}> <span>Psychiatric</span></label>
           </div>
         </div>
       </div>
@@ -234,19 +234,19 @@ export function renderPrenatalClinicalRecordHtml(record = {}) {
           <span class="material-symbols-outlined text-blue-700 text-base">warning</span>
           <span>Present Problems & Risk Factors</span>
         </h4>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_nausea" ${check(d.probNausea)}> Nausea/Vomiting</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_bleeding" ${check(d.probBleeding)}> Vaginal Bleeding</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_pelvic" ${check(d.probPelvic)}> Pelvic Pain</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_headache" ${check(d.probHeadache)}> Headache</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_discharge" ${check(d.probDischarge)}> Vaginal Discharge</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_edema" ${check(d.probEdema)}> Edema</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_fatigue" ${check(d.probFatigue)}> Easy Fatigability</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_visual" ${check(d.probVisual)}> Visual Disturbance</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_fever" ${check(d.probFever)}> Fever/Chills</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_dizziness" ${check(d.probDizziness)}> Dizziness</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_hpn" ${check(d.probHpn)}> HPN</label>
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="pc_prob_backache" ${check(d.probBackache)}> Backache</label>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_nausea" ${check(d.probNausea)}> <span>Nausea/Vomiting</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_bleeding" ${check(d.probBleeding)}> <span>Vaginal Bleeding</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_pelvic" ${check(d.probPelvic)}> <span>Pelvic Pain</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_headache" ${check(d.probHeadache)}> <span>Headache</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_discharge" ${check(d.probDischarge)}> <span>Vaginal Discharge</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_edema" ${check(d.probEdema)}> <span>Edema</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_fatigue" ${check(d.probFatigue)}> <span>Easy Fatigability</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_visual" ${check(d.probVisual)}> <span>Visual Disturbance</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_fever" ${check(d.probFever)}> <span>Fever/Chills</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_dizziness" ${check(d.probDizziness)}> <span>Dizziness</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_hpn" ${check(d.probHpn)}> <span>HPN</span></label>
+          <label class="checkbox-label"><input type="checkbox" id="pc_prob_backache" ${check(d.probBackache)}> <span>Backache</span></label>
         </div>
 
         <div class="space-y-1.5 pt-2 border-t border-slate-100">
@@ -265,42 +265,63 @@ export function renderPrenatalClinicalRecordHtml(record = {}) {
         </h4>
 
         <div class="table-container overflow-x-auto">
-          <table class="data-table text-xs min-w-[800px]">
+          <table class="data-table text-xs min-w-[960px]">
             <thead>
               <tr class="bg-blue-950 text-white text-center">
-                <th class="w-[28%]">Visit Details</th>
-                <th class="w-[35%]">Symptoms & Clinical Findings</th>
-                <th class="w-[37%]">Treatment / Actions / Remarks</th>
+                <th class="w-[320px] text-left">Visit Date & Physical Measurements</th>
+                <th class="w-[380px] text-left">Symptoms & Clinical Findings</th>
+                <th class="min-w-[260px] text-left">Treatment / Actions / Remarks</th>
               </tr>
             </thead>
             <tbody>
               ${[1, 2, 3].map(vNum => `
                 <tr>
-                  <td class="space-y-1 p-2">
-                    <div class="flex items-center justify-between"><span class="font-bold text-blue-900">Visit ${vNum} Date:</span><input type="date" id="pc_vDate_${vNum}" class="input-field py-0.5 text-xs w-32" value="${d[`vDate_${vNum}`] || ''}"></div>
-                    <div class="grid grid-cols-2 gap-1 text-[11px]">
-                      <div>AOG: <input type="text" id="pc_vAog_${vNum}" class="input-field py-0.5 text-[10px] w-14 text-center" value="${escapeHtml(d[`vAog_${vNum}`] || '')}"></div>
-                      <div>BP: <input type="text" id="pc_vBp_${vNum}" class="input-field py-0.5 text-[10px] w-16 text-center" value="${escapeHtml(d[`vBp_${vNum}`] || '')}"></div>
-                      <div>PR: <input type="text" id="pc_vPr_${vNum}" class="input-field py-0.5 text-[10px] w-14 text-center" value="${escapeHtml(d[`vPr_${vNum}`] || '')}"></div>
-                      <div>WT: <input type="text" id="pc_vWt_${vNum}" class="input-field py-0.5 text-[10px] w-14 text-center" value="${escapeHtml(d[`vWeight_${vNum}`] || d[`vWt_${vNum}`] || '')}"></div>
-                      <div>FHT: <input type="text" id="pc_vFht_${vNum}" class="input-field py-0.5 text-[10px] w-14 text-center" value="${escapeHtml(d[`vFht_${vNum}`] || '')}"></div>
-                      <div>Temp: <input type="text" id="pc_vTemp_${vNum}" class="input-field py-0.5 text-[10px] w-14 text-center" value="${escapeHtml(d[`vTemp_${vNum}`] || '')}"></div>
+                  <td class="space-y-2 p-3 align-top bg-slate-50/50">
+                    <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                      <span class="font-bold text-blue-900 text-xs">Visit ${vNum} Date:</span>
+                      <input type="date" id="pc_vDate_${vNum}" class="input-field py-1 px-2 text-xs w-36" value="${d[`vDate_${vNum}`] || ''}">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                      <div class="flex items-center justify-between gap-1 bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <span class="font-semibold text-slate-600">AOG:</span>
+                        <input type="text" id="pc_vAog_${vNum}" class="input-field py-0.5 px-1 text-xs w-16 text-center" value="${escapeHtml(d[`vAog_${vNum}`] || '')}" placeholder="wks">
+                      </div>
+                      <div class="flex items-center justify-between gap-1 bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <span class="font-semibold text-slate-600">BP:</span>
+                        <input type="text" id="pc_vBp_${vNum}" class="input-field py-0.5 px-1 text-xs w-16 text-center" value="${escapeHtml(d[`vBp_${vNum}`] || '')}" placeholder="120/80">
+                      </div>
+                      <div class="flex items-center justify-between gap-1 bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <span class="font-semibold text-slate-600">PR:</span>
+                        <input type="text" id="pc_vPr_${vNum}" class="input-field py-0.5 px-1 text-xs w-16 text-center" value="${escapeHtml(d[`vPr_${vNum}`] || '')}" placeholder="bpm">
+                      </div>
+                      <div class="flex items-center justify-between gap-1 bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <span class="font-semibold text-slate-600">WT:</span>
+                        <input type="text" id="pc_vWt_${vNum}" class="input-field py-0.5 px-1 text-xs w-16 text-center" value="${escapeHtml(d[`vWeight_${vNum}`] || d[`vWt_${vNum}`] || '')}" placeholder="kg">
+                      </div>
+                      <div class="flex items-center justify-between gap-1 bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <span class="font-semibold text-slate-600">FHT:</span>
+                        <input type="text" id="pc_vFht_${vNum}" class="input-field py-0.5 px-1 text-xs w-16 text-center" value="${escapeHtml(d[`vFht_${vNum}`] || '')}" placeholder="bpm">
+                      </div>
+                      <div class="flex items-center justify-between gap-1 bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <span class="font-semibold text-slate-600">Temp:</span>
+                        <input type="text" id="pc_vTemp_${vNum}" class="input-field py-0.5 px-1 text-xs w-16 text-center" value="${escapeHtml(d[`vTemp_${vNum}`] || '')}" placeholder="°C">
+                      </div>
                     </div>
                   </td>
-                  <td class="p-2 align-top">
-                    <div class="grid grid-cols-2 gap-1 text-[11px]">
-                      <label class="flex items-center gap-1"><input type="checkbox" id="pc_sym_bleeding_${vNum}" ${check(d[`sym_bleeding_${vNum}`])}> Vaginal Bleeding</label>
-                      <label class="flex items-center gap-1"><input type="checkbox" id="pc_sym_bp_${vNum}" ${check(d[`sym_bp_${vNum}`])}> Elevated BP</label>
-                      <label class="flex items-center gap-1"><input type="checkbox" id="pc_sym_rupture_${vNum}" ${check(d[`sym_rupture_${vNum}`])}> Premature Rupture</label>
-                      <label class="flex items-center gap-1"><input type="checkbox" id="pc_sym_fever_${vNum}" ${check(d[`sym_fever_${vNum}`])}> Fever</label>
-                      <label class="flex items-center gap-1"><input type="checkbox" id="pc_sym_pallor_${vNum}" ${check(d[`sym_pallor_${vNum}`])}> Pallor</label>
-                      <label class="flex items-center gap-1"><input type="checkbox" id="pc_sym_vision_${vNum}" ${check(d[`sym_vision_${vNum}`])}> Blurring Vision</label>
-                      <label class="flex items-center gap-1"><input type="checkbox" id="pc_sym_edema_${vNum}" ${check(d[`sym_edema_${vNum}`])}> Edema</label>
-                      <label class="flex items-center gap-1"><input type="checkbox" id="pc_sym_fht_${vNum}" ${check(d[`sym_fht_${vNum}`])}> Missing FHT</label>
+                  <td class="p-3 align-top">
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-2.5 text-xs">
+                      <label class="checkbox-label"><input type="checkbox" id="pc_sym_bleeding_${vNum}" ${check(d[`sym_bleeding_${vNum}`])}> <span>Vaginal Bleeding</span></label>
+                      <label class="checkbox-label"><input type="checkbox" id="pc_sym_bp_${vNum}" ${check(d[`sym_bp_${vNum}`])}> <span>Elevated BP</span></label>
+                      <label class="checkbox-label"><input type="checkbox" id="pc_sym_rupture_${vNum}" ${check(d[`sym_rupture_${vNum}`])}> <span>Premature Rupture</span></label>
+                      <label class="checkbox-label"><input type="checkbox" id="pc_sym_fever_${vNum}" ${check(d[`sym_fever_${vNum}`])}> <span>Fever</span></label>
+                      <label class="checkbox-label"><input type="checkbox" id="pc_sym_pallor_${vNum}" ${check(d[`sym_pallor_${vNum}`])}> <span>Pallor</span></label>
+                      <label class="checkbox-label"><input type="checkbox" id="pc_sym_vision_${vNum}" ${check(d[`sym_vision_${vNum}`])}> <span>Blurring Vision</span></label>
+                      <label class="checkbox-label"><input type="checkbox" id="pc_sym_edema_${vNum}" ${check(d[`sym_edema_${vNum}`])}> <span>Edema</span></label>
+                      <label class="checkbox-label"><input type="checkbox" id="pc_sym_fht_${vNum}" ${check(d[`sym_fht_${vNum}`])}> <span>Missing FHT</span></label>
                     </div>
                   </td>
-                  <td class="p-2 align-top">
-                    <textarea id="pc_remarks_${vNum}" class="input-field py-1 text-xs w-full" rows="3" placeholder="Clinical notes, medications prescribed...">${escapeHtml(d[`remarks_${vNum}`] || '')}</textarea>
+                  <td class="p-3 align-top">
+                    <textarea id="pc_remarks_${vNum}" class="input-field py-2 px-2.5 text-xs w-full min-h-[105px]" placeholder="Clinical notes, medications prescribed, advice...">${escapeHtml(d[`remarks_${vNum}`] || '')}</textarea>
                   </td>
                 </tr>
               `).join('')}

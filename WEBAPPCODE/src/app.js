@@ -1,19 +1,21 @@
 /**
  * Main Application Orchestrator & Router (ES Module)
+ * Padre Burgos RHU Maternal & Infant Health Monitoring System
  */
-import { STORE_KEYS, pages, barangays, TABLES } from './config.js';
+import { STORE_KEYS, pages, getDynamicBarangays, defaultBarangays, TABLES } from './config.js';
 import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow } from './db.js';
 import { initSyncEngine, queueOfflineAction, flushPendingSyncQueue } from './sync.js';
-import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, createManagedAuthAccount } from './auth.js';
+import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, createManagedAuthAccount, isParent, isNurse, isMho, isDoctor, isAdmin, isStaff } from './auth.js';
 import { toast, escapeHtml, formatDate } from './utils/sanitize.js';
 import { exportMcCcReportToExcel } from './utils/excelExport.js';
+import { initTheme, toggleTheme } from './utils/theme.js';
 import { renderRolePill, openModal, closeModal, refreshLucideIcons } from './ui/components.js';
 import { renderDashboardView } from './ui/dashboard.js';
 import { renderMaternalView } from './ui/maternal.js';
 import { renderInfantsView } from './ui/infants.js';
+import { renderCheckupHistoryView, generatePrintableCheckupHistoryHtml } from './ui/checkupHistory.js';
 import { renderSchedulesView } from './ui/schedules.js';
 import { renderReportsView } from './ui/reports.js';
-import { renderFormsView } from './ui/forms.js';
 import { renderPadreBurgosMaternalFormHtml } from './ui/maternalCardForm.js';
 import { renderTodoLigtasImmunizationCardHtml } from './ui/infantCardForm.js';
 import { renderPrenatalClinicalRecordHtml } from './ui/prenatalClinicalForm.js';
@@ -25,6 +27,8 @@ let state = {
   currentUser: null,
   maternalRecords: [],
   infantRecords: [],
+  maternalCheckupHistory: [],
+  infantCheckupHistory: [],
   checkupSchedules: [],
   reminders: [],
   monthlyReports: [],
@@ -33,21 +37,34 @@ let state = {
 };
 
 let activePage = "dashboard";
-let selectedBarangay = barangays[0];
+let selectedBarangay = "All Barangays";
+let selectedReportMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+let selectedReportYear = String(new Date().getFullYear());
+let activeAuthMode = "webStaff"; // "webStaff" or "motherMobile"
+
+function getActiveBarangays() {
+  return getDynamicBarangays(state);
+}
 
 function visibleBarangays() {
   const current = getCurrentUser();
-  if (current?.role === "Nurse / Midwife" && barangays.includes(current.barangay)) return [current.barangay];
-  return barangays;
+  const allBgy = getActiveBarangays();
+  if (isNurse(current) && allBgy.includes(current.barangay)) {
+    return [current.barangay];
+  }
+  return ["All Barangays", ...allBgy];
 }
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  initTheme();
   initSyncEngine();
   hydrateAuthOptions();
   bindAuthEvents();
   bindShellEvents();
+  bindPasswordVisibilityToggles();
+  bindThemeToggleButtons();
 
   if (isOnlineMode()) {
     const { data, error } = await db.auth.getSession();
@@ -83,10 +100,14 @@ async function loadState() {
 
 async function loadRemoteState() {
   for (const [key, table] of Object.entries(TABLES)) {
-    const { data, error } = await db.from(table).select("*");
-    if (!error && data) {
-      state[key] = data;
-      await saveCollection(key, data);
+    try {
+      const { data, error } = await db.from(table).select("*");
+      if (!error && data) {
+        state[key] = data;
+        await saveCollection(key, data);
+      }
+    } catch (err) {
+      // Gracefully fall back to local IndexedDB store
     }
   }
 }
@@ -100,9 +121,12 @@ async function persistRecord(key, row) {
   await saveCollection(key, arr);
 
   if (isOnlineMode() && TABLES[key]) {
-    const { error } = await db.from(TABLES[key]).upsert(cleanRemoteRow(key, row), { onConflict: "id" });
-    if (error) {
-      console.error(`Supabase save error for ${key}:`, error);
+    try {
+      const { error } = await db.from(TABLES[key]).upsert(cleanRemoteRow(key, row), { onConflict: "id" });
+      if (error) {
+        await queueOfflineAction(key, 'UPSERT', row);
+      }
+    } catch (err) {
       await queueOfflineAction(key, 'UPSERT', row);
     }
   } else {
@@ -115,9 +139,12 @@ async function deleteRecord(key, id) {
   await saveCollection(key, state[key]);
 
   if (isOnlineMode() && TABLES[key]) {
-    const { error } = await db.from(TABLES[key]).delete().eq('id', id);
-    if (error) {
-      console.error(`Supabase delete error for ${key}:`, error);
+    try {
+      const { error } = await db.from(TABLES[key]).delete().eq('id', id);
+      if (error) {
+        await queueOfflineAction(key, 'DELETE', { id });
+      }
+    } catch (err) {
       await queueOfflineAction(key, 'DELETE', { id });
     }
   } else {
@@ -128,6 +155,7 @@ async function deleteRecord(key, id) {
 function showAuth() {
   document.getElementById("authScreen")?.classList.remove("hidden");
   document.getElementById("appShell")?.classList.add("hidden");
+  updateAuthModeUI();
 }
 
 function showApp(userData) {
@@ -142,10 +170,20 @@ function showApp(userData) {
   if (nameEl) nameEl.textContent = userData.name || userData.email;
 
   const metaEl = document.getElementById("currentUserMeta");
-  if (metaEl) metaEl.textContent = `${userData.role} • ${userData.barangay}`;
+  if (metaEl) metaEl.textContent = `${userData.role} • ${userData.barangay || 'Padre Burgos'}`;
 
   const rolePillEl = document.getElementById("rolePill");
   if (rolePillEl) rolePillEl.innerHTML = renderRolePill(userData.role);
+
+  // Hide system search for Mother / Parent
+  const globalSearch = document.getElementById("globalSearch");
+  if (globalSearch) {
+    if (isParent(userData)) {
+      globalSearch.classList.add("hidden");
+    } else {
+      globalSearch.classList.remove("hidden");
+    }
+  }
 
   renderNav();
   renderPage(activePage);
@@ -158,13 +196,13 @@ function renderNav() {
 
   const allowed = pages.filter(p => p.roles.includes(current.role));
   nav.innerHTML = allowed.map(p => `
-    <button class="nav-item ${p.id === activePage ? 'active' : ''} flex items-center gap-2.5 px-3 py-2 rounded-lg" data-page="${p.id}">
-      <i data-lucide="${p.icon}" class="w-4 h-4 shrink-0"></i>
+    <button class="nav-link ${p.id === activePage ? 'active' : ''}" data-page="${p.id}">
+      <span class="material-symbols-outlined">${getMaterialIcon(p.id)}</span>
       <span>${p.label}</span>
     </button>
   `).join('');
 
-  nav.querySelectorAll(".nav-item").forEach(btn => {
+  nav.querySelectorAll(".nav-link").forEach(btn => {
     btn.addEventListener("click", () => {
       const pageId = btn.getAttribute("data-page");
       closeSidebar();
@@ -177,7 +215,24 @@ function renderNav() {
       renderPage(activePage);
     });
   });
-  refreshLucideIcons();
+}
+
+function getMaterialIcon(pageId) {
+  const iconMap = {
+    dashboard: "dashboard",
+    maternal: "pregnant_woman",
+    infants: "child_care",
+    history: "history",
+    schedules: "calendar_month",
+    reminders: "notifications",
+    barangay: "apartment",
+    reports: "analytics",
+    users: "manage_accounts",
+    backup: "database",
+    contacts: "contact_phone",
+    logout: "logout"
+  };
+  return iconMap[pageId] || "folder";
 }
 
 function renderPage(pageId) {
@@ -189,40 +244,41 @@ function renderPage(pageId) {
 
   const current = getCurrentUser();
   const vis = visibleBarangays();
-  const options = current?.role === "Nurse / Midwife" ? vis : ["All Barangays", ...barangays];
 
-  const isParent = current?.role === "Mother / Parent";
-  const isNurse = current?.role === "Nurse / Midwife";
-  const showSelect = !isParent && !isNurse && vis.length > 1;
+  const isUserParent = isParent(current);
+  const isUserNurse = isNurse(current);
+  const showSelect = !isUserParent && !isUserNurse && vis.length > 1;
 
   if (bSelect) {
     if (!showSelect) {
       bSelect.classList.add("hidden");
     } else {
       bSelect.classList.remove("hidden");
-      bSelect.innerHTML = options.map(b => `<option value="${escapeHtml(b)}" ${b === selectedBarangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
+      bSelect.innerHTML = vis.map(b => `<option value="${escapeHtml(b)}" ${b === selectedBarangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
     }
   }
 
-  if (!options.includes(selectedBarangay)) selectedBarangay = options[0] || barangays[0];
+  if (!vis.includes(selectedBarangay)) {
+    selectedBarangay = vis[0] || "All Barangays";
+  }
 
   const subtitles = {
-    dashboard: "Monitoring summary",
-    maternal: "Pregnancy monitoring and risk tracking",
-    infants: "Immunization and check-up monitoring",
-    schedules: "Maternal and infant appointments",
-    forms: "Parent-submitted maternal and infant information",
-    reminders: "Check-up and follow-up reminders",
-    barangay: "Monthly records by barangay clinic",
-    reports: "MC maternal care and CC child immunization summaries",
-    users: "Account and assignment management",
-    backup: "LocalStorage data export and restore",
-    contacts: "Nurse and midwife contact information"
+    dashboard: isUserParent ? "Mother & Child Health Portal" : (isDoctor(current) ? "Physician Clinical Oversight" : (isMho(current) ? "Barangay Record & Submission Monitor" : (isAdmin(current) ? "Central Administration" : "Barangay Health Station"))),
+    maternal: "Pregnancy monitoring and DOH maternal health records",
+    infants: "Child immunization monitoring and digitized health cards",
+    history: "Append-only clinical checkup visit history and physical printouts",
+    schedules: "Check-up appointment calendar and dispatch",
+    reminders: "Health notifications and vaccine follow-ups",
+    barangay: "Cross-barangay health indicators and monitoring",
+    reports: "Official DOH MC and CC monthly reports",
+    users: "Staff account provisioning and access control",
+    backup: "Database export and recovery",
+    contacts: "Padre Burgos RHU emergency hotlines and clinic contacts"
   };
 
   const pg = pages.find(p => p.id === pageId);
   if (titleEl) titleEl.textContent = pg ? pg.label : "Dashboard";
-  if (subEl) subEl.textContent = subtitles[pageId] || "Monitoring summary";
+  if (subEl) subEl.textContent = subtitles[pageId] || "Clinical monitoring summary";
 
   const searchInput = document.getElementById("globalSearch");
   const searchTerm = searchInput ? searchInput.value.trim() : "";
@@ -230,26 +286,30 @@ function renderPage(pageId) {
   switch (pageId) {
     case "dashboard":
       contentEl.innerHTML = renderDashboardView(state, current, selectedBarangay, vis, searchTerm);
+      bindDashboardEvents();
       break;
     case "maternal":
-      contentEl.innerHTML = renderMaternalView(state, selectedBarangay);
+      contentEl.innerHTML = renderMaternalView(state, selectedBarangay, current);
       bindMaternalEvents();
       break;
     case "infants":
-      contentEl.innerHTML = renderInfantsView(state, selectedBarangay);
+      contentEl.innerHTML = renderInfantsView(state, selectedBarangay, current);
       bindInfantsEvents();
+      break;
+    case "history":
+      contentEl.innerHTML = renderCheckupHistoryView(state, current, selectedBarangay);
+      bindCheckupHistoryEvents();
       break;
     case "schedules":
       contentEl.innerHTML = renderSchedulesView(state, selectedBarangay, current);
       bindSchedulesEvents();
       break;
     case "reports":
-      contentEl.innerHTML = renderReportsView(state, selectedBarangay);
+      contentEl.innerHTML = renderReportsView(state, selectedBarangay, selectedReportMonth, selectedReportYear);
       bindReportsEvents();
       break;
-    case "forms":
-      contentEl.innerHTML = renderFormsView(state, current);
-      bindFormsEvents();
+    case "barangay":
+      contentEl.innerHTML = renderDoctorDashboard(state, current, selectedBarangay, searchTerm);
       break;
     case "users":
       contentEl.innerHTML = renderUsersView(state);
@@ -265,102 +325,224 @@ function renderPage(pageId) {
     default:
       contentEl.innerHTML = renderDashboardView(state, current, selectedBarangay, vis, searchTerm);
   }
-  refreshLucideIcons();
 }
 
 function hydrateAuthOptions() {
-  const sel = document.getElementById("regBarangay");
-  if (sel) {
-    sel.innerHTML = barangays.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+  const bgyList = defaultBarangays;
+  const regBgy = document.getElementById("regBarangay");
+  if (regBgy) {
+    regBgy.innerHTML = bgyList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+  }
+  const staffRegBgy = document.getElementById("staffRegBarangay");
+  if (staffRegBgy) {
+    staffRegBgy.innerHTML = bgyList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+  }
+}
+
+function updateAuthModeUI() {
+  const isWebStaff = activeAuthMode === "webStaff";
+  const webBtn = document.getElementById("switchWebAppBtn");
+  const mobBtn = document.getElementById("switchMobileAppBtn");
+  const webActions = document.getElementById("webStaffAuthActions");
+  const mobActions = document.getElementById("motherMobileAuthActions");
+  const heading = document.getElementById("authHeading");
+  const subtitle = document.getElementById("authSubtitle");
+
+  if (webBtn && mobBtn) {
+    if (isWebStaff) {
+      webBtn.classList.add("active");
+      mobBtn.classList.remove("active");
+      if (webActions) webActions.classList.remove("hidden");
+      if (mobActions) mobActions.classList.add("hidden");
+      if (heading) heading.textContent = "RHU Healthcare Web Portal";
+      if (subtitle) subtitle.textContent = "Authorized Portal for Nurses, Midwives, MHO, and Doctors • Padre Burgos RHU";
+    } else {
+      mobBtn.classList.add("active");
+      webBtn.classList.remove("active");
+      if (mobActions) mobActions.classList.remove("hidden");
+      if (webActions) webActions.classList.add("hidden");
+      if (heading) heading.textContent = "Mother & Child Mobile Portal";
+      if (subtitle) subtitle.textContent = "Padre Burgos RHU • Maternal & Infant Health Monitoring for Parents";
+    }
   }
 }
 
 function bindAuthEvents() {
-  const loginForm = document.getElementById("loginForm");
-  if (loginForm) {
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value;
+  // App Switcher buttons
+  document.getElementById("switchWebAppBtn")?.addEventListener("click", () => {
+    activeAuthMode = "webStaff";
+    updateAuthModeUI();
+    document.getElementById("registerForm")?.classList.add("hidden");
+    document.getElementById("staffRegisterForm")?.classList.add("hidden");
+    document.getElementById("loginForm")?.classList.remove("hidden");
+  });
 
-      if (isOnlineMode()) {
-        const { data, error } = await db.auth.signInWithPassword({ email, password });
-        if (error) {
-          toast(error.message, true);
-          return;
-        }
-        const profile = await getOrCreateCurrentProfile(data.user);
-        setCurrentUser(profile);
-        showApp(profile);
-        toast("Signed in successfully.");
-      } else {
-        let user = state.users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-        if (!user) {
-          user = { id: `usr_${Date.now()}`, name: email.split('@')[0], email, role: 'Mother / Parent', barangay: barangays[0] };
-        }
-        setCurrentUser(user);
-        showApp(user);
-        toast("Signed in (Offline Mode).");
-      }
-    });
-  }
+  document.getElementById("switchMobileAppBtn")?.addEventListener("click", () => {
+    activeAuthMode = "motherMobile";
+    updateAuthModeUI();
+    document.getElementById("registerForm")?.classList.add("hidden");
+    document.getElementById("staffRegisterForm")?.classList.add("hidden");
+    document.getElementById("loginForm")?.classList.remove("hidden");
+  });
 
-  const showRegBtn = document.getElementById("showParentRegistration");
-  if (showRegBtn) {
-    showRegBtn.addEventListener("click", () => {
-      document.getElementById("loginForm")?.classList.add("hidden");
-      document.getElementById("registerForm")?.classList.remove("hidden");
-    });
-  }
+  // Login Form
+  document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
 
-  const backLoginBtn = document.getElementById("backToLogin");
-  if (backLoginBtn) {
-    backLoginBtn.addEventListener("click", () => {
-      document.getElementById("registerForm")?.classList.add("hidden");
-      document.getElementById("loginForm")?.classList.remove("hidden");
-    });
-  }
-
-  const regForm = document.getElementById("registerForm");
-  if (regForm) {
-    regForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = document.getElementById("regName").value.trim();
-      const email = document.getElementById("regEmail").value.trim();
-      const password = document.getElementById("regPassword").value;
-      const confirm = document.getElementById("regConfirm").value;
-      const barangay = document.getElementById("regBarangay").value;
-
-      if (password !== confirm) {
-        toast("Passwords do not match.", true);
+    if (isOnlineMode()) {
+      const { data, error } = await db.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast(error.message, true);
         return;
       }
+      const profile = await getOrCreateCurrentProfile(data.user);
+      setCurrentUser(profile);
+      showApp(profile);
+      toast("Signed in successfully.");
+    } else {
+      let user = state.users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+      if (!user) {
+        const fallbackRole = activeAuthMode === "motherMobile" ? "Mother / Parent" : "Nurse / Midwife";
+        user = { id: `usr_${Date.now()}`, name: email.split('@')[0], email, role: fallbackRole, barangay: defaultBarangays[0] };
+      }
+      setCurrentUser(user);
+      showApp(user);
+      toast("Signed in (Offline Mode).");
+    }
+  });
 
-      if (isOnlineMode()) {
-        const { data, error } = await db.auth.signUp({
-          email,
-          password,
-          options: { data: { name, role: "Mother / Parent", barangay } }
-        });
-        if (error) {
-          toast(error.message, true);
-          return;
-        }
-        if (data?.user) {
-          const profile = await getOrCreateCurrentProfile(data.user, { name, role: "Mother / Parent", barangay });
-          setCurrentUser(profile);
-          showApp(profile);
-          toast("Registration complete!");
-        }
-      } else {
-        const profile = { id: `usr_${Date.now()}`, name, email, role: 'Mother / Parent', barangay };
-        await persistRecord('users', profile);
+  // Show Mother Registration
+  document.getElementById("showParentRegistration")?.addEventListener("click", () => {
+    document.getElementById("loginForm")?.classList.add("hidden");
+    document.getElementById("staffRegisterForm")?.classList.add("hidden");
+    document.getElementById("registerForm")?.classList.remove("hidden");
+  });
+
+  document.getElementById("backToLogin")?.addEventListener("click", () => {
+    document.getElementById("registerForm")?.classList.add("hidden");
+    document.getElementById("loginForm")?.classList.remove("hidden");
+  });
+
+  // Show Staff Registration
+  document.getElementById("showStaffRegistration")?.addEventListener("click", () => {
+    document.getElementById("loginForm")?.classList.add("hidden");
+    document.getElementById("registerForm")?.classList.add("hidden");
+    document.getElementById("staffRegisterForm")?.classList.remove("hidden");
+  });
+
+  document.getElementById("backToLoginFromStaff")?.addEventListener("click", () => {
+    document.getElementById("staffRegisterForm")?.classList.add("hidden");
+    document.getElementById("loginForm")?.classList.remove("hidden");
+  });
+
+  // Mother Registration Submit
+  document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("regName").value.trim();
+    const email = document.getElementById("regEmail").value.trim();
+    const password = document.getElementById("regPassword").value;
+    const confirm = document.getElementById("regConfirm").value;
+    const barangay = document.getElementById("regBarangay").value;
+
+    if (password !== confirm) {
+      toast("Passwords do not match.", true);
+      return;
+    }
+
+    if (isOnlineMode()) {
+      const { data, error } = await db.auth.signUp({
+        email,
+        password,
+        options: { data: { name, role: "Mother / Parent", barangay } }
+      });
+      if (error) {
+        toast(error.message, true);
+        return;
+      }
+      if (data?.user) {
+        const profile = await getOrCreateCurrentProfile(data.user, { name, role: "Mother / Parent", barangay });
         setCurrentUser(profile);
         showApp(profile);
-        toast("Registration complete (Offline Mode)!");
+        toast("Parent account registration complete!");
+      }
+    } else {
+      const profile = { id: `usr_${Date.now()}`, name, email, role: 'Mother / Parent', barangay };
+      await persistRecord('users', profile);
+      setCurrentUser(profile);
+      showApp(profile);
+      toast("Parent account registered (Offline Mode)!");
+    }
+  });
+
+  // Staff Registration Submit
+  document.getElementById("staffRegisterForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("staffRegName").value.trim();
+    const email = document.getElementById("staffRegEmail").value.trim();
+    const role = document.getElementById("staffRegRole").value;
+    const barangay = document.getElementById("staffRegBarangay").value;
+    const password = document.getElementById("staffRegPassword").value;
+    const confirm = document.getElementById("staffRegConfirm").value;
+
+    if (password !== confirm) {
+      toast("Passwords do not match.", true);
+      return;
+    }
+
+    if (isOnlineMode()) {
+      const { data, error } = await db.auth.signUp({
+        email,
+        password,
+        options: { data: { name, role, barangay } }
+      });
+      if (error) {
+        toast(error.message, true);
+        return;
+      }
+      if (data?.user) {
+        const profile = await getOrCreateCurrentProfile(data.user, { name, role, barangay });
+        setCurrentUser(profile);
+        showApp(profile);
+        toast(`Staff account created for ${name} (${role})!`);
+      }
+    } else {
+      const profile = { id: `usr_${Date.now()}`, name, email, role, barangay };
+      await persistRecord('users', profile);
+      setCurrentUser(profile);
+      showApp(profile);
+      toast(`Staff account registered for ${name} (Offline Mode)!`);
+    }
+  });
+}
+
+function bindPasswordVisibilityToggles() {
+  document.querySelectorAll(".toggle-password-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const targetId = btn.getAttribute("data-target");
+      const input = document.getElementById(targetId);
+      const icon = btn.querySelector(".material-symbols-outlined");
+      if (!input || !icon) return;
+
+      if (input.type === "password") {
+        input.type = "text";
+        icon.textContent = "visibility_off";
+      } else {
+        input.type = "password";
+        icon.textContent = "visibility";
       }
     });
-  }
+  });
+}
+
+function bindThemeToggleButtons() {
+  document.querySelectorAll(".theme-toggle-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      toggleTheme();
+    });
+  });
 }
 
 export function closeSidebar() {
@@ -378,51 +560,28 @@ export function openSidebar() {
 }
 
 function bindShellEvents() {
-  const modalClose = document.getElementById("modalClose");
-  if (modalClose) modalClose.addEventListener("click", closeModal);
+  document.getElementById("modalClose")?.addEventListener("click", closeModal);
 
-  const menuToggle = document.getElementById("menuToggle");
-  if (menuToggle) {
-    menuToggle.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const sidebar = document.getElementById("sidebar");
-      if (sidebar?.classList.contains("open")) {
-        closeSidebar();
-      } else {
-        openSidebar();
-      }
-    });
-  }
-
-  const overlay = document.getElementById("sidebarOverlay");
-  if (overlay) {
-    overlay.addEventListener("click", closeSidebar);
-  }
-
-  document.addEventListener("click", (e) => {
+  document.getElementById("menuToggle")?.addEventListener("click", (e) => {
+    e.stopPropagation();
     const sidebar = document.getElementById("sidebar");
-    const menuToggle = document.getElementById("menuToggle");
-    if (sidebar && sidebar.classList.contains("open")) {
-      if (!sidebar.contains(e.target) && !menuToggle?.contains(e.target)) {
-        closeSidebar();
-      }
+    if (sidebar?.classList.contains("open")) {
+      closeSidebar();
+    } else {
+      openSidebar();
     }
   });
 
-  const bSelect = document.getElementById("topbarBarangaySelect");
-  if (bSelect) {
-    bSelect.addEventListener("change", (e) => {
-      selectedBarangay = e.target.value;
-      renderPage(activePage);
-    });
-  }
+  document.getElementById("sidebarOverlay")?.addEventListener("click", closeSidebar);
 
-  const globalSearch = document.getElementById("globalSearch");
-  if (globalSearch) {
-    globalSearch.addEventListener("input", () => {
-      renderPage(activePage);
-    });
-  }
+  document.getElementById("topbarBarangaySelect")?.addEventListener("change", (e) => {
+    selectedBarangay = e.target.value;
+    renderPage(activePage);
+  });
+
+  document.getElementById("globalSearch")?.addEventListener("input", () => {
+    renderPage(activePage);
+  });
 }
 
 function handleLogout() {
@@ -432,47 +591,387 @@ function handleLogout() {
   toast("Logged out.");
 }
 
-// Sub-module Event Handlers
+// -------------------------------------------------------------
+// Dashboard Event Handlers (Maternal & Infant View Triggers)
+// -------------------------------------------------------------
+function bindDashboardEvents() {
+  const current = getCurrentUser();
+  const isUserParent = isParent(current);
+
+  document.getElementById("parentAddChildBtn")?.addEventListener("click", () => {
+    openParentAddChildModal();
+  });
+
+  document.getElementById("parentAddChildEmptyBtn")?.addEventListener("click", () => {
+    openParentAddChildModal();
+  });
+
+  document.querySelectorAll(".view-card-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      const inf = state.infantRecords.find(i => i.id === id);
+      if (inf) {
+        openDigitalImmunizationCardModal(inf, isUserParent);
+      }
+    });
+  });
+
+  document.querySelectorAll(".open-prenatal-clinical-modal-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      const rec = state.maternalRecords.find(r => r.id === id);
+      if (rec) openPrenatalClinicalRecordModal(rec);
+    });
+  });
+
+  document.querySelectorAll(".edit-maternal-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      const rec = state.maternalRecords.find(r => r.id === id);
+      if (rec) openPadreBurgosMaternalModal(rec, isUserParent);
+    });
+  });
+}
+
+// -------------------------------------------------------------
+// Checkup History Event Handlers & Modal Binders
+// -------------------------------------------------------------
+function bindCheckupHistoryEvents() {
+  const maternalTabBtn = document.getElementById("tabMaternalHistoryBtn");
+  const infantTabBtn = document.getElementById("tabInfantHistoryBtn");
+  const matSec = document.getElementById("maternalHistorySection");
+  const infSec = document.getElementById("infantHistorySection");
+
+  maternalTabBtn?.addEventListener("click", () => {
+    maternalTabBtn.classList.replace("ghost-btn", "primary-btn");
+    infantTabBtn?.classList.replace("primary-btn", "ghost-btn");
+    matSec?.classList.remove("hidden");
+    infSec?.classList.add("hidden");
+  });
+
+  infantTabBtn?.addEventListener("click", () => {
+    infantTabBtn.classList.replace("ghost-btn", "primary-btn");
+    maternalTabBtn?.classList.replace("primary-btn", "ghost-btn");
+    infSec?.classList.remove("hidden");
+    matSec?.classList.add("hidden");
+  });
+
+  document.getElementById("recordNewCheckupBtn")?.addEventListener("click", () => {
+    openRecordCheckupModal();
+  });
+
+  document.querySelectorAll(".print-single-history-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const type = btn.getAttribute("data-type");
+      const id = btn.getAttribute("data-id");
+      const record = type === "maternal"
+        ? state.maternalCheckupHistory.find(h => h.id === id)
+        : state.infantCheckupHistory.find(h => h.id === id);
+
+      if (record) {
+        const printHtml = generatePrintableCheckupHistoryHtml(record, type);
+        openModal("Official Clinical Checkup Record", `
+          <div class="space-y-4">
+            ${printHtml}
+            <div class="flex items-center justify-end gap-2 border-t border-line pt-3 no-print">
+              <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Close</button>
+              <button type="button" class="primary-btn text-xs py-1.5 px-4 flex items-center gap-1.5" onclick="window.print()">
+                <span class="material-symbols-outlined text-sm">print</span>
+                <span>Print Physical Document</span>
+              </button>
+            </div>
+          </div>
+        `);
+      }
+    });
+  });
+}
+
+function openRecordCheckupModal(targetMaternalId = null) {
+  const current = getCurrentUser();
+
+  const maternalOptions = state.maternalRecords.map(r => `
+    <option value="${escapeHtml(r.id)}" ${targetMaternalId === r.id ? 'selected' : ''}>
+      ${escapeHtml(r.fullName)} (${escapeHtml(r.barangay)})
+    </option>
+  `).join('');
+
+  const infantOptions = state.infantRecords.map(i => `
+    <option value="${escapeHtml(i.id)}">
+      ${escapeHtml(i.infantName)} - Mother: ${escapeHtml(i.parentName || i.motherName || 'N/A')} (${escapeHtml(i.barangay)})
+    </option>
+  `).join('');
+
+  openModal("Record Clinical Checkup Visit", `
+    <form id="recordCheckupForm" class="space-y-4 text-xs">
+      <div class="flex gap-4 border-b border-line pb-2">
+        <label class="checkbox-label font-bold">
+          <input type="radio" name="checkupCategory" value="maternal" checked id="chkCatMaternal">
+          <span>Maternal Prenatal Visit</span>
+        </label>
+        <label class="checkbox-label font-bold">
+          <input type="radio" name="checkupCategory" value="infant" id="chkCatInfant">
+          <span>Infant / Child Visit</span>
+        </label>
+      </div>
+
+      <!-- Maternal Visit Fields -->
+      <div id="maternalVisitFields" class="space-y-3">
+        <div>
+          <label class="block font-semibold mb-1">Select Maternal Patient *</label>
+          <select id="chkMaternalSelect" class="input-field" required>
+            <option value="">-- Choose Pregnant Mother --</option>
+            ${maternalOptions}
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div>
+            <label class="block font-semibold mb-1">Visit Date *</label>
+            <input type="date" id="chkMatDate" class="input-field" value="${new Date().toISOString().split('T')[0]}" required>
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">AOG (Weeks)</label>
+            <input type="text" id="chkMatAog" class="input-field" placeholder="e.g. 24 wks">
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">Blood Pressure *</label>
+            <input type="text" id="chkMatBp" class="input-field" placeholder="e.g. 120/80" required>
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">Weight (kg)</label>
+            <input type="text" id="chkMatWeight" class="input-field" placeholder="e.g. 58.5">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold mb-1">Fundic Height (cm)</label>
+            <input type="text" id="chkMatFundic" class="input-field" placeholder="e.g. 22 cm">
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">Fetal Heart Rate (bpm)</label>
+            <input type="text" id="chkMatFetal" class="input-field" placeholder="e.g. 140 bpm">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-1">Clinical Assessment & Findings *</label>
+          <textarea id="chkMatAssessment" class="input-field h-16" placeholder="Document clinical assessment, fundal height, danger signs, fetal movement..." required></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-1">Intervention / Medication Given</label>
+          <input type="text" id="chkMatTreatment" class="input-field" placeholder="e.g. Iron Folate, Calcium Carbonate, Deworming tablet, Td booster">
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-1">Next Scheduled Checkup Date</label>
+          <input type="date" id="chkMatNextDate" class="input-field">
+        </div>
+      </div>
+
+      <!-- Infant Visit Fields (Hidden initially) -->
+      <div id="infantVisitFields" class="space-y-3 hidden">
+        <div>
+          <label class="block font-semibold mb-1">Select Infant Record *</label>
+          <select id="chkInfantSelect" class="input-field">
+            <option value="">-- Choose Infant --</option>
+            ${infantOptions}
+          </select>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block font-semibold mb-1">Visit Date *</label>
+            <input type="date" id="chkInfDate" class="input-field" value="${new Date().toISOString().split('T')[0]}">
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">Weight (kg) *</label>
+            <input type="text" id="chkInfWeight" class="input-field" placeholder="e.g. 6.2">
+          </div>
+          <div>
+            <label class="block font-semibold mb-1">Height / Length (cm)</label>
+            <input type="text" id="chkInfHeight" class="input-field" placeholder="e.g. 64">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-1">Immunization Administered Today</label>
+          <input type="text" id="chkInfVaccine" class="input-field" placeholder="e.g. Pentavalent Dose 2, OPV 2, PCV 2">
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-1">Assessment & Growth Progress</label>
+          <textarea id="chkInfAssessment" class="input-field h-16" placeholder="Document feeding, milestones, temperature, reflexes..."></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-1">Next Scheduled Immunization Date</label>
+          <input type="date" id="chkInfNextDate" class="input-field">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 border-t border-line pt-3">
+        <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="primary-btn text-xs py-1.5 px-4 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-sm">save</span>
+          <span>Save Checkup Visit</span>
+        </button>
+      </div>
+    </form>
+  `);
+
+  const chkMatRadio = document.getElementById("chkCatMaternal");
+  const chkInfRadio = document.getElementById("chkCatInfant");
+  const matFields = document.getElementById("maternalVisitFields");
+  const infFields = document.getElementById("infantVisitFields");
+  const matSel = document.getElementById("chkMaternalSelect");
+  const infSel = document.getElementById("chkInfantSelect");
+
+  chkMatRadio?.addEventListener("change", () => {
+    matFields?.classList.remove("hidden");
+    infFields?.classList.add("hidden");
+    if (matSel) matSel.required = true;
+    if (infSel) infSel.required = false;
+  });
+
+  chkInfRadio?.addEventListener("change", () => {
+    infFields?.classList.remove("hidden");
+    matFields?.classList.add("hidden");
+    if (infSel) infSel.required = true;
+    if (matSel) matSel.required = false;
+  });
+
+  document.getElementById("recordCheckupForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const isMaternal = chkMatRadio?.checked;
+    const recorderName = current?.fullName || current?.name || "Barangay Midwife";
+
+    if (isMaternal) {
+      const matId = document.getElementById("chkMaternalSelect").value;
+      const matRec = state.maternalRecords.find(r => r.id === matId);
+      if (!matRec) {
+        toast("Please select a valid maternal record.", true);
+        return;
+      }
+
+      const checkupDate = document.getElementById("chkMatDate").value;
+      const nextCheckupDate = document.getElementById("chkMatNextDate").value || null;
+      const bloodPressure = document.getElementById("chkMatBp").value.trim();
+
+      const newHistoryEntry = {
+        id: `mchk_${Date.now()}`,
+        maternalRecordId: matRec.id,
+        patientName: matRec.fullName,
+        barangay: matRec.barangay,
+        checkupDate,
+        aogWeeks: document.getElementById("chkMatAog").value.trim(),
+        bloodPressure,
+        weightKg: document.getElementById("chkMatWeight").value.trim(),
+        fundicHeight: document.getElementById("chkMatFundic").value.trim(),
+        fetalHeartRate: document.getElementById("chkMatFetal").value.trim(),
+        assessment: document.getElementById("chkMatAssessment").value.trim(),
+        treatmentIntervention: document.getElementById("chkMatTreatment").value.trim(),
+        nextCheckupDate,
+        recordedBy: recorderName,
+        createdAt: new Date().toISOString()
+      };
+
+      await persistRecord("maternalCheckupHistory", newHistoryEntry);
+
+      const updatedMaternal = {
+        ...matRec,
+        checkupsCompleted: (matRec.checkupsCompleted || 0) + 1,
+        formDetails: {
+          ...(matRec.formDetails || {}),
+          latestVisitDate: checkupDate,
+          bloodPressure
+        }
+      };
+      await persistRecord("maternalRecords", updatedMaternal);
+
+      if (nextCheckupDate) {
+        const newSched = {
+          id: `sch_${Date.now()}`,
+          patientName: matRec.fullName,
+          type: "MC",
+          barangay: matRec.barangay,
+          date: nextCheckupDate,
+          time: "08:30",
+          status: "Scheduled",
+          assignedNurse: recorderName
+        };
+        await persistRecord("checkupSchedules", newSched);
+      }
+
+      closeModal();
+      toast(`Recorded checkup visit for ${matRec.fullName}.`);
+      renderPage("history");
+    } else {
+      const infId = document.getElementById("chkInfantSelect").value;
+      const infRec = state.infantRecords.find(i => i.id === infId);
+      if (!infRec) {
+        toast("Please select a valid infant record.", true);
+        return;
+      }
+
+      const checkupDate = document.getElementById("chkInfDate").value;
+      const nextCheckupDate = document.getElementById("chkInfNextDate").value || null;
+      const immunizationGiven = document.getElementById("chkInfVaccine").value.trim();
+
+      const newHistoryEntry = {
+        id: `ichk_${Date.now()}`,
+        infantRecordId: infRec.id,
+        infantName: infRec.infantName,
+        parentName: infRec.parentName || infRec.motherName || "Parent",
+        barangay: infRec.barangay,
+        checkupDate,
+        weightKg: document.getElementById("chkInfWeight").value.trim(),
+        heightCm: document.getElementById("chkInfHeight").value.trim(),
+        immunizationGiven,
+        assessment: document.getElementById("chkInfAssessment").value.trim(),
+        nextCheckupDate,
+        recordedBy: recorderName,
+        createdAt: new Date().toISOString()
+      };
+
+      await persistRecord("infantCheckupHistory", newHistoryEntry);
+
+      const updatedInfant = {
+        ...infRec,
+        lastCheckup: checkupDate,
+        nextCheckup: nextCheckupDate
+      };
+      await persistRecord("infantRecords", updatedInfant);
+
+      if (nextCheckupDate) {
+        const newSched = {
+          id: `sch_${Date.now()}`,
+          patientName: infRec.infantName,
+          type: "CC",
+          barangay: infRec.barangay,
+          date: nextCheckupDate,
+          time: "08:30",
+          status: "Scheduled",
+          assignedNurse: recorderName
+        };
+        await persistRecord("checkupSchedules", newSched);
+      }
+
+      closeModal();
+      toast(`Recorded checkup visit for ${infRec.infantName}.`);
+      renderPage("history");
+    }
+  });
+}
+
+// -------------------------------------------------------------
+// Maternal Care Module Binders
+// -------------------------------------------------------------
 function bindMaternalEvents() {
   document.getElementById("addMaternalBtn")?.addEventListener("click", () => {
-    openModal("Add Maternal Record", `
-      <form id="maternalForm" class="modal-form">
-        <label>Full Name <input type="text" id="mName" required></label>
-        <label>Age <input type="number" id="mAge" required></label>
-        <label>Barangay 
-          <select id="mBarangay">${barangays.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')}</select>
-        </label>
-        <label>LMP (Last Menstrual Period) <input type="date" id="mLmp"></label>
-        <label>EDD (Expected Delivery Date) <input type="date" id="mEdd"></label>
-        <label>Risk Level 
-          <select id="mRisk">
-            <option value="Normal">Normal Risk</option>
-            <option value="Elevated Risk">Elevated Risk</option>
-            <option value="High Risk">High Risk</option>
-          </select>
-        </label>
-        <button class="primary-btn full-btn" type="submit">Save Maternal Record</button>
-      </form>
-    `);
-
-    document.getElementById("maternalForm")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const newRec = {
-        id: `mat_${Date.now()}`,
-        fullName: document.getElementById("mName").value.trim(),
-        age: parseInt(document.getElementById("mAge").value) || 0,
-        barangay: document.getElementById("mBarangay").value,
-        lmp: document.getElementById("mLmp").value || null,
-        edd: document.getElementById("mEdd").value || null,
-        riskLevel: document.getElementById("mRisk").value,
-        checkupsCompleted: 0,
-        assignedNurse: getCurrentUser()?.name || "RHU Staff"
-      };
-      await persistRecord("maternalRecords", newRec);
-      closeModal();
-      toast("Maternal record created.");
-      renderPage("maternal");
-    });
+    openPadreBurgosMaternalModal();
   });
 
   document.querySelectorAll(".edit-maternal-btn").forEach(btn => {
@@ -491,21 +990,10 @@ function bindMaternalEvents() {
     });
   });
 
-  document.querySelectorAll(".verify-maternal-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
+  document.querySelectorAll(".record-visit-maternal-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
-      const rec = state.maternalRecords.find(r => r.id === id);
-      if (!rec) return;
-      const current = getCurrentUser();
-      const updated = {
-        ...rec,
-        verification_status: "Verified",
-        verified_by: current?.fullName || current?.name || "RHU Nurse",
-        verified_at: new Date().toISOString()
-      };
-      await persistRecord("maternalRecords", updated);
-      toast(`Maternal health record verified for ${rec.fullName}.`);
-      renderPage("maternal");
+      openRecordCheckupModal(id);
     });
   });
 
@@ -521,76 +1009,260 @@ function bindMaternalEvents() {
   });
 }
 
+function openPrenatalClinicalRecordModal(record = {}) {
+  const currentRec = record || {};
+  const isUserParent = isParent(getCurrentUser());
+
+  const html = `
+    <form id="prenatalClinicalModalForm" class="space-y-4">
+      ${renderPrenatalClinicalRecordHtml(currentRec)}
+      <div class="flex items-center justify-between border-t border-line pt-3 mt-2 no-print">
+        <button type="button" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1" onclick="window.print()">
+          <span class="material-symbols-outlined text-sm">print</span>
+          <span>Print Clinical Record</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Close</button>
+          ${!isUserParent ? `
+            <button type="submit" class="primary-btn text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">save</span>
+              <span>Save Clinical Record</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    </form>
+  `;
+
+  openModal(`Prenatal Clinical Record - ${escapeHtml(currentRec.fullName || 'Patient')}`, html);
+
+  if (!isUserParent) {
+    document.getElementById("prenatalClinicalModalForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const current = getCurrentUser();
+
+      const surname = document.getElementById("pc_surname")?.value.trim() || "";
+      const firstName = document.getElementById("pc_first_name")?.value.trim() || "";
+      const fullName = `${firstName} ${surname}`.trim() || currentRec.fullName || "Maternal Patient";
+
+      const formDetails = {
+        ...(currentRec.formDetails || {}),
+        surname,
+        firstName,
+        mi: document.getElementById("pc_mi")?.value.trim() || "",
+        age: document.getElementById("pc_age")?.value || "",
+        occupation: document.getElementById("pc_occupation")?.value.trim() || "",
+        husbandName: document.getElementById("pc_husband_name")?.value.trim() || "",
+        address: document.getElementById("pc_address")?.value.trim() || "",
+        birthday: document.getElementById("pc_birthday")?.value || null,
+        civilStatus: document.getElementById("pc_civil_status")?.value.trim() || "",
+        menarche: document.getElementById("pc_menarche")?.value.trim() || "",
+        flowScant: document.getElementById("pc_flow_scant")?.checked || false,
+        flowMod: document.getElementById("pc_flow_mod")?.checked || false,
+        flowProf: document.getElementById("pc_flow_prof")?.checked || false,
+        durationDays: document.getElementById("pc_duration")?.value || "",
+        cycleDays: document.getElementById("pc_cycle_days")?.value.trim() || "",
+        regularMens: document.getElementById("pc_regular")?.value || "YES",
+        painMens: document.getElementById("pc_pain")?.value || "NO",
+        lmp: document.getElementById("pc_lmp")?.value || null,
+        pmp: document.getElementById("pc_pmp")?.value || null,
+        edc: document.getElementById("pc_edc")?.value || null,
+        gravida: document.getElementById("pc_gravida")?.value || "1",
+        para: document.getElementById("pc_para")?.value || "0",
+        obCode: document.getElementById("pc_ob_code")?.value.trim() || "",
+        medDm: document.getElementById("pc_med_dm")?.checked || false,
+        medHeart: document.getElementById("pc_med_heart")?.checked || false,
+        medTb: document.getElementById("pc_med_tb")?.checked || false,
+        medAnemia: document.getElementById("pc_med_anemia")?.checked || false,
+        medHpn: document.getElementById("pc_med_hpn")?.checked || false,
+        medPneumo: document.getElementById("pc_med_pneumo")?.checked || false,
+        medAllergy: document.getElementById("pc_med_allergy")?.checked || false,
+        medTransfusion: document.getElementById("pc_med_transfusion")?.checked || false,
+        medRenal: document.getElementById("pc_med_renal")?.checked || false,
+        medRhd: document.getElementById("pc_med_rhd")?.checked || false,
+        medJaundice: document.getElementById("pc_med_jaundice")?.checked || false,
+        medStd: document.getElementById("pc_med_std")?.checked || false,
+        medOthers: document.getElementById("pc_med_others")?.value.trim() || "",
+        medOperation: document.getElementById("pc_med_operation")?.value.trim() || "",
+        famHpn: document.getElementById("pc_fam_hpn")?.checked || false,
+        famDm: document.getElementById("pc_fam_dm")?.checked || false,
+        famMulti: document.getElementById("pc_fam_multi")?.checked || false,
+        famTb: document.getElementById("pc_fam_tb")?.checked || false,
+        famHeart: document.getElementById("pc_fam_heart")?.checked || false,
+        famDystocia: document.getElementById("pc_fam_dystocia")?.checked || false,
+        famPsych: document.getElementById("pc_fam_psych")?.checked || false,
+        probNausea: document.getElementById("pc_prob_nausea")?.checked || false,
+        probBleeding: document.getElementById("pc_prob_bleeding")?.checked || false,
+        probPelvic: document.getElementById("pc_prob_pelvic")?.checked || false,
+        probHeadache: document.getElementById("pc_prob_headache")?.checked || false,
+        probDischarge: document.getElementById("pc_prob_discharge")?.checked || false,
+        probEdema: document.getElementById("pc_prob_edema")?.checked || false,
+        probFatigue: document.getElementById("pc_prob_fatigue")?.checked || false,
+        probVisual: document.getElementById("pc_prob_visual")?.checked || false,
+        probFever: document.getElementById("pc_prob_fever")?.checked || false,
+        probDizziness: document.getElementById("pc_prob_dizziness")?.checked || false,
+        probHpn: document.getElementById("pc_prob_hpn")?.checked || false,
+        probBackache: document.getElementById("pc_prob_backache")?.checked || false,
+        risk_1: document.getElementById("pc_risk_1")?.value.trim() || "",
+        risk_2: document.getElementById("pc_risk_2")?.value.trim() || "",
+        risk_3: document.getElementById("pc_risk_3")?.value.trim() || ""
+      };
+
+      for (let n = 1; n <= 3; n++) {
+        formDetails[`ob_no_${n}`] = document.getElementById(`pc_ob_no_${n}`)?.value.trim() || "";
+        formDetails[`ob_yr_${n}`] = document.getElementById(`pc_ob_yr_${n}`)?.value.trim() || "";
+        formDetails[`ob_aog_${n}`] = document.getElementById(`pc_ob_aog_${n}`)?.value.trim() || "";
+        formDetails[`ob_place_${n}`] = document.getElementById(`pc_ob_place_${n}`)?.value.trim() || "";
+        formDetails[`ob_comp_${n}`] = document.getElementById(`pc_ob_comp_${n}`)?.value.trim() || "";
+        formDetails[`ob_dur_${n}`] = document.getElementById(`pc_ob_dur_${n}`)?.value.trim() || "";
+        formDetails[`ob_wt_${n}`] = document.getElementById(`pc_ob_wt_${n}`)?.value.trim() || "";
+        formDetails[`ob_rem_${n}`] = document.getElementById(`pc_ob_rem_${n}`)?.value.trim() || "";
+
+        formDetails[`vDate_${n}`] = document.getElementById(`pc_vDate_${n}`)?.value || null;
+        formDetails[`vAog_${n}`] = document.getElementById(`pc_vAog_${n}`)?.value.trim() || "";
+        formDetails[`vBp_${n}`] = document.getElementById(`pc_vBp_${n}`)?.value.trim() || "";
+        formDetails[`vPr_${n}`] = document.getElementById(`pc_vPr_${n}`)?.value.trim() || "";
+        formDetails[`vWt_${n}`] = document.getElementById(`pc_vWt_${n}`)?.value.trim() || "";
+        formDetails[`vFht_${n}`] = document.getElementById(`pc_vFht_${n}`)?.value.trim() || "";
+        formDetails[`vTemp_${n}`] = document.getElementById(`pc_vTemp_${n}`)?.value.trim() || "";
+        formDetails[`sym_bleeding_${n}`] = document.getElementById(`pc_sym_bleeding_${n}`)?.checked || false;
+        formDetails[`sym_bp_${n}`] = document.getElementById(`pc_sym_bp_${n}`)?.checked || false;
+        formDetails[`sym_rupture_${n}`] = document.getElementById(`pc_sym_rupture_${n}`)?.checked || false;
+        formDetails[`sym_fever_${n}`] = document.getElementById(`pc_sym_fever_${n}`)?.checked || false;
+        formDetails[`sym_pallor_${n}`] = document.getElementById(`pc_sym_pallor_${n}`)?.checked || false;
+        formDetails[`sym_vision_${n}`] = document.getElementById(`pc_sym_vision_${n}`)?.checked || false;
+        formDetails[`sym_edema_${n}`] = document.getElementById(`pc_sym_edema_${n}`)?.checked || false;
+        formDetails[`sym_fht_${n}`] = document.getElementById(`pc_sym_fht_${n}`)?.checked || false;
+        formDetails[`remarks_${n}`] = document.getElementById(`pc_remarks_${n}`)?.value.trim() || "";
+      }
+
+      const updatedRec = {
+        ...currentRec,
+        id: currentRec.id || `mat_${Date.now()}`,
+        fullName,
+        lmp: formDetails.lmp || currentRec.lmp,
+        edd: formDetails.edc || currentRec.edd,
+        verification_status: "Verified",
+        formDetails
+      };
+
+      await persistRecord("maternalRecords", updatedRec);
+      closeModal();
+      toast(`Prenatal Clinical Record saved for ${updatedRec.fullName}.`);
+      renderPage("maternal");
+    });
+  }
+}
+
+function openPadreBurgosMaternalModal(record = {}, readOnly = false) {
+  const currentRec = record || {};
+  const isUserParent = isParent(getCurrentUser());
+  const isReadOnly = readOnly || isUserParent;
+
+  const html = `
+    <form id="pbMaternalModalForm" class="space-y-4">
+      ${renderPadreBurgosMaternalFormHtml(currentRec)}
+      <div class="flex items-center justify-end gap-2 border-t border-line pt-3 mt-2 no-print">
+        <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Close</button>
+        ${!isReadOnly ? `
+          <button type="submit" class="primary-btn text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">save</span>
+            <span>Save Maternal Record</span>
+          </button>
+        ` : ''}
+      </div>
+    </form>
+  `;
+
+  openModal(`DOH Maternal Record - ${escapeHtml(currentRec.fullName || 'New Record')}`, html);
+
+  if (!isReadOnly) {
+    document.getElementById("pbMaternalModalForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const current = getCurrentUser();
+
+      const fullName = document.getElementById("pb_fullName")?.value.trim() || currentRec.fullName || "Mother Patient";
+      const lmp = document.getElementById("pb_lmpDate")?.value || null;
+      const edd = document.getElementById("pb_edcDate")?.value || null;
+      const address = document.getElementById("pb_address")?.value.trim() || "";
+
+      const formDetails = {
+        ...(currentRec.formDetails || {}),
+        bloodType: document.getElementById("pb_bloodType")?.value || "",
+        ageCategory: document.getElementById("pb_ageCategory")?.value || "18-34",
+        heightCm: document.getElementById("pb_heightCm")?.value || "",
+        weightKg: document.getElementById("pb_weightKg")?.value || "",
+        bmi: document.getElementById("pb_bmi")?.value || "",
+        td1Date: document.getElementById("pb_td1Date")?.value || null,
+        td2Date: document.getElementById("pb_td2Date")?.value || null,
+        td3Date: document.getElementById("pb_td3Date")?.value || null,
+        td4Date: document.getElementById("pb_td4Date")?.value || null,
+        td5Date: document.getElementById("pb_td5Date")?.value || null,
+        obG: document.getElementById("pb_obG")?.value || "1",
+        obP: document.getElementById("pb_obP")?.value || "0",
+        obT: document.getElementById("pb_obT")?.value || "0",
+        obPreterm: document.getElementById("pb_obPreterm")?.value || "0",
+        obA: document.getElementById("pb_obA")?.value || "0",
+        obL: document.getElementById("pb_obL")?.value || "0"
+      };
+
+      const updatedRec = {
+        ...currentRec,
+        id: currentRec.id || `mat_${Date.now()}`,
+        fullName,
+        lmp: lmp || currentRec.lmp,
+        edd: edd || currentRec.edd,
+        address: address || currentRec.address,
+        barangay: currentRec.barangay || current?.barangay || "Basiao (Poblacion)",
+        verification_status: "Verified",
+        assignedNurse: current?.fullName || current?.name || "RHU Midwife",
+        formDetails
+      };
+
+      await persistRecord("maternalRecords", updatedRec);
+      closeModal();
+      toast(`Padre Burgos RHU Maternal Record saved for ${updatedRec.fullName}.`);
+      renderPage("maternal");
+    });
+  }
+}
+
+// -------------------------------------------------------------
+// Infant Records Module Binders & Immunization Card Modal
+// -------------------------------------------------------------
 function bindInfantsEvents() {
   document.getElementById("addInfantBtn")?.addEventListener("click", () => {
-    openModal("Add Infant Record", `
-      <form id="infantForm" class="modal-form">
-        <label>Infant Name <input type="text" id="iName" required></label>
-        <label>Parent / Mother Name <input type="text" id="pName" required></label>
-        <label>Birthdate <input type="date" id="iBirthdate" required></label>
-        <label>Age (Months) <input type="number" id="iAge" required></label>
-        <label>Barangay 
-          <select id="iBarangay">${barangays.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')}</select>
-        </label>
-        <label>Immunization Status 
-          <select id="iStatus">
-            <option value="Incomplete">Incomplete</option>
-            <option value="Fully Immunized Child (FIC)">Fully Immunized Child (FIC)</option>
-            <option value="Completely Immunized Child (CIC)">Completely Immunized Child (CIC)</option>
-          </select>
-        </label>
-        <button class="primary-btn full-btn" type="submit">Save Infant Record</button>
-      </form>
-    `);
-
-    document.getElementById("infantForm")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const newRec = {
-        id: `inf_${Date.now()}`,
-        infantName: document.getElementById("iName").value.trim(),
-        parentName: document.getElementById("pName").value.trim(),
-        birthdate: document.getElementById("iBirthdate").value || null,
-        ageMonths: parseInt(document.getElementById("iAge").value) || 0,
-        barangay: document.getElementById("iBarangay").value,
-        immunizationStatus: document.getElementById("iStatus").value,
-        verification_status: "Verified",
-        assignedNurse: getCurrentUser()?.name || "RHU Staff"
-      };
-      await persistRecord("infantRecords", newRec);
-      closeModal();
-      toast("Infant record created.");
-      renderPage("infants");
-    });
-  });
-
-  document.querySelectorAll(".verify-infant-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const id = btn.getAttribute("data-id");
-      const rec = state.infantRecords.find(r => r.id === id);
-      if (!rec) return;
-      const current = getCurrentUser();
-      const updated = {
-        ...rec,
-        verification_status: "Verified",
-        verified_by: current?.fullName || current?.name || "RHU Nurse",
-        verified_at: new Date().toISOString()
-      };
-      await persistRecord("infantRecords", updated);
-      toast(`Infant health record verified for ${rec.infantName}.`);
-      renderPage("infants");
-    });
+    const current = getCurrentUser();
+    if (isParent(current)) {
+      openParentAddChildModal();
+    } else {
+      openDigitalImmunizationCardModal({}, false);
+    }
   });
 
   document.querySelectorAll(".view-card-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
-      const rec = state.infantRecords.find(r => r.id === id);
-      if (rec) openDigitalImmunizationCardModal(rec);
+      const inf = state.infantRecords.find(i => i.id === id);
+      if (inf) {
+        const isUserParent = isParent(getCurrentUser());
+        openDigitalImmunizationCardModal(inf, isUserParent);
+      }
+    });
+  });
+
+  document.querySelectorAll(".edit-infant-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-id");
+      const inf = state.infantRecords.find(i => i.id === id);
+      if (inf) openDigitalImmunizationCardModal(inf, false);
     });
   });
 
   document.querySelectorAll(".delete-infant-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       const id = btn.getAttribute("data-id");
       if (confirm("Are you sure you want to delete this infant record?")) {
         await deleteRecord("infantRecords", id);
@@ -601,287 +1273,283 @@ function bindInfantsEvents() {
   });
 }
 
-function openPrenatalClinicalRecordModal(record = {}) {
-  const currentRec = record || {};
+function openParentAddChildModal() {
+  const current = getCurrentUser();
+  const motherName = current?.name || current?.fullName || "";
+  const bgy = current?.barangay || "Basiao (Poblacion)";
 
-  const html = `
-    <form id="prenatalClinicalModalForm" class="space-y-4">
-      ${renderPrenatalClinicalRecordHtml(currentRec)}
-      <div class="flex items-center justify-between border-t pt-3 mt-2">
-        <button type="button" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1" onclick="window.print()">
-          <span class="material-symbols-outlined text-sm">print</span>
-          <span>Print Clinical Record</span>
-        </button>
-        <div class="flex items-center gap-2">
-          <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="primary-btn bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
-            <span class="material-symbols-outlined text-sm">save</span>
-            <span>Save Prenatal Clinical Record</span>
-          </button>
+  openModal("Register My Child / Infant", `
+    <form id="parentAddChildForm" class="space-y-3 text-xs">
+      <div class="p-3 bg-pink-50 border border-pink-200 rounded-xl mb-2 flex items-center gap-2">
+        <span class="material-symbols-outlined text-pink-600 text-lg">child_care</span>
+        <div>
+          <strong class="text-slate-900 block text-xs">Child Health Registration</strong>
+          <span class="text-[11px] text-slate-600">Register your child. Your assigned Barangay Midwife will verify the record and track immunizations.</span>
         </div>
       </div>
-    </form>
-  `;
 
-  openModal(`Prenatal Clinical Record - ${escapeHtml(currentRec.fullName || 'Patient')}`, html);
+      <div>
+        <label class="block font-semibold mb-1 text-slate-700">Child's Full Name *</label>
+        <input type="text" id="pac_name" class="input-field" required placeholder="e.g. Juan Santos Dela Cruz">
+      </div>
 
-  document.getElementById("prenatalClinicalModalForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const current = getCurrentUser();
-
-    const surname = document.getElementById("pc_surname")?.value.trim() || "";
-    const firstName = document.getElementById("pc_first_name")?.value.trim() || "";
-    const fullName = `${firstName} ${surname}`.trim() || currentRec.fullName || "Maternal Patient";
-
-    const formDetails = {
-      ...(currentRec.formDetails || {}),
-      surname,
-      firstName,
-      mi: document.getElementById("pc_mi")?.value.trim() || "",
-      age: document.getElementById("pc_age")?.value || "",
-      occupation: document.getElementById("pc_occupation")?.value.trim() || "",
-      husbandName: document.getElementById("pc_husband_name")?.value.trim() || "",
-      address: document.getElementById("pc_address")?.value.trim() || "",
-      birthday: document.getElementById("pc_birthday")?.value || null,
-      civilStatus: document.getElementById("pc_civil_status")?.value.trim() || "",
-      menarche: document.getElementById("pc_menarche")?.value.trim() || "",
-      flowScant: document.getElementById("pc_flow_scant")?.checked || false,
-      flowMod: document.getElementById("pc_flow_mod")?.checked || false,
-      flowProf: document.getElementById("pc_flow_prof")?.checked || false,
-      durationDays: document.getElementById("pc_duration")?.value || "",
-      cycleDays: document.getElementById("pc_cycle_days")?.value.trim() || "",
-      regularMens: document.getElementById("pc_regular")?.value || "YES",
-      painMens: document.getElementById("pc_pain")?.value || "NO",
-      lmp: document.getElementById("pc_lmp")?.value || null,
-      pmp: document.getElementById("pc_pmp")?.value || null,
-      edc: document.getElementById("pc_edc")?.value || null,
-      gravida: document.getElementById("pc_gravida")?.value || "1",
-      para: document.getElementById("pc_para")?.value || "0",
-      obCode: document.getElementById("pc_ob_code")?.value.trim() || "",
-      medDm: document.getElementById("pc_med_dm")?.checked || false,
-      medHeart: document.getElementById("pc_med_heart")?.checked || false,
-      medTb: document.getElementById("pc_med_tb")?.checked || false,
-      medAnemia: document.getElementById("pc_med_anemia")?.checked || false,
-      medHpn: document.getElementById("pc_med_hpn")?.checked || false,
-      medPneumo: document.getElementById("pc_med_pneumo")?.checked || false,
-      medAllergy: document.getElementById("pc_med_allergy")?.checked || false,
-      medTransfusion: document.getElementById("pc_med_transfusion")?.checked || false,
-      medRenal: document.getElementById("pc_med_renal")?.checked || false,
-      medRhd: document.getElementById("pc_med_rhd")?.checked || false,
-      medJaundice: document.getElementById("pc_med_jaundice")?.checked || false,
-      medStd: document.getElementById("pc_med_std")?.checked || false,
-      medOthers: document.getElementById("pc_med_others")?.value.trim() || "",
-      medOperation: document.getElementById("pc_med_operation")?.value.trim() || "",
-      famHpn: document.getElementById("pc_fam_hpn")?.checked || false,
-      famDm: document.getElementById("pc_fam_dm")?.checked || false,
-      famMulti: document.getElementById("pc_fam_multi")?.checked || false,
-      famTb: document.getElementById("pc_fam_tb")?.checked || false,
-      famHeart: document.getElementById("pc_fam_heart")?.checked || false,
-      famDystocia: document.getElementById("pc_fam_dystocia")?.checked || false,
-      famPsych: document.getElementById("pc_fam_psych")?.checked || false,
-      probNausea: document.getElementById("pc_prob_nausea")?.checked || false,
-      probBleeding: document.getElementById("pc_prob_bleeding")?.checked || false,
-      probPelvic: document.getElementById("pc_prob_pelvic")?.checked || false,
-      probHeadache: document.getElementById("pc_prob_headache")?.checked || false,
-      probDischarge: document.getElementById("pc_prob_discharge")?.checked || false,
-      probEdema: document.getElementById("pc_prob_edema")?.checked || false,
-      probFatigue: document.getElementById("pc_prob_fatigue")?.checked || false,
-      probVisual: document.getElementById("pc_prob_visual")?.checked || false,
-      probFever: document.getElementById("pc_prob_fever")?.checked || false,
-      probDizziness: document.getElementById("pc_prob_dizziness")?.checked || false,
-      probHpn: document.getElementById("pc_prob_hpn")?.checked || false,
-      probBackache: document.getElementById("pc_prob_backache")?.checked || false,
-      risk_1: document.getElementById("pc_risk_1")?.value.trim() || "",
-      risk_2: document.getElementById("pc_risk_2")?.value.trim() || "",
-      risk_3: document.getElementById("pc_risk_3")?.value.trim() || ""
-    };
-
-    for (let n = 1; n <= 3; n++) {
-      formDetails[`ob_no_${n}`] = document.getElementById(`pc_ob_no_${n}`)?.value.trim() || "";
-      formDetails[`ob_yr_${n}`] = document.getElementById(`pc_ob_yr_${n}`)?.value.trim() || "";
-      formDetails[`ob_aog_${n}`] = document.getElementById(`pc_ob_aog_${n}`)?.value.trim() || "";
-      formDetails[`ob_place_${n}`] = document.getElementById(`pc_ob_place_${n}`)?.value.trim() || "";
-      formDetails[`ob_comp_${n}`] = document.getElementById(`pc_ob_comp_${n}`)?.value.trim() || "";
-      formDetails[`ob_dur_${n}`] = document.getElementById(`pc_ob_dur_${n}`)?.value.trim() || "";
-      formDetails[`ob_wt_${n}`] = document.getElementById(`pc_ob_wt_${n}`)?.value.trim() || "";
-      formDetails[`ob_rem_${n}`] = document.getElementById(`pc_ob_rem_${n}`)?.value.trim() || "";
-
-      formDetails[`vDate_${n}`] = document.getElementById(`pc_vDate_${n}`)?.value || null;
-      formDetails[`vAog_${n}`] = document.getElementById(`pc_vAog_${n}`)?.value.trim() || "";
-      formDetails[`vBp_${n}`] = document.getElementById(`pc_vBp_${n}`)?.value.trim() || "";
-      formDetails[`vPr_${n}`] = document.getElementById(`pc_vPr_${n}`)?.value.trim() || "";
-      formDetails[`vWt_${n}`] = document.getElementById(`pc_vWt_${n}`)?.value.trim() || "";
-      formDetails[`vFht_${n}`] = document.getElementById(`pc_vFht_${n}`)?.value.trim() || "";
-      formDetails[`vTemp_${n}`] = document.getElementById(`pc_vTemp_${n}`)?.value.trim() || "";
-      formDetails[`sym_bleeding_${n}`] = document.getElementById(`pc_sym_bleeding_${n}`)?.checked || false;
-      formDetails[`sym_bp_${n}`] = document.getElementById(`pc_sym_bp_${n}`)?.checked || false;
-      formDetails[`sym_rupture_${n}`] = document.getElementById(`pc_sym_rupture_${n}`)?.checked || false;
-      formDetails[`sym_fever_${n}`] = document.getElementById(`pc_sym_fever_${n}`)?.checked || false;
-      formDetails[`sym_pallor_${n}`] = document.getElementById(`pc_sym_pallor_${n}`)?.checked || false;
-      formDetails[`sym_vision_${n}`] = document.getElementById(`pc_sym_vision_${n}`)?.checked || false;
-      formDetails[`sym_edema_${n}`] = document.getElementById(`pc_sym_edema_${n}`)?.checked || false;
-      formDetails[`sym_fht_${n}`] = document.getElementById(`pc_sym_fht_${n}`)?.checked || false;
-      formDetails[`remarks_${n}`] = document.getElementById(`pc_remarks_${n}`)?.value.trim() || "";
-    }
-
-    const updatedRec = {
-      ...currentRec,
-      id: currentRec.id || `mat_${Date.now()}`,
-      fullName,
-      lmp: formDetails.lmp || currentRec.lmp,
-      edd: formDetails.edc || currentRec.edd,
-      verification_status: currentRec.verification_status || "Verified",
-      formDetails
-    };
-
-    await persistRecord("maternalRecords", updatedRec);
-    closeModal();
-    toast(`Prenatal Clinical Record saved for ${updatedRec.fullName}.`);
-    renderPage(current?.role === "Mother / Parent" ? "forms" : "maternal");
-  });
-}
-
-function openDigitalImmunizationCardModal(infant = {}) {
-  const currentRec = infant || {};
-
-  const html = `
-    <form id="todoLigtasModalForm" class="space-y-4">
-      ${renderTodoLigtasImmunizationCardHtml(currentRec)}
-      <div class="flex items-center justify-between border-t pt-3 mt-2">
-        <button type="button" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1" onclick="window.print()">
-          <span class="material-symbols-outlined text-sm">print</span>
-          <span>Print Immunization Card</span>
-        </button>
-        <div class="flex items-center gap-2">
-          <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="primary-btn bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
-            <span class="material-symbols-outlined text-sm">save</span>
-            <span>Save Immunization Card</span>
-          </button>
+      <div class="two-col">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Date of Birth *</label>
+          <input type="date" id="pac_dob" class="input-field" required value="${new Date().toISOString().split('T')[0]}">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Sex *</label>
+          <select id="pac_sex" class="input-field" required>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
         </div>
       </div>
+
+      <div class="two-col">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Mother's Full Name</label>
+          <input type="text" id="pac_mother" class="input-field bg-slate-50 font-medium" value="${escapeHtml(motherName)}" readonly>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Father's Full Name</label>
+          <input type="text" id="pac_father" class="input-field" placeholder="Father's full name">
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Birth Weight (kg)</label>
+          <input type="text" id="pac_weight" class="input-field" placeholder="e.g. 3.2">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Birth Height / Length (cm)</label>
+          <input type="text" id="pac_height" class="input-field" placeholder="e.g. 50">
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-semibold mb-1 text-slate-700">Place of Birth</label>
+        <input type="text" id="pac_birthplace" class="input-field" placeholder="Hospital / Birthing Facility / Residence">
+      </div>
+
+      <div class="two-col">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Barangay Residence</label>
+          <input type="text" id="pac_bgy" class="input-field bg-slate-50 font-medium" value="${escapeHtml(bgy)}" readonly>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Contact Number</label>
+          <input type="tel" id="pac_contact" class="input-field" placeholder="09XXXXXXXXX">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 border-t border-line pt-3 mt-3">
+        <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="primary-btn text-xs font-semibold py-1.5 px-4 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">save</span>
+          <span>Register Child</span>
+        </button>
+      </div>
     </form>
-  `;
+  `);
 
-  openModal(`DOH Immunization Card (Todo Ligtas) - ${escapeHtml(currentRec.infantName || 'Child Record')}`, html);
-
-  document.getElementById("todoLigtasModalForm")?.addEventListener("submit", async (e) => {
+  document.getElementById("parentAddChildForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const current = getCurrentUser();
+    const infantName = document.getElementById("pac_name").value.trim();
+    const birthdate = document.getElementById("pac_dob").value;
+    const sex = document.getElementById("pac_sex").value;
+    const fatherName = document.getElementById("pac_father").value.trim();
+    const birthWeight = document.getElementById("pac_weight").value.trim() || "3.0";
+    const birthHeight = document.getElementById("pac_height").value.trim() || "50";
+    const placeOfBirth = document.getElementById("pac_birthplace").value.trim();
+    const contactNo = document.getElementById("pac_contact").value.trim();
 
-    const infantName = document.getElementById("tl_child_name")?.value.trim() || currentRec.infantName || "Child Patient";
-    const birthdate = document.getElementById("tl_dob")?.value || currentRec.birthdate || null;
-    const motherName = document.getElementById("tl_mother_name")?.value.trim() || currentRec.motherName || "";
-
-    const formDetails = {
-      ...(currentRec.formDetails || {}),
-      placeOfBirth: document.getElementById("tl_birth_place")?.value.trim() || "",
-      fatherName: document.getElementById("tl_father_name")?.value.trim() || "",
-      address: document.getElementById("tl_address")?.value.trim() || "",
-      birthHeight: document.getElementById("tl_birth_height")?.value.trim() || "50",
-      birthWeight: document.getElementById("tl_birth_weight")?.value.trim() || "3.0",
-      sex: document.getElementById("tl_sex")?.value || "Male",
-      contactNo: document.getElementById("tl_contact_no")?.value.trim() || "",
-      bcgDate: document.getElementById("tl_bcg_date")?.value || null,
-      bcgRemarks: document.getElementById("tl_bcg_rem")?.value.trim() || "",
-      hepatitisBDate: document.getElementById("tl_hepb_date")?.value || null,
-      hepaBRemarks: document.getElementById("tl_hepb_rem")?.value.trim() || "",
-      pentavalentDose1Date: document.getElementById("tl_penta_1")?.value || null,
-      pentavalentDose2Date: document.getElementById("tl_penta_2")?.value || null,
-      pentavalentDose3Date: document.getElementById("tl_penta_3")?.value || null,
-      pentaRemarks: document.getElementById("tl_penta_rem")?.value.trim() || "",
-      opvDose1Date: document.getElementById("tl_opv_1")?.value || null,
-      opvDose2Date: document.getElementById("tl_opv_2")?.value || null,
-      opvDose3Date: document.getElementById("tl_opv_3")?.value || null,
-      opvRemarks: document.getElementById("tl_opv_rem")?.value.trim() || "",
-      ipvDose1Date: document.getElementById("tl_ipv_1")?.value || null,
-      ipvDose2Date: document.getElementById("tl_ipv_2")?.value || null,
-      ipvRemarks: document.getElementById("tl_ipv_rem")?.value.trim() || "",
-      pcvDose1Date: document.getElementById("tl_pcv_1")?.value || null,
-      pcvDose2Date: document.getElementById("tl_pcv_2")?.value || null,
-      pcvDose3Date: document.getElementById("tl_pcv_3")?.value || null,
-      pcvRemarks: document.getElementById("tl_pcv_rem")?.value.trim() || "",
-      mmrDose1Date: document.getElementById("tl_mmr_1")?.value || null,
-      mmrDose2Date: document.getElementById("tl_mmr_2")?.value || null,
-      mmrRemarks: document.getElementById("tl_mmr_rem")?.value.trim() || "",
-      mcvG1Date: document.getElementById("tl_mcv_g1")?.value || null,
-      mcvG1Remarks: document.getElementById("tl_mcv_g1_rem")?.value.trim() || "",
-      mcvG71Date: document.getElementById("tl_mcv_g7_1")?.value || null,
-      mcvG72Date: document.getElementById("tl_mcv_g7_2")?.value || null,
-      mcvG7Remarks: document.getElementById("tl_mcv_g7_rem")?.value.trim() || "",
-      td1ChildDate: document.getElementById("tl_td_1")?.value || null,
-      td2ChildDate: document.getElementById("tl_td_2")?.value || null,
-      tdRemarks: document.getElementById("tl_td_rem")?.value.trim() || "",
-      hpv1Date: document.getElementById("tl_hpv_1")?.value || null,
-      hpv2Date: document.getElementById("tl_hpv_2")?.value || null,
-      hpvRemarks: document.getElementById("tl_hpv_rem")?.value.trim() || "",
-      fluDate: document.getElementById("tl_flu_date")?.value || null,
-      fluRemarks: document.getElementById("tl_flu_rem")?.value.trim() || "",
-      pneumoDate: document.getElementById("tl_pneumo_date")?.value || null,
-      pneumoRemarks: document.getElementById("tl_pneumo_rem")?.value.trim() || "",
-      otherVac1Name: document.getElementById("tl_other_vac_1")?.value.trim() || "",
-      otherVac1Dose: document.getElementById("tl_other_dose_1")?.value.trim() || "",
-      otherVac1Date: document.getElementById("tl_other_date_1")?.value || null,
-      otherVac1Remarks: document.getElementById("tl_other_rem_1")?.value.trim() || "",
-      otherVac2Name: document.getElementById("tl_other_vac_2")?.value.trim() || "",
-      otherVac2Dose: document.getElementById("tl_other_dose_2")?.value.trim() || "",
-      otherVac2Date: document.getElementById("tl_other_date_2")?.value || null,
-      otherVac2Remarks: document.getElementById("tl_other_rem_2")?.value.trim() || ""
-    };
-
-    let status = "Incomplete";
-    if (formDetails.bcgDate && formDetails.pentavalentDose3Date && formDetails.opvDose3Date && formDetails.mmrDose2Date) {
-      status = "Fully Immunized Child (FIC)";
-    } else if (formDetails.mmrDose2Date) {
-      status = "Completely Immunized Child (CIC)";
-    }
-
-    let ageMonths = currentRec.ageMonths || 0;
+    let ageMonths = 0;
     if (birthdate) {
       const dob = new Date(birthdate);
       const now = new Date();
       ageMonths = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth()));
     }
 
-    const updatedInfant = {
-      ...currentRec,
-      id: currentRec.id || `inf_${Date.now()}`,
+    const newInfant = {
+      id: `inf_${Date.now()}`,
+      user_id: current.id,
       infantName,
       birthdate,
       ageMonths,
-      parentName: motherName || currentRec.parentName || "Parent",
-      motherName: motherName || currentRec.motherName || "Parent",
-      barangay: currentRec.barangay || current?.barangay || "Basiao (Poblacion)",
-      immunizationStatus: status,
-      verification_status: currentRec.verification_status || (current?.role === "Nurse / Midwife" ? "Verified" : "Pending Verification"),
-      formDetails
+      parentName: motherName,
+      motherName,
+      barangay: bgy,
+      contact: contactNo,
+      immunizationStatus: "Incomplete",
+      verification_status: "Verified",
+      formDetails: {
+        sex,
+        fatherName,
+        birthWeight,
+        birthHeight,
+        placeOfBirth,
+        contactNo,
+        motherName
+      },
+      created_at: new Date().toISOString()
     };
 
-    await persistRecord("infantRecords", updatedInfant);
+    await persistRecord("infantRecords", newInfant);
     closeModal();
-    toast(`Todo Ligtas Immunization Card saved for ${updatedInfant.infantName}.`);
-    renderPage(current?.role === "Mother / Parent" ? "forms" : "infants");
+    toast(`Successfully registered ${infantName}!`);
+    renderPage(activePage);
   });
 }
 
+function openDigitalImmunizationCardModal(infant = {}, readOnly = false) {
+  const currentRec = infant || {};
+  const isUserParent = isParent(getCurrentUser());
+  const isReadOnly = readOnly || isUserParent;
+
+  const html = `
+    <form id="todoLigtasModalForm" class="space-y-4">
+      ${renderTodoLigtasImmunizationCardHtml(currentRec, isReadOnly)}
+      <div class="flex items-center justify-between border-t border-line pt-3 mt-2 no-print">
+        <button type="button" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1" onclick="window.print()">
+          <span class="material-symbols-outlined text-sm">print</span>
+          <span>Print Physical Card</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Close</button>
+          ${!isReadOnly ? `
+            <button type="submit" class="primary-btn text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">save</span>
+              <span>Save Immunization Card</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    </form>
+  `;
+
+  openModal(`DOH Todo Ligtas Immunization Card - ${escapeHtml(currentRec.infantName || 'Child Record')}`, html);
+
+  if (!isReadOnly) {
+    document.getElementById("todoLigtasModalForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const current = getCurrentUser();
+
+      const infantName = document.getElementById("tl_child_name")?.value.trim() || currentRec.infantName || "Child Patient";
+      const birthdate = document.getElementById("tl_dob")?.value || currentRec.birthdate || null;
+      const motherName = document.getElementById("tl_mother_name")?.value.trim() || currentRec.motherName || "";
+
+      const formDetails = {
+        ...(currentRec.formDetails || {}),
+        placeOfBirth: document.getElementById("tl_birth_place")?.value.trim() || "",
+        fatherName: document.getElementById("tl_father_name")?.value.trim() || "",
+        address: document.getElementById("tl_address")?.value.trim() || "",
+        birthHeight: document.getElementById("tl_birth_height")?.value.trim() || "50",
+        birthWeight: document.getElementById("tl_birth_weight")?.value.trim() || "3.0",
+        sex: document.getElementById("tl_sex")?.value || "Male",
+        contactNo: document.getElementById("tl_contact_no")?.value.trim() || "",
+        bcgDate: document.getElementById("tl_bcg_date")?.value || null,
+        bcgRemarks: document.getElementById("tl_bcg_rem")?.value.trim() || "",
+        hepatitisBDate: document.getElementById("tl_hepb_date")?.value || null,
+        hepaBRemarks: document.getElementById("tl_hepb_rem")?.value.trim() || "",
+        pentavalentDose1Date: document.getElementById("tl_penta_1")?.value || null,
+        pentavalentDose2Date: document.getElementById("tl_penta_2")?.value || null,
+        pentavalentDose3Date: document.getElementById("tl_penta_3")?.value || null,
+        pentaRemarks: document.getElementById("tl_penta_rem")?.value.trim() || "",
+        opvDose1Date: document.getElementById("tl_opv_1")?.value || null,
+        opvDose2Date: document.getElementById("tl_opv_2")?.value || null,
+        opvDose3Date: document.getElementById("tl_opv_3")?.value || null,
+        opvRemarks: document.getElementById("tl_opv_rem")?.value.trim() || "",
+        ipvDose1Date: document.getElementById("tl_ipv_1")?.value || null,
+        ipvDose2Date: document.getElementById("tl_ipv_2")?.value || null,
+        ipvRemarks: document.getElementById("tl_ipv_rem")?.value.trim() || "",
+        pcvDose1Date: document.getElementById("tl_pcv_1")?.value || null,
+        pcvDose2Date: document.getElementById("tl_pcv_2")?.value || null,
+        pcvDose3Date: document.getElementById("tl_pcv_3")?.value || null,
+        pcvRemarks: document.getElementById("tl_pcv_rem")?.value.trim() || "",
+        mmrDose1Date: document.getElementById("tl_mmr_1")?.value || null,
+        mmrDose2Date: document.getElementById("tl_mmr_2")?.value || null,
+        mmrRemarks: document.getElementById("tl_mmr_rem")?.value.trim() || "",
+        mcvG1Date: document.getElementById("tl_mcv_g1")?.value || null,
+        mcvG1Remarks: document.getElementById("tl_mcv_g1_rem")?.value.trim() || "",
+        mcvG71Date: document.getElementById("tl_mcv_g7_1")?.value || null,
+        mcvG72Date: document.getElementById("tl_mcv_g7_2")?.value || null,
+        mcvG7Remarks: document.getElementById("tl_mcv_g7_rem")?.value.trim() || "",
+        td1ChildDate: document.getElementById("tl_td_1")?.value || null,
+        td2ChildDate: document.getElementById("tl_td_2")?.value || null,
+        tdRemarks: document.getElementById("tl_td_rem")?.value.trim() || "",
+        hpv1Date: document.getElementById("tl_hpv_1")?.value || null,
+        hpv2Date: document.getElementById("tl_hpv_2")?.value || null,
+        hpvRemarks: document.getElementById("tl_hpv_rem")?.value.trim() || "",
+        fluDate: document.getElementById("tl_flu_date")?.value || null,
+        fluRemarks: document.getElementById("tl_flu_rem")?.value.trim() || "",
+        pneumoDate: document.getElementById("tl_pneumo_date")?.value || null,
+        pneumoRemarks: document.getElementById("tl_pneumo_rem")?.value.trim() || ""
+      };
+
+      let status = "Incomplete";
+      if (formDetails.bcgDate && formDetails.pentavalentDose3Date && formDetails.opvDose3Date && formDetails.mmrDose2Date) {
+        status = "Fully Immunized Child (FIC)";
+      } else if (formDetails.mmrDose2Date) {
+        status = "Completely Immunized Child (CIC)";
+      }
+
+      let ageMonths = currentRec.ageMonths || 0;
+      if (birthdate) {
+        const dob = new Date(birthdate);
+        const now = new Date();
+        ageMonths = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth()));
+      }
+
+      const updatedInfant = {
+        ...currentRec,
+        id: currentRec.id || `inf_${Date.now()}`,
+        infantName,
+        birthdate,
+        ageMonths,
+        parentName: motherName || currentRec.parentName || "Parent",
+        motherName: motherName || currentRec.motherName || "Parent",
+        barangay: currentRec.barangay || current?.barangay || "Basiao (Poblacion)",
+        immunizationStatus: status,
+        verification_status: "Verified",
+        formDetails
+      };
+
+      await persistRecord("infantRecords", updatedInfant);
+      closeModal();
+      toast(`Todo Ligtas Immunization Card saved for ${updatedInfant.infantName}.`);
+      renderPage("infants");
+    });
+  }
+}
+
+// -------------------------------------------------------------
+// Schedules Module Binders
+// -------------------------------------------------------------
 function bindSchedulesEvents() {
   document.getElementById("addScheduleBtn")?.addEventListener("click", () => {
     const current = getCurrentUser();
-    openModal("Schedule Check-up", `
-      <form id="schedForm" class="modal-form">
-        <label>Patient Name <input type="text" id="sPatient" value="${escapeHtml(current?.name || '')}" required></label>
+    const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+
+    openModal("Schedule Check-up Appointment", `
+      <form id="schedForm" class="modal-form space-y-3 text-xs">
+        <label>Patient Name * <input type="text" id="sPatient" required placeholder="Patient full name"></label>
         <label>Care Type 
-          <select id="sType">
+          <select id="sType" class="input-field">
             <option value="MC">MC - Maternal Care</option>
             <option value="CC">CC - Child Immunization</option>
           </select>
         </label>
-        <label>Barangay 
-          <select id="sBarangay">${barangays.map(b => `<option value="${escapeHtml(b)}" ${b === current?.barangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('')}</select>
+        <label>Barangay Assignment 
+          <select id="sBarangay" class="input-field">${bgyOptions}</select>
         </label>
-        <label>Preferred Date <input type="date" id="sDate" required></label>
-        <label>Time <input type="time" id="sTime" required></label>
-        <button class="primary-btn full-btn" type="submit">Submit Schedule</button>
+        <div class="two-col">
+          <label>Check-up Date * <input type="date" id="sDate" required value="${new Date().toISOString().split('T')[0]}"></label>
+          <label>Time Slot <input type="time" id="sTime" value="08:30"></label>
+        </div>
+        <button class="primary-btn full-btn mt-2" type="submit">Confirm Check-up Schedule</button>
       </form>
     `);
 
@@ -894,8 +1562,8 @@ function bindSchedulesEvents() {
         barangay: document.getElementById("sBarangay").value,
         date: document.getElementById("sDate").value,
         time: document.getElementById("sTime").value,
-        status: "Pending",
-        assignedNurse: "RHU Nurse"
+        status: "Scheduled",
+        assignedNurse: current?.fullName || current?.name || "Barangay Midwife"
       };
       await persistRecord("checkupSchedules", newSched);
       closeModal();
@@ -903,226 +1571,37 @@ function bindSchedulesEvents() {
       renderPage("schedules");
     });
   });
-}
 
-function bindFormsEvents() {
-  const current = getCurrentUser();
-  const motherName = current?.name || current?.fullName || "";
-  const lowerName = motherName.toLowerCase().trim();
-
-  document.getElementById("openMaternalFormModalBtn")?.addEventListener("click", () => {
-    const myMaternal = state.maternalRecords.find(r => 
-      (r.fullName && r.fullName.toLowerCase().trim() === lowerName) ||
-      (r.user_id && current?.id && r.user_id === current.id) ||
-      (r.email && current?.email && r.email.toLowerCase() === current.email.toLowerCase())
-    );
-    openPadreBurgosMaternalModal(myMaternal || { fullName: motherName, barangay: current?.barangay });
-  });
-
-  document.getElementById("openInfantFormModalBtn")?.addEventListener("click", () => {
-    openModal("Register Child Immunization Record", `
-      <form id="parentInfantModalForm" class="grid gap-3 p-1">
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Infant Full Name *</label>
-          <input type="text" id="infModalFullName" class="input-field" placeholder="Child's complete name" required>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Date of Birth *</label>
-            <input type="date" id="infModalDob" class="input-field" required>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Sex *</label>
-            <select id="infModalSex" class="input-field">
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Mother / Parent Name</label>
-            <input type="text" id="infModalParentName" class="input-field" value="${escapeHtml(motherName)}" required>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Barangay Clinic *</label>
-            <select id="infModalBarangay" class="input-field">
-              ${barangays.map(b => `<option value="${escapeHtml(b)}" ${current?.barangay === b ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Immunization Status</label>
-          <select id="infModalImmunization" class="input-field">
-            <option value="Incomplete">Incomplete (Ongoing Routine Doses)</option>
-            <option value="Fully Immunized Child (FIC)">Fully Immunized Child (FIC - 0-11 mos)</option>
-            <option value="Completely Immunized Child (CIC)">Completely Immunized Child (CIC - 12+ mos)</option>
-          </select>
-        </div>
-
-        <button class="primary-btn full-btn mt-2 flex items-center justify-center gap-1.5 py-2.5" type="submit">
-          <span class="material-symbols-outlined text-lg">add_circle</span>
-          <span>Register Child Immunization Record</span>
-        </button>
-      </form>
-    `);
-
-    document.getElementById("parentInfantModalForm")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const infantName = document.getElementById("infModalFullName").value.trim();
-      const birthdate = document.getElementById("infModalDob").value || null;
-      const sex = document.getElementById("infModalSex").value;
-      const parentName = document.getElementById("infModalParentName").value.trim();
-      const barangay = document.getElementById("infModalBarangay").value;
-      const immunizationStatus = document.getElementById("infModalImmunization").value;
-
-      let ageMonths = 0;
-      if (birthdate) {
-        const dob = new Date(birthdate);
-        const now = new Date();
-        ageMonths = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth()));
-      }
-
-      const newInfant = {
-        id: `inf_${Date.now()}`,
-        user_id: current?.id || null,
-        infantName,
-        birthdate,
-        ageMonths,
-        parentName,
-        motherName: parentName,
-        barangay,
-        immunizationStatus,
-        verification_status: "Pending Verification",
-        assignedNurse: "RHU Staff",
-        formDetails: {
-          sex,
-          registrationDate: new Date().toISOString().split("T")[0]
-        }
-      };
-
-      await persistRecord("infantRecords", newInfant);
-      closeModal();
-      toast("Child Immunization Record submitted for Nurse Verification!");
-      renderPage("forms");
-    });
-  });
-
-  document.querySelectorAll(".open-infant-card-modal-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
+  document.querySelectorAll(".delete-schedule-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-id");
-      const inf = state.infantRecords.find(i => i.id === id);
-      if (inf) openDigitalImmunizationCardModal(inf);
+      if (confirm("Are you sure you want to remove this checkup schedule?")) {
+        await deleteRecord("checkupSchedules", id);
+        toast("Schedule removed.");
+        renderPage("schedules");
+      }
     });
   });
 }
 
-function openPadreBurgosMaternalModal(record = {}) {
-  const currentRec = record || {};
-
-  const html = `
-    <form id="pbMaternalModalForm" class="space-y-4">
-      ${renderPadreBurgosMaternalFormHtml(currentRec)}
-      <div class="flex items-center justify-end gap-2 border-t pt-3 mt-2">
-        <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Cancel</button>
-        <button type="submit" class="primary-btn bg-amber-800 hover:bg-amber-900 text-white text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
-          <span class="material-symbols-outlined text-sm">save</span>
-          <span>Save Physical Maternal Record</span>
-        </button>
-      </div>
-    </form>
-  `;
-
-  openModal(`DOH Physical Maternal Record - ${escapeHtml(currentRec.fullName || 'New Record')}`, html);
-
-  document.getElementById("pbMaternalModalForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const current = getCurrentUser();
-
-    const fullName = document.getElementById("pb_fullName")?.value.trim() || currentRec.fullName || "Mother Patient";
-    const lmp = document.getElementById("pb_lmpDate")?.value || null;
-    const edd = document.getElementById("pb_edcDate")?.value || null;
-    const address = document.getElementById("pb_address")?.value.trim() || "";
-
-    const formDetails = {
-      ...(currentRec.formDetails || {}),
-      bloodType: document.getElementById("pb_bloodType")?.value || "",
-      ageCategory: document.getElementById("pb_ageCategory")?.value || "18-34",
-      heightCm: document.getElementById("pb_heightCm")?.value || "",
-      weightKg: document.getElementById("pb_weightKg")?.value || "",
-      bmi: document.getElementById("pb_bmi")?.value || "",
-      td1Date: document.getElementById("pb_td1Date")?.value || null,
-      td2Date: document.getElementById("pb_td2Date")?.value || null,
-      td3Date: document.getElementById("pb_td3Date")?.value || null,
-      td4Date: document.getElementById("pb_td4Date")?.value || null,
-      td5Date: document.getElementById("pb_td5Date")?.value || null,
-      obG: document.getElementById("pb_obG")?.value || "1",
-      obP: document.getElementById("pb_obP")?.value || "0",
-      obT: document.getElementById("pb_obT")?.value || "0",
-      obPreterm: document.getElementById("pb_obPreterm")?.value || "0",
-      obA: document.getElementById("pb_obA")?.value || "0",
-      obL: document.getElementById("pb_obL")?.value || "0",
-      caesarean: document.getElementById("pb_caesarean")?.value || "NO",
-      stillbirth: document.getElementById("pb_stillbirth")?.value || "NO",
-      postpartumHemorrhage: document.getElementById("pb_postpartumHemorrhage")?.value || "NO",
-      consecutiveMiscarriages: document.getElementById("pb_consecutiveMiscarriages")?.value || "NO",
-      probTb: document.getElementById("pb_probTb")?.value || "NO",
-      probHeart: document.getElementById("pb_probHeart")?.value || "NO",
-      probDiabetes: document.getElementById("pb_probDiabetes")?.value || "NO",
-      probAsthma: document.getElementById("pb_probAsthma")?.value || "NO",
-      probGoiter: document.getElementById("pb_probGoiter")?.value || "NO",
-      probHypertension: document.getElementById("pb_probHypertension")?.value || "NO",
-      ppExclusiveBreastfeeding: document.getElementById("pb_ppExclusiveBreastfeeding")?.value || "NO",
-      ppIntendsFp: document.getElementById("pb_ppIntendsFp")?.value || "NO",
-      ppFever: document.getElementById("pb_ppFever")?.value || "NO",
-      ppFoulDischarge: document.getElementById("pb_ppFoulDischarge")?.value || "NO",
-      ppExcessiveBleeding: document.getElementById("pb_ppExcessiveBleeding")?.value || "NO",
-      ppPallor: document.getElementById("pb_ppPallor")?.value || "NO",
-      ppCordOk: document.getElementById("pb_ppCordOk")?.value || "YES",
-      ppVitA: document.getElementById("pb_ppVitA")?.value || "NO",
-      referralPhysician: document.getElementById("pb_referralPhysician")?.value.trim() || "",
-      nurseObservations: document.getElementById("pb_nurseObservations")?.value.trim() || "",
-      hospitalDeliveryRecommended: document.getElementById("pb_hospitalDeliveryRecommended")?.value || "NO"
-    };
-
-    let checkupsCount = 0;
-    for (let i = 1; i <= 9; i++) {
-      const vD = document.getElementById(`pb_vDate_${i}`)?.value || null;
-      formDetails[`vDate_${i}`] = vD;
-      formDetails[`vAog_${i}`] = document.getElementById(`pb_vAog_${i}`)?.value.trim() || '';
-      formDetails[`vBp_${i}`] = document.getElementById(`pb_vBp_${i}`)?.value.trim() || '';
-      formDetails[`vWeight_${i}`] = document.getElementById(`pb_vWeight_${i}`)?.value.trim() || '';
-      if (vD) checkupsCount++;
-    }
-
-    const updatedRec = {
-      ...currentRec,
-      id: currentRec.id || `mat_${Date.now()}`,
-      fullName,
-      lmp: lmp || currentRec.lmp,
-      edd: edd || currentRec.edd,
-      address: address || currentRec.address,
-      barangay: currentRec.barangay || current?.barangay || "Basiao (Poblacion)",
-      checkupsCompleted: Math.max(currentRec.checkupsCompleted || 0, checkupsCount),
-      verification_status: currentRec.verification_status || (current?.role === "Nurse / Midwife" ? "Verified" : "Pending Verification"),
-      formDetails
-    };
-
-    await persistRecord("maternalRecords", updatedRec);
-    closeModal();
-    toast(`Padre Burgos RHU Maternal Record saved for ${updatedRec.fullName}.`);
-    renderPage(current?.role === "Mother / Parent" ? "forms" : "maternal");
-  });
-}
-
+// -------------------------------------------------------------
+// Monthly Reports Module Binders
+// -------------------------------------------------------------
 function bindReportsEvents() {
+  document.getElementById("reportMonthSelect")?.addEventListener("change", (e) => {
+    selectedReportMonth = e.target.value;
+    renderPage("reports");
+  });
+
+  document.getElementById("reportYearSelect")?.addEventListener("change", (e) => {
+    selectedReportYear = e.target.value;
+    renderPage("reports");
+  });
+
   document.getElementById("generateReportBtn")?.addEventListener("click", async () => {
     const current = getCurrentUser();
     const targetBgy = selectedBarangay || "All Barangays";
-    const currMonth = new Date().toISOString().slice(0, 7);
+    const currMonth = `${selectedReportYear}-${selectedReportMonth}`;
 
     const matchBgy = (rBgy, tBgy) => {
       if (!tBgy || tBgy === "All Barangays") return true;
@@ -1166,7 +1645,7 @@ function bindReportsEvents() {
     await persistRecord("monthlyReports", mcReport);
     await persistRecord("monthlyReports", ccReport);
 
-    toast(`Successfully generated MC (${mRecs.length} record/s) and CC (${iRecs.length} record/s) monthly reports for ${targetBgy}.`);
+    toast(`Successfully generated MC (${mRecs.length}) and CC (${iRecs.length}) reports for ${currMonth} (${targetBgy}).`);
     renderPage("reports");
   });
 
@@ -1195,7 +1674,7 @@ function bindReportsEvents() {
   document.querySelectorAll(".delete-report-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       const repId = btn.getAttribute("data-id");
-      if (confirm("Are you sure you want to delete this report record?")) {
+      if (confirm("Are you sure you want to delete this report?")) {
         await deleteRecord("monthlyReports", repId);
         toast("Report deleted.");
         renderPage("reports");
@@ -1204,25 +1683,29 @@ function bindReportsEvents() {
   });
 }
 
+// -------------------------------------------------------------
+// Admin & Backup Module Binders
+// -------------------------------------------------------------
 function bindUsersEvents() {
   document.getElementById("addStaffBtn")?.addEventListener("click", () => {
     const generatedPassword = `RHU_${Math.floor(100000 + Math.random() * 900000)}`;
+    const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
 
     openModal("Add Healthcare Staff Account", `
-      <form id="staffForm" class="modal-form">
+      <form id="staffForm" class="modal-form space-y-3 text-xs">
         <label>Full Name <input type="text" id="stName" required></label>
         <label>Email Address <input type="email" id="stEmail" required></label>
         <label>Role 
-          <select id="stRole">
-            <option value="MHO">MHO (Municipal Health Officer)</option>
+          <select id="stRole" class="input-field">
             <option value="Nurse / Midwife">Nurse / Midwife</option>
             <option value="Doctor">Doctor</option>
+            <option value="MHO">MHO (Municipal Health Officer)</option>
           </select>
         </label>
         <label>Barangay / Station Assignment 
-          <select id="stBarangay">${barangays.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')}</select>
+          <select id="stBarangay" class="input-field">${bgyOptions}</select>
         </label>
-        <div class="alert-box alert-warning">
+        <div class="p-3 bg-amber-soft border border-amber/30 rounded-lg text-amber">
           <strong>Generated Permanent Password:</strong> <code>${generatedPassword}</code>
           <br><small>Copy and share this password securely with the staff member.</small>
         </div>

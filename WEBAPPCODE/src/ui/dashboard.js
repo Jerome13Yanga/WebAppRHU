@@ -1,248 +1,293 @@
 /**
- * Dashboard UI Module (Healthcare Staff & Mother/Parent Views)
+ * Role-Based Dashboards (Admin, Doctor, MHO, Nurse/Midwife, Parent)
+ * Clean, light, modern healthcare aesthetic with crisp SVG pixel art accents.
+ * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
-import { renderRiskBadge, renderImmunizationBadge, renderProgressBar } from './components.js';
+import { isParent, isNurse, isMho, isDoctor, isAdmin } from '../auth.js';
+import { renderPixelParentChild, renderPixelHeart, renderPixelCross, renderPixelRattle } from './pixelArt.js';
 
-function chartSvg(width, height, body) {
-  return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Analytics chart" class="responsive-svg" style="overflow: hidden; max-width: 100%; width: 100%; display: block;">${body}</svg>`;
-}
-
-function renderLineChart(containerId, data, options = {}) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  const series = options.series || Object.keys(data[0] || {}).filter((key) => key !== "label");
-  const width = 500;
-  const height = 220;
-  const padLeft = 42;
-  const padRight = 42;
-  const padTop = 36;
-  const padBottom = 34;
-  const chartWidth = width - padLeft - padRight;
-  const chartHeight = height - padTop - padBottom;
-  const max = Math.max(1, ...data.flatMap((row) => series.map((name) => Number(row[name] || 0))));
-  const colors = ["#2e7d32", "#d32f2f", "#ed6c02"];
-  const step = chartWidth / Math.max(1, data.length - 1);
-  const lines = series.map((name, index) => {
-    const points = data.map((row, i) => `${padLeft + i * step},${height - padBottom - (chartHeight * Number(row[name] || 0)) / max}`).join(" ");
-    const dots = data.map((row, i) => {
-      const x = padLeft + i * step;
-      const val = Number(row[name] || 0);
-      const y = height - padBottom - (chartHeight * val) / max;
-      const valText = val > 0 ? `<text x="${x}" y="${Math.max(14, y - 7)}" text-anchor="middle" class="chart-label value-label">${val}</text>` : "";
-      return `<circle cx="${x}" cy="${y}" r="4.5" fill="${colors[index]}"><title>${escapeHtml(row.label)} ${escapeHtml(name)}: ${val}</title></circle>${valText}`;
-    }).join("");
-    return `<polyline fill="none" stroke="${colors[index]}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${points}"></polyline>${dots}`;
-  }).join("");
-  const labels = data.map((row, index) => `<text x="${padLeft + index * step}" y="${height - 10}" text-anchor="middle" class="chart-label">${escapeHtml(row.label)}</text>`).join("");
-  
-  let currentX = padLeft;
-  const legendHtml = series.map((name, index) => {
-    const itemX = currentX;
-    currentX += Math.max(76, String(name || "").length * 7 + 22);
-    return `<g transform="translate(${itemX},18)"><circle r="4.5" fill="${colors[index % colors.length]}"></circle><text x="9" y="4" class="chart-label">${escapeHtml(name)}</text></g>`;
-  }).join("");
-
-  const grid = [0, 1, 2, 3].map((i) => {
-    const y = 36 + ((height - 36 - 30) / 3) * i;
-    return `<line x1="${padLeft}" x2="${width - padRight}" y1="${y}" y2="${y}" class="grid-line"></line>`;
-  }).join("");
-
-  el.innerHTML = chartSvg(width, height, `${grid}${lines}${labels}${legendHtml}`);
-}
-
-function renderDonutChart(containerId, data) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  const total = Math.max(0, data.reduce((sum, item) => sum + Number(item.value || 0), 0));
-  const radius = 50;
-  const circumference = Math.PI * 2 * radius;
-  const colors = ["#2e7d32", "#ed6c02", "#d32f2f", "#1976d2", "#9c27b0", "#00bcd4"];
-  let offset = 0;
-  const rings = data.map((item, index) => {
-    const val = Number(item.value || 0);
-    const length = total > 0 ? (val / total) * circumference : 0;
-    const ring = `<circle cx="75" cy="75" r="${radius}" fill="none" stroke="${colors[index % colors.length]}" stroke-width="18" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" transform="rotate(-90 75 75)"><title>${escapeHtml(item.label)}: ${val}</title></circle>`;
-    offset += length;
-    return ring;
-  }).join("");
-  const items = data.map((item, index) => `<span class="legend-pill"><i style="background:${colors[index % colors.length]}"></i>${escapeHtml(item.label)}: <strong>${escapeHtml(item.value)}</strong></span>`).join("");
-  el.innerHTML = `
-    <div class="donut-layout">
-      <div class="donut-svg-wrap">
-        ${chartSvg(150, 150, `<circle cx="75" cy="75" r="${radius}" fill="none" stroke="#e8eef3" stroke-width="18"></circle>${rings}<text x="75" y="71" text-anchor="middle" class="donut-total">${total}</text><text x="75" y="88" text-anchor="middle" class="chart-label">Total</text>`)}
-      </div>
-      <div class="chart-legend vertical">${items}</div>
-    </div>`;
-}
-
-export function renderDashboardView(state = {}, currentUser = {}, selectedBarangay = "", visibleBarangays = [], searchTerm = "") {
-  if (currentUser?.role === "Mother / Parent") {
-    return renderParentDashboardView(state, currentUser);
+export function renderDashboardView(state, currentUser, selectedBarangay, visibleBarangaysList, searchTerm = '') {
+  if (isAdmin(currentUser)) {
+    return renderAdminDashboard(state, currentUser);
   }
-
-  const maternalRecords = Array.isArray(state?.maternalRecords) ? state.maternalRecords : [];
-  const infantRecords = Array.isArray(state?.infantRecords) ? state.infantRecords : [];
-  const checkupSchedules = Array.isArray(state?.checkupSchedules) ? state.checkupSchedules : [];
-
-  const isNurse = currentUser?.role === "Nurse / Midwife";
-  const targetBarangay = isNurse ? currentUser.barangay : selectedBarangay;
-
-  let maternal = maternalRecords.filter(r => !targetBarangay || targetBarangay === "All Barangays" || r.barangay === targetBarangay);
-  let infants = infantRecords.filter(r => !targetBarangay || targetBarangay === "All Barangays" || r.barangay === targetBarangay);
-  let schedules = checkupSchedules.filter(r => !targetBarangay || targetBarangay === "All Barangays" || r.barangay === targetBarangay);
-
-  if (searchTerm) {
-    const term = searchTerm.toLowerCase();
-    maternal = maternal.filter(r => (r.fullName || '').toLowerCase().includes(term) || (r.barangay || '').toLowerCase().includes(term));
-    infants = infants.filter(r => (r.infantName || '').toLowerCase().includes(term) || (r.parentName || '').toLowerCase().includes(term));
+  if (isDoctor(currentUser)) {
+    return renderDoctorDashboard(state, currentUser, selectedBarangay, searchTerm);
   }
+  if (isMho(currentUser)) {
+    return renderMhoDashboard(state, currentUser, selectedBarangay, searchTerm);
+  }
+  if (isNurse(currentUser)) {
+    return renderNurseDashboard(state, currentUser);
+  }
+  return renderParentDashboard(state, currentUser);
+}
 
-  const highRiskCount = maternal.filter(r => (r.riskLevel || '').toLowerCase().includes('high')).length;
-  const overdueVaccineCount = infants.filter(r => (r.immunizationStatus || '').toLowerCase().includes('incomplete') || (r.immunizationStatus || '').toLowerCase().includes('overdue')).length;
-  const upcomingSchedules = schedules.filter(s => s.status !== 'Completed');
+// -------------------------------------------------------------
+// 1. ADMIN DASHBOARD
+// -------------------------------------------------------------
+function renderAdminDashboard(state, currentUser) {
+  const users = state.users || [];
+  const maternal = state.maternalRecords || [];
+  const infants = state.infantRecords || [];
+  const reports = state.monthlyReports || [];
 
-  const lowRiskCount = maternal.filter(r => (r.riskLevel || '').toLowerCase().includes('low') || (r.riskLevel || '').toLowerCase().includes('normal')).length;
-  const modRiskCount = maternal.filter(r => (r.riskLevel || '').toLowerCase().includes('mod') || (r.riskLevel || '').toLowerCase().includes('elevated')).length;
-  const riskData = [
-    { label: "Low Risk", value: lowRiskCount || Math.max(0, maternal.length - highRiskCount - modRiskCount) },
-    { label: "Moderate Risk", value: modRiskCount },
-    { label: "High Risk", value: highRiskCount }
-  ];
-
-  setTimeout(() => {
-    renderDonutChart("riskDonutChart", riskData);
-    renderLineChart("checkupTrendChart", [
-      { label: "Mar", Completed: 12, Missed: 2, Upcoming: 5 },
-      { label: "Apr", Completed: 18, Missed: 1, Upcoming: 8 },
-      { label: "May", Completed: 15, Missed: 3, Upcoming: 10 },
-      { label: "Jun", Completed: 22, Missed: 0, Upcoming: 14 }
-    ], { series: ["Completed", "Missed", "Upcoming"] });
-  }, 50);
+  const nurses = users.filter(u => u.role === 'Nurse / Midwife' || u.role === 'Nurse' || u.role === 'Midwife');
+  const doctors = users.filter(u => u.role === 'Doctor');
+  const mhos = users.filter(u => u.role === 'MHO');
+  const parents = users.filter(u => u.role === 'Mother / Parent');
 
   return `
-    <div class="dashboard-grid">
-      <!-- Quick Stats Metrics Cards -->
-      <div class="stat-card">
-        <div class="stat-icon icon-blue">
-          <span class="material-symbols-outlined text-blue-600 text-2xl">health_and_safety</span>
-        </div>
-        <div class="stat-content">
-          <h3>${maternal.length}</h3>
-          <p>Maternal Patients</p>
-          <span class="stat-meta">${highRiskCount} High Risk Flagged</span>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon icon-green">
-          <span class="material-symbols-outlined text-emerald-600 text-2xl">child_care</span>
-        </div>
-        <div class="stat-content">
-          <h3>${infants.length}</h3>
-          <p>Infants Monitored</p>
-          <span class="stat-meta">${overdueVaccineCount} Pending / Incomplete</span>
+    <div class="space-y-6">
+      <!-- Admin Welcome Banner with Clean Light Aesthetic & Pixel Art -->
+      <div class="panel bg-gradient-to-r from-sky-50 via-white to-indigo-50 border border-sky-200/80 p-6 shadow-sm relative overflow-hidden rounded-2xl">
+        <div class="relative z-10 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="inline-flex items-center gap-1 bg-sky-100 text-sky-800 border border-sky-300/60 text-[11px] px-2.5 py-0.5 rounded-md font-semibold tracking-wide">
+                <span class="material-symbols-outlined text-xs">admin_panel_settings</span>
+                <span>System Administration</span>
+              </span>
+              <span class="text-xs text-slate-500 font-medium">Padre Burgos RHU Central Command</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">System & Account Management</h2>
+            <p class="text-xs text-slate-600 mt-1">Full administrative control over healthcare staff credentials, access permissions, and database operations.</p>
+          </div>
+          <div class="flex items-center gap-3 p-2 bg-white/80 rounded-xl border border-sky-100 shadow-2xs">
+            ${renderPixelParentChild(44)}
+          </div>
         </div>
       </div>
 
-      <div class="stat-card">
-        <div class="stat-icon icon-amber">
-          <span class="material-symbols-outlined text-amber-600 text-2xl">event</span>
+      <!-- KPI Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Total Accounts</span>
+            <span class="material-symbols-outlined text-indigo-600 text-xl">group</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${users.length}</strong>
+          <small class="text-[11px] text-text-muted mt-1 block">Active system users</small>
         </div>
-        <div class="stat-content">
-          <h3>${upcomingSchedules.length}</h3>
-          <p>Check-up Appointments</p>
-          <span class="stat-meta">Barangay: ${escapeHtml(targetBarangay || 'All')}</span>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Nurses & Midwives</span>
+            <span class="material-symbols-outlined text-emerald-600 text-xl">clinical_notes</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${nurses.length}</strong>
+          <small class="text-[11px] text-emerald-600 font-semibold mt-1 block">Assigned to stations</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Doctors & MHO</span>
+            <span class="material-symbols-outlined text-blue-600 text-xl">medical_services</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${doctors.length + mhos.length}</strong>
+          <small class="text-[11px] text-blue-600 font-semibold mt-1 block">Clinical overseers</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Parent Accounts</span>
+            <span class="material-symbols-outlined text-pink-600 text-xl">family_restroom</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${parents.length}</strong>
+          <small class="text-[11px] text-pink-600 font-semibold mt-1 block">Registered mothers</small>
         </div>
       </div>
-    </div>
 
-    <!-- High Risk Alert Panel -->
-    ${highRiskCount > 0 ? `
-      <div class="alert-box alert-danger flex items-start gap-3">
-        <span class="material-symbols-outlined text-red-600 text-xl shrink-0 mt-0.5">warning</span>
-        <div>
-          <div class="alert-title font-semibold">High-Risk Maternal Alert</div>
-          <p class="text-sm">There are ${highRiskCount} pregnant mothers flagged for high-risk obstetric/medical factors in ${escapeHtml(targetBarangay || 'your assigned barangay')}. Immediate follow-up is recommended.</p>
+      <!-- Quick Actions & System User Summary -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="panel lg:col-span-2">
+          <div class="flex items-center justify-between mb-4 pb-2 border-b border-line">
+            <h3 class="text-sm font-bold text-text flex items-center gap-2">
+              <span class="material-symbols-outlined text-indigo-600 text-lg">manage_accounts</span>
+              <span>Recent User Accounts & Station Assignments</span>
+            </h3>
+            <span class="text-xs text-text-muted font-medium">${users.length} accounts</span>
+          </div>
+          <div class="table-container overflow-x-auto">
+            <table class="data-table text-xs">
+              <thead>
+                <tr>
+                  <th>User Name</th>
+                  <th>Email</th>
+                  <th>System Role</th>
+                  <th>Assigned Barangay</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${users.slice(0, 6).map(u => `
+                  <tr>
+                    <td class="font-bold text-text">${escapeHtml(u.name || 'User')}</td>
+                    <td class="text-text-muted">${escapeHtml(u.email || '-')}</td>
+                    <td><span class="badge badge-info text-[10px]">${escapeHtml(u.role || 'Staff')}</span></td>
+                    <td>${escapeHtml(u.barangay || 'All Barangays')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    ` : ''}
 
-    <div class="chart-grid mb-6">
-      <div class="card card-pad chart-card">
-        <div class="section-head mb-2"><div><h3 class="text-base font-bold">Monthly Check-up Trend</h3><p class="text-xs text-slate-500">Completed, missed, and upcoming</p></div></div>
-        <div id="checkupTrendChart" class="chart-box"></div>
-      </div>
-      <div class="card card-pad chart-card">
-        <div class="section-head mb-2"><div><h3 class="text-base font-bold">Pregnancy Risk Level</h3><p class="text-xs text-slate-500">Risk distribution</p></div></div>
-        <div id="riskDonutChart" class="chart-box donut-box"></div>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Recent Maternal Records Table -->
-      <div class="panel">
-        <div class="panel-head flex items-center justify-between mb-3">
-          <h3 class="flex items-center gap-2 font-bold">
-            <span class="material-symbols-outlined text-blue-600 text-lg">health_and_safety</span>
-            <span>Maternal Care Summary</span>
+        <div class="panel space-y-4">
+          <h3 class="text-sm font-bold text-text flex items-center gap-2 pb-2 border-b border-line">
+            <span class="material-symbols-outlined text-emerald-600 text-lg">database</span>
+            <span>Database Status & Tools</span>
           </h3>
-          <span class="badge badge-info">${escapeHtml(targetBarangay || 'All')}</span>
+          <div class="space-y-3 text-xs">
+            <div class="flex justify-between py-1 border-b border-line">
+              <span class="text-text-muted">Maternal Records:</span>
+              <strong class="text-text">${maternal.length} entries</strong>
+            </div>
+            <div class="flex justify-between py-1 border-b border-line">
+              <span class="text-text-muted">Infant Records:</span>
+              <strong class="text-text">${infants.length} entries</strong>
+            </div>
+            <div class="flex justify-between py-1 border-b border-line">
+              <span class="text-text-muted">Monthly Reports:</span>
+              <strong class="text-text">${reports.length} generated</strong>
+            </div>
+            <div class="flex justify-between py-1 border-b border-line">
+              <span class="text-text-muted">Padre Burgos Barangays:</span>
+              <strong class="text-emerald-600 font-bold">22 Active Stations</strong>
+            </div>
+          </div>
+          <div class="pt-2">
+            <button type="button" class="primary-btn full-btn text-xs py-2" onclick="document.querySelector('[data-page=users]')?.click()">
+              <span class="material-symbols-outlined text-sm">person_add</span>
+              <span>Manage User Roles</span>
+            </button>
+          </div>
         </div>
-        <div class="table-container">
-          <table class="data-table">
+      </div>
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// 2. DOCTOR DASHBOARD (Municipality-Wide Clinical Oversight)
+// -------------------------------------------------------------
+function renderDoctorDashboard(state, currentUser, selectedBarangay, searchTerm = '') {
+  const matchBgy = (rBgy, tBgy) => {
+    if (!tBgy || tBgy === "All Barangays") return true;
+    if (!rBgy) return true;
+    const a = String(rBgy).toLowerCase().trim();
+    const b = String(tBgy).toLowerCase().trim();
+    return a === b || a.includes(b) || b.includes(a);
+  };
+
+  const allMaternal = state.maternalRecords || [];
+  const allInfants = state.infantRecords || [];
+  const mRecs = allMaternal.filter(r => matchBgy(r.barangay, selectedBarangay));
+  const iRecs = allInfants.filter(r => matchBgy(r.barangay, selectedBarangay));
+
+  const highRisk = mRecs.filter(r => (r.riskLevel || "").toLowerCase().includes("high") || (r.riskLevel || "").toLowerCase().includes("elevated"));
+  const ficCount = iRecs.filter(i => (i.immunizationStatus || "").includes("FIC") || (i.immunizationStatus || "").includes("Fully")).length;
+
+  return `
+    <div class="space-y-6">
+      <!-- Doctor Banner with Clean Light Aesthetic & Pixel Art -->
+      <div class="panel bg-gradient-to-r from-blue-50 via-white to-sky-50 border border-blue-200/80 p-6 shadow-sm rounded-2xl">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 border border-blue-300/60 text-[11px] px-2.5 py-0.5 rounded-md font-semibold tracking-wide">
+                <span class="material-symbols-outlined text-xs">stethoscope</span>
+                <span>Doctor Oversight</span>
+              </span>
+              <span class="text-xs text-slate-500 font-medium">Padre Burgos Clinical Monitoring</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Physician Clinical Oversight Dashboard</h2>
+            <p class="text-xs text-slate-600 mt-1">Cross-barangay clinical health indicators, high-risk triage, and maternal-infant trend monitoring across all 22 barangays.</p>
+          </div>
+          <div class="flex items-center gap-3 p-2 bg-white/80 rounded-xl border border-blue-100 shadow-2xs">
+            ${renderPixelParentChild(44)}
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Total Pregnant Mothers</span>
+            <span class="material-symbols-outlined text-pink-600 text-xl">pregnant_woman</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${mRecs.length}</strong>
+          <small class="text-[11px] text-text-muted mt-1 block">Active across ${escapeHtml(selectedBarangay)}</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">High-Risk Cases</span>
+            <span class="material-symbols-outlined text-red-600 text-xl">warning</span>
+          </div>
+          <strong class="text-2xl font-bold text-red-600">${highRisk.length}</strong>
+          <small class="text-[11px] text-red-600 font-semibold mt-1 block">Requires physician monitoring</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Registered Children</span>
+            <span class="material-symbols-outlined text-indigo-600 text-xl">child_care</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${iRecs.length}</strong>
+          <small class="text-[11px] text-text-muted mt-1 block">0-14yo monitored children</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Fully Immunized (FIC)</span>
+            <span class="material-symbols-outlined text-emerald-600 text-xl">shield_with_heart</span>
+          </div>
+          <strong class="text-2xl font-bold text-emerald-600">${ficCount}</strong>
+          <small class="text-[11px] text-emerald-600 font-semibold mt-1 block">${iRecs.length > 0 ? Math.round((ficCount / iRecs.length) * 100) : 0}% coverage rate</small>
+        </div>
+      </div>
+
+      <!-- High-Risk Maternal Priority Triage -->
+      <div class="panel">
+        <div class="flex items-center justify-between mb-4 pb-2 border-b border-line">
+          <h3 class="text-sm font-bold text-text flex items-center gap-2">
+            <span class="material-symbols-outlined text-red-600 text-lg">emergency</span>
+            <span>High-Risk Maternal Patient Priority Queue</span>
+          </h3>
+          <span class="badge badge-high text-[10px]">${highRisk.length} Alert Cases</span>
+        </div>
+        <div class="table-container overflow-x-auto">
+          <table class="data-table text-xs">
             <thead>
               <tr>
                 <th>Patient Name</th>
-                <th>EDD</th>
-                <th>Risk Level</th>
-                <th>Checkups</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${maternal.length === 0 ? `<tr><td colspan="4" class="text-center text-muted">No maternal records found.</td></tr>` : 
-                maternal.slice(0, 5).map(m => `
-                  <tr>
-                    <td><strong>${escapeHtml(m.fullName)}</strong><br><small>${escapeHtml(m.barangay)}</small></td>
-                    <td><small>EDD: ${formatDate(m.edd)}</small></td>
-                    <td>${renderRiskBadge(m.riskLevel)}</td>
-                    <td>${renderProgressBar(m.checkupsCompleted || 0, 8)}</td>
-                  </tr>
-                `).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Infant Immunization Summary Table -->
-      <div class="panel">
-        <div class="panel-head flex items-center justify-between mb-3">
-          <h3 class="flex items-center gap-2 font-bold">
-            <span class="material-symbols-outlined text-emerald-600 text-lg">child_care</span>
-            <span>Infant Care Summary</span>
-          </h3>
-          <span class="badge badge-info">${escapeHtml(targetBarangay || 'All')}</span>
-        </div>
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Infant Name</th>
+                <th>Barangay</th>
                 <th>Age</th>
-                <th>Status</th>
-                <th>Next Check-up</th>
+                <th>EDD (Expected Delivery)</th>
+                <th>Risk Level</th>
+                <th>Assigned Midwife</th>
+                <th>Clinical Action</th>
               </tr>
             </thead>
             <tbody>
-              ${infants.length === 0 ? `<tr><td colspan="4" class="text-center text-muted">No infant records found.</td></tr>` : 
-                infants.slice(0, 5).map(i => `
-                  <tr>
-                    <td><strong>${escapeHtml(i.infantName)}</strong><br><small>Parent: ${escapeHtml(i.parentName || 'N/A')}</small></td>
-                    <td>${i.ageMonths || 0} mo</td>
-                    <td>${renderImmunizationBadge(i.immunizationStatus)}</td>
-                    <td><small>${formatDate(i.nextCheckup)}</small></td>
-                  </tr>
-                `).join('')}
+              ${highRisk.length === 0 ? `
+                <tr><td colspan="7" class="text-center py-6 text-emerald-600 font-semibold">No high-risk maternal alerts for ${escapeHtml(selectedBarangay)}.</td></tr>
+              ` : highRisk.map(r => `
+                <tr>
+                  <td class="font-bold text-text">${escapeHtml(r.fullName)}</td>
+                  <td><span class="badge badge-info text-[10px]">${escapeHtml(r.barangay)}</span></td>
+                  <td>${r.age || '-'}</td>
+                  <td>${formatDate(r.edd)}</td>
+                  <td><span class="badge badge-high text-[10px]">${escapeHtml(r.riskLevel || 'High Risk')}</span></td>
+                  <td class="text-text-muted">${escapeHtml(r.assignedNurse || 'RHU Staff')}</td>
+                  <td>
+                    <button type="button" class="primary-btn sm-btn text-[11px] py-1 px-2.5" onclick="document.querySelector('[data-page=maternal]')?.click()">
+                      Review Clinical Record
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
             </tbody>
           </table>
         </div>
@@ -251,161 +296,483 @@ export function renderDashboardView(state = {}, currentUser = {}, selectedBarang
   `;
 }
 
-function renderParentDashboardView(state = {}, currentUser = {}) {
-  const motherName = currentUser?.name || currentUser?.fullName || 'Mother / Parent';
-  const maternalRecords = Array.isArray(state?.maternalRecords) ? state.maternalRecords : [];
-  const infantRecords = Array.isArray(state?.infantRecords) ? state.infantRecords : [];
-  const checkupSchedules = Array.isArray(state?.checkupSchedules) ? state.checkupSchedules : [];
-  const reminders = Array.isArray(state?.reminders) ? state.reminders : [];
+// -------------------------------------------------------------
+// 3. MHO DASHBOARD (Municipality-Wide Record & Submission Monitor)
+// -------------------------------------------------------------
+function renderMhoDashboard(state, currentUser, selectedBarangay, searchTerm = '') {
+  const matchBgy = (rBgy, tBgy) => {
+    if (!tBgy || tBgy === "All Barangays") return true;
+    if (!rBgy) return true;
+    const a = String(rBgy).toLowerCase().trim();
+    const b = String(tBgy).toLowerCase().trim();
+    return a === b || a.includes(b) || b.includes(a);
+  };
 
-  const lowerName = motherName.toLowerCase().trim();
-  const maternalRec = maternalRecords.find(r => 
-    (r.fullName && r.fullName.toLowerCase().trim() === lowerName) || 
-    (r.user_id && currentUser?.id && r.user_id === currentUser.id) ||
-    (r.email && currentUser?.email && r.email.toLowerCase() === currentUser.email.toLowerCase())
-  );
+  const maternal = (state.maternalRecords || []).filter(r => matchBgy(r.barangay, selectedBarangay));
+  const infants = (state.infantRecords || []).filter(r => matchBgy(r.barangay, selectedBarangay));
+  const reports = (state.monthlyReports || []).filter(r => matchBgy(r.barangay, selectedBarangay));
 
-  const myInfants = infantRecords.filter(i => 
-    (i.parentName && i.parentName.toLowerCase().trim() === lowerName) || 
-    (i.motherName && i.motherName.toLowerCase().trim() === lowerName) ||
-    (i.user_id && currentUser?.id && i.user_id === currentUser.id)
-  );
-
-  const mySchedules = checkupSchedules.filter(s => 
-    (s.patientName && s.patientName.toLowerCase().trim() === lowerName) ||
-    (maternalRec && s.patientName && s.patientName.toLowerCase() === maternalRec.fullName?.toLowerCase())
-  );
-
-  const myReminders = reminders.filter(r => 
-    !r.targetRole || r.targetRole === "Mother / Parent" || r.barangay === currentUser?.barangay
-  );
+  const pendingReports = reports.filter(r => r.status === 'Draft' || r.status === 'Submitted' || r.status === 'Under Review');
+  const reviewedReports = reports.filter(r => r.status === 'Reviewed' || r.status === 'Completed');
 
   return `
-    <div class="welcome-banner p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl mb-6 shadow-sm flex items-center justify-between flex-wrap gap-4">
-      <div>
-        <h2 class="text-2xl font-bold flex items-center gap-2">
-          <span>Welcome back, ${escapeHtml(motherName)}!</span>
-          <span class="material-symbols-outlined text-amber-300 text-xl">auto_awesome</span>
-        </h2>
-        <p class="text-blue-100 text-sm mt-1">Barangay: <strong>${escapeHtml(currentUser?.barangay || 'Padre Burgos')}</strong> | Monitor your prenatal visits and child immunizations.</p>
+    <div class="space-y-6">
+      <!-- MHO Banner with Clean Light Aesthetic & Pixel Art -->
+      <div class="panel bg-gradient-to-r from-teal-50 via-white to-emerald-50 border border-teal-200/80 p-6 shadow-sm rounded-2xl">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="inline-flex items-center gap-1 bg-teal-100 text-teal-800 border border-teal-300/60 text-[11px] px-2.5 py-0.5 rounded-md font-semibold tracking-wide">
+                <span class="material-symbols-outlined text-xs">local_hospital</span>
+                <span>MHO Administration</span>
+              </span>
+              <span class="text-xs text-slate-500 font-medium">Municipal Health Officer</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Barangay Records & Submission Monitor</h2>
+            <p class="text-xs text-slate-600 mt-1">Review midwife clinical submissions, validate monthly DOH care reports, and monitor submission compliance.</p>
+          </div>
+          <div class="flex items-center gap-3 p-2 bg-white/80 rounded-xl border border-teal-100 shadow-2xs">
+            ${renderPixelParentChild(44)}
+          </div>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button class="primary-btn sm-btn bg-white text-blue-700 font-semibold px-4 py-2 rounded-lg hover:bg-blue-50 transition" onclick="document.querySelector('[data-page=schedules]')?.click()">
-          Request Appointment
-        </button>
+
+      <!-- KPI Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Total Maternal Records</span>
+            <span class="material-symbols-outlined text-teal-600 text-xl">pregnant_woman</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${maternal.length}</strong>
+          <small class="text-[11px] text-text-muted mt-1 block">Active across stations</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Total Infant Records</span>
+            <span class="material-symbols-outlined text-indigo-600 text-xl">child_care</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${infants.length}</strong>
+          <small class="text-[11px] text-text-muted mt-1 block">Pediatric records</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Submissions Pending Review</span>
+            <span class="material-symbols-outlined text-amber-600 text-xl">pending_actions</span>
+          </div>
+          <strong class="text-2xl font-bold text-amber-600">${pendingReports.length}</strong>
+          <small class="text-[11px] text-amber-600 font-semibold mt-1 block">Awaiting MHO sign-off</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Reviewed & Finalized</span>
+            <span class="material-symbols-outlined text-emerald-600 text-xl">task_alt</span>
+          </div>
+          <strong class="text-2xl font-bold text-emerald-600">${reviewedReports.length}</strong>
+          <small class="text-[11px] text-emerald-600 font-semibold mt-1 block">Completed DOH submissions</small>
+        </div>
+      </div>
+
+      <!-- Submission Status Monitor -->
+      <div class="panel">
+        <div class="flex items-center justify-between mb-4 pb-2 border-b border-line">
+          <h3 class="text-sm font-bold text-text flex items-center gap-2">
+            <span class="material-symbols-outlined text-teal-600 text-lg">assessment</span>
+            <span>Monthly Barangay Health Station Report Submissions</span>
+          </h3>
+          <button type="button" class="primary-btn sm-btn text-xs" onclick="document.querySelector('[data-page=reports]')?.click()">
+            <span class="material-symbols-outlined text-sm">add_chart</span>
+            <span>Generate Monthly Reports</span>
+          </button>
+        </div>
+        <div class="table-container overflow-x-auto">
+          <table class="data-table text-xs">
+            <thead>
+              <tr>
+                <th>Report Type</th>
+                <th>Barangay Station</th>
+                <th>Reporting Period</th>
+                <th>Total Patients</th>
+                <th>Prepared By</th>
+                <th>Submission Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reports.length === 0 ? `
+                <tr><td colspan="6" class="text-center py-6 text-text-muted">No monthly report submissions recorded yet.</td></tr>
+              ` : reports.slice(0, 8).map(r => `
+                <tr>
+                  <td><strong>${r.type === 'MC' ? 'MC - Maternal Care' : 'CC - Child Immunization'}</strong></td>
+                  <td><span class="badge badge-info text-[10px]">${escapeHtml(r.barangay)}</span></td>
+                  <td>${escapeHtml(r.month || '-')}</td>
+                  <td>${r.total || 0} records</td>
+                  <td class="text-text-muted">${escapeHtml(r.preparedBy || 'RHU Midwife')}</td>
+                  <td>
+                    <span class="badge ${r.status === 'Completed' || r.status === 'Reviewed' ? 'badge-complete' : 'badge-pending'} text-[10px]">
+                      ${escapeHtml(r.status || 'Submitted')}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
+  `;
+}
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <!-- Maternal Profile Card -->
-      <div class="panel">
-        <div class="panel-head flex items-center justify-between mb-3">
-          <h3 class="flex items-center gap-2 font-bold text-slate-800">
-            <span class="material-symbols-outlined text-blue-600 text-xl">health_and_safety</span>
-            <span>Maternal Record Status</span>
-          </h3>
-          ${maternalRec ? renderRiskBadge(maternalRec.riskLevel) : ''}
+// -------------------------------------------------------------
+// 4. NURSE / MIDWIFE DASHBOARD (Assigned Barangay Focus)
+// -------------------------------------------------------------
+function renderNurseDashboard(state, currentUser) {
+  const bgy = currentUser?.barangay || "Basiao (Poblacion)";
+  const maternal = (state.maternalRecords || []).filter(r => r.barangay === bgy);
+  const infants = (state.infantRecords || []).filter(r => r.barangay === bgy);
+  const schedules = (state.checkupSchedules || []).filter(s => s.barangay === bgy);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todaySchedules = schedules.filter(s => s.date === todayStr);
+  const upcomingSchedules = schedules.filter(s => s.date && s.date > todayStr);
+
+  return `
+    <div class="space-y-6">
+      <!-- Nurse Banner with Clean Light Aesthetic & Pixel Art -->
+      <div class="panel bg-gradient-to-r from-emerald-50 via-white to-teal-50 border border-emerald-200/80 p-6 shadow-sm rounded-2xl">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300/60 text-[11px] px-2.5 py-0.5 rounded-md font-semibold tracking-wide">
+                <span class="material-symbols-outlined text-xs">health_and_safety</span>
+                <span>Barangay Health Station</span>
+              </span>
+              <span class="text-xs text-slate-500 font-medium">Assigned: ${escapeHtml(bgy)}</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Barangay ${escapeHtml(bgy)} Clinical Station</h2>
+            <p class="text-xs text-slate-600 mt-1">Managing maternal health records, newborn immunizations, and clinical appointments for ${escapeHtml(bgy)}.</p>
+          </div>
+          <div class="flex items-center gap-3 p-2 bg-white/80 rounded-xl border border-emerald-100 shadow-2xs">
+            ${renderPixelParentChild(44)}
+          </div>
         </div>
-        ${maternalRec ? `
-          <div class="record-details-card">
-            <p><strong>Full Name:</strong> ${escapeHtml(maternalRec.fullName)}</p>
-            <p><strong>Pregnancy Status:</strong> ${escapeHtml(maternalRec.pregnancyStatus || 'Active')}</p>
-            <p><strong>EDD (Expected Delivery Date):</strong> ${formatDate(maternalRec.edd)}</p>
-            <p><strong>Assigned Nurse / Midwife:</strong> ${escapeHtml(maternalRec.assignedNurse || 'RHU Staff')}</p>
-            <p class="mt-2 font-semibold">Prenatal Visits Completed (8ANC):</p>
-            ${renderProgressBar(maternalRec.checkupsCompleted || 0, 8)}
-          </div>
-        ` : `
-          <div class="p-4 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
-            <p class="text-slate-600 text-sm mb-2">No active maternal record linked yet.</p>
-            <p class="text-xs text-slate-500">Contact your Barangay Nurse or register details in clinic forms.</p>
-          </div>
-        `}
       </div>
 
-      <!-- Infant Care Card -->
-      <div class="panel">
-        <div class="panel-head flex items-center justify-between mb-3">
-          <h3 class="flex items-center gap-2 font-bold text-slate-800">
-            <span class="material-symbols-outlined text-emerald-600 text-xl">child_care</span>
-            <span>Registered Infants (${myInfants.length})</span>
-          </h3>
-        </div>
-        ${myInfants.length === 0 ? `
-          <div class="p-4 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
-            <p class="text-slate-600 text-sm">No infant records registered under your name.</p>
+      <!-- KPI Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Assigned Mothers</span>
+            <span class="material-symbols-outlined text-pink-600 text-xl">pregnant_woman</span>
           </div>
-        ` : `
-          <ul class="infant-list">
-            ${myInfants.map(inf => `
-              <li class="infant-item flex items-center justify-between gap-3">
-                <div>
-                  <strong>${escapeHtml(inf.infantName)}</strong>
-                  <div class="text-xs text-slate-500 mt-0.5">${inf.ageMonths || 0} months old | DOB: ${formatDate(inf.birthdate)}</div>
-                </div>
-                <div>${renderImmunizationBadge(inf.immunizationStatus)}</div>
-              </li>
-            `).join('')}
-          </ul>
-        `}
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Checkup Appointments -->
-      <div class="panel">
-        <div class="panel-head flex items-center justify-between mb-3">
-          <h3 class="flex items-center gap-2 font-bold text-slate-800">
-            <span class="material-symbols-outlined text-purple-600 text-xl">event</span>
-            <span>My Scheduled Appointments</span>
-          </h3>
+          <strong class="text-2xl font-bold text-text">${maternal.length}</strong>
+          <small class="text-[11px] text-pink-600 font-semibold mt-1 block">Registered in ${escapeHtml(bgy)}</small>
         </div>
-        ${mySchedules.length === 0 ? `
-          <p class="text-sm text-slate-500 italic">No upcoming appointments. Click <strong>Request Appointment</strong> to schedule a visit.</p>
-        ` : `
-          <div class="table-container">
-            <table class="data-table">
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Assigned Children</span>
+            <span class="material-symbols-outlined text-indigo-600 text-xl">child_care</span>
+          </div>
+          <strong class="text-2xl font-bold text-text">${infants.length}</strong>
+          <small class="text-[11px] text-indigo-600 font-semibold mt-1 block">Routine & school-age</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Today's Checkups</span>
+            <span class="material-symbols-outlined text-emerald-600 text-xl">today</span>
+          </div>
+          <strong class="text-2xl font-bold text-emerald-600">${todaySchedules.length}</strong>
+          <small class="text-[11px] text-emerald-600 font-semibold mt-1 block">Scheduled for today</small>
+        </div>
+
+        <div class="stat-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-text-muted">Upcoming Visits</span>
+            <span class="material-symbols-outlined text-amber-600 text-xl">calendar_month</span>
+          </div>
+          <strong class="text-2xl font-bold text-amber-600">${upcomingSchedules.length}</strong>
+          <small class="text-[11px] text-amber-600 font-semibold mt-1 block">Future appointments</small>
+        </div>
+      </div>
+
+      <!-- Quick Record & Appointment Queue -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="panel">
+          <div class="flex items-center justify-between mb-3 pb-2 border-b border-line">
+            <h3 class="text-sm font-bold text-text flex items-center gap-2">
+              <span class="material-symbols-outlined text-pink-600 text-lg">pregnant_woman</span>
+              <span>Recent Pregnant Mothers (${escapeHtml(bgy)})</span>
+            </h3>
+            <button type="button" class="ghost-btn sm-btn text-xs" onclick="document.querySelector('[data-page=maternal]')?.click()">View All</button>
+          </div>
+          <div class="table-container overflow-x-auto">
+            <table class="data-table text-xs">
               <thead>
                 <tr>
-                  <th>Care Type</th>
-                  <th>Date & Time</th>
-                  <th>Barangay</th>
-                  <th>Status</th>
+                  <th>Mother Name</th>
+                  <th>Age</th>
+                  <th>EDD</th>
+                  <th>Visits</th>
                 </tr>
               </thead>
               <tbody>
-                ${mySchedules.slice(0, 5).map(s => `
+                ${maternal.slice(0, 5).map(m => `
                   <tr>
-                    <td><strong>${escapeHtml(s.type === 'MC' ? 'Maternal Care' : 'Child Immunization')}</strong></td>
-                    <td>${formatDate(s.date)} ${escapeHtml(s.time || '')}</td>
-                    <td>${escapeHtml(s.barangay)}</td>
-                    <td><span class="badge ${s.status === 'Completed' ? 'badge-success' : 'badge-warning'}">${escapeHtml(s.status || 'Pending')}</span></td>
+                    <td class="font-bold text-text">${escapeHtml(m.fullName)}</td>
+                    <td>${m.age || '-'}</td>
+                    <td>${formatDate(m.edd)}</td>
+                    <td><span class="badge badge-info text-[10px]">${m.checkupsCompleted || 0} / 8</span></td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div class="panel">
+          <div class="flex items-center justify-between mb-3 pb-2 border-b border-line">
+            <h3 class="text-sm font-bold text-text flex items-center gap-2">
+              <span class="material-symbols-outlined text-indigo-600 text-lg">child_care</span>
+              <span>Recent Child Records (${escapeHtml(bgy)})</span>
+            </h3>
+            <button type="button" class="ghost-btn sm-btn text-xs" onclick="document.querySelector('[data-page=infants]')?.click()">View All</button>
+          </div>
+          <div class="table-container overflow-x-auto">
+            <table class="data-table text-xs">
+              <thead>
+                <tr>
+                  <th>Child Name</th>
+                  <th>Age</th>
+                  <th>Mother</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${infants.slice(0, 5).map(i => `
+                  <tr>
+                    <td class="font-bold text-text">${escapeHtml(i.infantName)}</td>
+                    <td>${i.ageMonths || 0} mos</td>
+                    <td class="text-text-muted">${escapeHtml(i.parentName || i.motherName || '-')}</td>
+                    <td>
+                      <span class="badge ${(i.immunizationStatus || '').includes('FIC') ? 'badge-complete' : 'badge-pending'} text-[10px]">
+                        ${escapeHtml(i.immunizationStatus || 'Incomplete')}
+                      </span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// 5. PARENT / MOTHER MOBILE DASHBOARD (View-Only Portal)
+// -------------------------------------------------------------
+function isMatchingParentRecord(record, currentUser) {
+  if (!currentUser || !record) return false;
+  if (record.user_id && record.user_id === currentUser.id) return true;
+  if (currentUser.motherId && (record.id === currentUser.motherId || record.maternalRecordId === currentUser.motherId || record.motherId === currentUser.motherId)) return true;
+
+  const targetName = (currentUser.name || currentUser.fullName || '').toLowerCase().trim();
+  if (!targetName) return false;
+
+  const recName = (record.fullName || record.parentName || record.motherName || '').toLowerCase().trim();
+  if (!recName) return false;
+
+  if (recName === targetName) return true;
+  if (recName.includes(targetName) || targetName.includes(recName)) return true;
+
+  const parts = targetName.split(/\s+/).filter(p => p.length > 2);
+  if (parts.length >= 2 && parts.every(p => recName.includes(p))) return true;
+
+  return false;
+}
+
+function renderParentDashboard(state, currentUser) {
+  const motherName = (currentUser?.name || currentUser?.fullName || '').toLowerCase().trim();
+  
+  // Robust maternal matching
+  let myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, currentUser));
+  if (!myMaternal && state.maternalRecords?.length > 0) {
+    // If exact name match wasn't found, try matching by email or phone
+    myMaternal = state.maternalRecords.find(r => r.contact && currentUser.contact && r.contact.replace(/\D/g, '') === currentUser.contact.replace(/\D/g, ''));
+  }
+
+  // Robust infant matching
+  let myInfants = (state.infantRecords || []).filter(i => 
+    isMatchingParentRecord(i, currentUser) || 
+    (myMaternal && i.maternalRecordId === myMaternal.id)
+  );
+
+  const mySchedules = (state.checkupSchedules || []).filter(s =>
+    (s.patientName && s.patientName.toLowerCase().trim() === motherName) ||
+    (myInfants.some(inf => inf.infantName && s.patientName && s.patientName.toLowerCase().trim() === inf.infantName.toLowerCase().trim()))
+  );
+
+  const completedVisits = myMaternal?.checkupsCompleted || 0;
+  const visitProgress = Math.min(100, Math.round((completedVisits / 8) * 100));
+
+  return `
+    <div class="space-y-5 max-w-3xl mx-auto">
+      <!-- Mother Welcome Banner with Clean Light Aesthetic & Pixel Art -->
+      <div class="panel bg-gradient-to-r from-pink-50 via-white to-rose-50 border border-pink-200/80 p-6 shadow-sm rounded-2xl relative overflow-hidden">
+        <div class="relative z-10 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="inline-flex items-center gap-1 bg-pink-100 text-pink-800 border border-pink-300/60 text-[11px] px-2.5 py-0.5 rounded-md font-semibold tracking-wide">
+                <span class="material-symbols-outlined text-xs">favorite</span>
+                <span>Mother & Child Health Portal</span>
+              </span>
+              <span class="text-xs text-slate-500 font-medium">Barangay ${escapeHtml(currentUser?.barangay || 'Padre Burgos')}</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Welcome, ${escapeHtml(currentUser?.name || 'Mother')}!</h2>
+            <p class="text-xs text-slate-600 mt-1">Your personal maternal care timeline and digital child immunization health cards.</p>
+          </div>
+          <div class="flex items-center gap-3 p-2 bg-white/90 rounded-2xl border border-pink-100 shadow-2xs">
+            ${renderPixelParentChild(52)}
+          </div>
+        </div>
+      </div>
+
+      <!-- Maternal Care Milestone Card -->
+      <div class="panel p-5 rounded-2xl border border-pink-100 bg-surface">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-line">
+          <h3 class="text-sm font-bold text-text flex items-center gap-2">
+            <span class="material-symbols-outlined text-pink-600 text-xl">pregnant_woman</span>
+            <span>My Maternal Care Record</span>
+          </h3>
+          <span class="badge badge-info text-xs">${escapeHtml(myMaternal?.riskLevel || 'Normal')}</span>
+        </div>
+
+        ${myMaternal ? `
+          <div class="space-y-3 text-xs">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-pink-50/60 p-3 rounded-xl border border-pink-100/80">
+              <div>
+                <span class="text-text-muted block text-[11px]">Expected Delivery (EDD):</span>
+                <strong class="text-brand-primary text-xs">${formatDate(myMaternal.edd)}</strong>
+              </div>
+              <div>
+                <span class="text-text-muted block text-[11px]">Last Period (LMP):</span>
+                <strong class="text-text text-xs">${formatDate(myMaternal.lmp)}</strong>
+              </div>
+              <div>
+                <span class="text-text-muted block text-[11px]">Completed Visits:</span>
+                <strong class="text-emerald-700 text-xs">${completedVisits} of 8 ANC Visits</strong>
+              </div>
+              <div>
+                <span class="text-text-muted block text-[11px]">Assigned Midwife:</span>
+                <strong class="text-text text-xs">${escapeHtml(myMaternal.assignedNurse || 'RHU Midwife')}</strong>
+              </div>
+            </div>
+
+            <!-- 8ANC Progress Bar -->
+            <div class="space-y-1 pt-1">
+              <div class="flex justify-between text-[11px] text-text-muted">
+                <span>DOH 8-Antenatal Care Target:</span>
+                <span class="font-bold text-text">${visitProgress}%</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                <div class="bg-gradient-to-r from-pink-500 to-rose-600 h-2.5 rounded-full transition-all duration-500" style="width: ${visitProgress}%"></div>
+              </div>
+            </div>
+
+            <!-- Quick View Card Actions for Mother -->
+            <div class="flex items-center gap-2 pt-2 border-t border-pink-100">
+              <button type="button" class="primary-btn sm-btn open-prenatal-clinical-modal-btn text-xs py-1.5 px-3" data-id="${escapeHtml(myMaternal.id)}">
+                <span class="material-symbols-outlined text-sm">clinical_notes</span>
+                <span>View Clinical Record</span>
+              </button>
+              <button type="button" class="secondary-btn sm-btn edit-maternal-btn text-xs py-1.5 px-3" data-id="${escapeHtml(myMaternal.id)}">
+                <span class="material-symbols-outlined text-sm">edit_document</span>
+                <span>View DOH Maternal Card</span>
+              </button>
+            </div>
+          </div>
+        ` : `
+          <div class="text-center py-6 text-text-muted text-xs">
+            <p class="mb-1 font-semibold text-text">No Maternal Record on File Yet</p>
+            <p>Your assigned Barangay Midwife will fill up and register your official DOH maternal record during your initial prenatal checkup.</p>
+          </div>
         `}
       </div>
 
-      <!-- Health Reminders -->
-      <div class="panel">
-        <div class="panel-head flex items-center justify-between mb-3">
-          <h3 class="flex items-center gap-2 font-bold text-slate-800">
-            <span class="material-symbols-outlined text-amber-600 text-xl">notifications</span>
-            <span>Health & Vaccine Reminders</span>
-          </h3>
+      <!-- Child Immunization Cards (Clickable) -->
+      <div class="panel p-5 rounded-2xl border border-indigo-100 bg-surface">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3 pb-2 border-b border-line">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-indigo-600 text-xl">child_care</span>
+            <h3 class="text-sm font-bold text-text">My Children's Immunization Cards (Todo Ligtas)</h3>
+            <span class="badge badge-info text-[10px]">${myInfants.length} registered</span>
+          </div>
+          <button type="button" class="primary-btn sm-btn text-xs py-1 px-3 flex items-center gap-1" id="parentAddChildBtn">
+            <span class="material-symbols-outlined text-sm">add_circle</span>
+            <span>Add Child</span>
+          </button>
         </div>
-        ${myReminders.length === 0 ? `
-          <p class="text-sm text-slate-500 italic">No active health reminders for your clinic.</p>
+
+        ${myInfants.length === 0 ? `
+          <div class="text-center py-6 text-text-muted text-xs">
+            <p class="mb-1 font-semibold text-text">No Child Records on File Yet</p>
+            <p class="mb-3">You can register your newborn or child directly to start monitoring vaccinations and checkups.</p>
+            <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3 inline-flex items-center gap-1" id="parentAddChildEmptyBtn">
+              <span class="material-symbols-outlined text-sm">person_add</span>
+              <span>Register My Child</span>
+            </button>
+          </div>
         ` : `
-          <div class="grid gap-2">
-            ${myReminders.slice(0, 4).map(r => `
-              <div class="p-3 bg-amber-50/60 border border-amber-200/80 rounded-lg text-xs flex items-start gap-2.5">
-                <span class="material-symbols-outlined text-amber-600 text-base mt-0.5">info</span>
-                <div>
-                  <strong class="text-slate-800">${escapeHtml(r.title || 'Clinic Notice')}</strong>
-                  <p class="text-slate-600 mt-0.5">${escapeHtml(r.message || r.content || '')}</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${myInfants.map(inf => `
+              <div class="p-4 rounded-xl border border-line bg-surface-alt hover:border-brand-primary cursor-pointer transition-all view-card-btn shadow-2xs" data-id="${escapeHtml(inf.id)}">
+                <div class="flex items-center justify-between mb-2">
+                  <strong class="text-sm text-text">${escapeHtml(inf.infantName)}</strong>
+                  <span class="badge ${(inf.immunizationStatus || '').includes('FIC') ? 'badge-complete' : 'badge-pending'} text-[10px]">
+                    ${escapeHtml(inf.immunizationStatus || 'Incomplete')}
+                  </span>
+                </div>
+                <div class="text-xs text-text-muted space-y-1">
+                  <div><strong>Birthday:</strong> ${formatDate(inf.birthdate)} (${inf.ageMonths || 0} mos)</div>
+                  <div><strong>Barangay:</strong> ${escapeHtml(inf.barangay)}</div>
+                </div>
+                <div class="mt-3 pt-2 border-t border-line flex items-center justify-between text-brand-primary text-xs font-semibold">
+                  <span>View DOH Immunization Card</span>
+                  <span class="material-symbols-outlined text-sm">chevron_right</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+
+      <!-- Upcoming Checkup Schedules -->
+      <div class="panel p-5 rounded-2xl border border-line bg-surface">
+        <h3 class="text-sm font-bold text-text flex items-center gap-2 mb-3 pb-2 border-b border-line">
+          <span class="material-symbols-outlined text-emerald-600 text-xl">event_available</span>
+          <span>Upcoming Checkup Schedules & Reminders</span>
+        </h3>
+        ${mySchedules.length === 0 ? `
+          <p class="text-xs text-text-muted text-center py-4">No upcoming appointments scheduled at this time.</p>
+        ` : `
+          <div class="space-y-2">
+            ${mySchedules.map(s => `
+              <div class="flex items-center justify-between p-3 rounded-xl bg-surface-alt border border-line text-xs">
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-brand-primary text-lg">calendar_month</span>
+                  <div>
+                    <strong class="text-text block">${escapeHtml(s.patientName)}</strong>
+                    <span class="text-text-muted">${s.type === 'MC' ? 'Maternal Prenatal Care' : 'Child Health & Immunization'}</span>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span class="font-bold text-emerald-700 block">${formatDate(s.date)}</span>
+                  <span class="text-[11px] text-text-muted">${s.time || '08:30 AM'}</span>
                 </div>
               </div>
             `).join('')}

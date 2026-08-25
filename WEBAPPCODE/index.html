@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>RHU Maternal and Infant Health Monitoring</title>
+  <title>RHU Maternal and Infant Health Monitoring — Padre Burgos</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,87 +13,192 @@
   <link rel="stylesheet" href="style.css">
   <meta name="description" content="Barangay-based maternal and infant health monitoring system for Padre Burgos RHU">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2778ad">
+  <meta name="theme-color" content="#0284c7">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="RHU Health">
-  <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
-  <link rel="shortcut icon" href="icon-32.png">
+  <link rel="apple-touch-icon" href="logo.jpg">
 </head>
 
-<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+<body>
   <div id="toastHost" class="toast-host"></div>
 
+  <!-- AUTHENTICATION SCREEN -->
   <main id="authScreen" class="auth-shell">
     <section class="auth-panel">
-      <div class="brand-mark logo-placeholder"><img src="logo.jpg" alt="RHU logo" class="brand-logo"
-          onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';"><span
-          class="logo-fallback">Logo</span></div>
-      <h1>Maternal and Infant Health Monitoring for Padre Burgos</h1>
-      <p>Barangay-based monitoring for mothers, infants, check-ups, reminders, and monthly reports.</p>
+      <!-- App Mode Switcher (Web Staff vs Mother Mobile) -->
+      <div class="auth-app-switcher mb-4">
+        <button type="button" class="app-switch-btn active" id="switchWebAppBtn">
+          <span class="material-symbols-outlined text-base">local_hospital</span>
+          <span>Healthcare Web App</span>
+        </button>
+        <button type="button" class="app-switch-btn" id="switchMobileAppBtn">
+          <span class="material-symbols-outlined text-base">phone_android</span>
+          <span>Mother Mobile App</span>
+        </button>
+      </div>
 
+      <div class="flex items-center justify-between mb-2">
+        <div class="brand-mark">
+          <img src="logo.jpg" alt="Padre Burgos RHU Logo" class="brand-logo"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">
+          <span class="logo-fallback">RHU</span>
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Municipality of Padre Burgos</h2>
+            <p class="text-[11px] text-brand-primary font-semibold">Rural Health Unit</p>
+          </div>
+        </div>
+      </div>
+
+      <h1 id="authHeading">RHU Health Monitoring System</h1>
+      <p id="authSubtitle">Padre Burgos Rural Health Unit • Maternal & Infant Clinical Management</p>
+
+      <!-- LOGIN FORM -->
       <form id="loginForm" class="auth-form">
         <label>Email / Username
           <input type="text" id="loginEmail" required autocomplete="username" placeholder="admin@rhu.gov">
         </label>
+        
         <label>Password
-          <input type="password" id="loginPassword" required autocomplete="current-password"
-            placeholder="Enter password">
+          <div class="password-input-wrap">
+            <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="Enter your password">
+            <button type="button" class="toggle-password-btn" data-target="loginPassword" title="Show/Hide Password" aria-label="Toggle password visibility">
+              <span class="material-symbols-outlined">visibility</span>
+            </button>
+          </div>
         </label>
-        <button class="primary-btn" type="submit">Sign in</button>
-        <p class="help-note">One login form only. Your account role automatically opens the correct dashboard.</p>
-        <button class="ghost-btn full-btn" type="button" id="showParentRegistration">Create parent account</button>
-      </form>
 
-      <form id="registerForm" class="auth-form hidden">
-        <div class="section-head compact-head">
-          <div>
-            <h3>Parent Registration</h3>
-            <p>This public registration is limited to Mother / Parent accounts only.</p>
+        <button class="primary-btn full-btn mt-2" type="submit">Sign in</button>
+
+        <div id="authActionsContainer" class="pt-2">
+          <!-- Web Staff Mode Actions -->
+          <div id="webStaffAuthActions">
+            <button class="ghost-btn full-btn" type="button" id="showStaffRegistration">Register Healthcare Staff Account</button>
+          </div>
+          <!-- Mother Mobile Mode Actions (hidden in staff mode) -->
+          <div id="motherMobileAuthActions" class="hidden">
+            <button class="ghost-btn full-btn" type="button" id="showParentRegistration">Create Mother / Parent Account</button>
           </div>
         </div>
+      </form>
+
+      <!-- PARENT REGISTRATION FORM (Mother Mobile App) -->
+      <form id="registerForm" class="auth-form hidden">
+        <div class="border-b border-line pb-2 mb-1">
+          <h3 class="text-sm font-bold text-text">Create Parent Account</h3>
+          <p class="text-xs text-text-muted mt-0.5">Mother / Parent mobile registration for Padre Burgos residents.</p>
+        </div>
+
         <label>Full Name
-          <input type="text" id="regName" required placeholder="Juanita Santos">
+          <input type="text" id="regName" required placeholder="e.g. Maria Santos">
         </label>
-        <label>Email / Username
+
+        <label>Email Address
           <input type="email" id="regEmail" required placeholder="name@example.com">
         </label>
+
         <div class="two-col">
           <label>Password
-            <input type="password" id="regPassword" required minlength="6">
+            <div class="password-input-wrap">
+              <input type="password" id="regPassword" required minlength="6" placeholder="Min. 6 chars">
+              <button type="button" class="toggle-password-btn" data-target="regPassword" title="Show/Hide Password" aria-label="Toggle password visibility">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
           </label>
+
           <label>Confirm Password
-            <input type="password" id="regConfirm" required minlength="6">
+            <div class="password-input-wrap">
+              <input type="password" id="regConfirm" required minlength="6" placeholder="Repeat password">
+              <button type="button" class="toggle-password-btn" data-target="regConfirm" title="Show/Hide Password" aria-label="Toggle password visibility">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
           </label>
         </div>
+
         <div class="two-col">
-          <label>Barangay / Clinic Assignment
+          <label>Barangay Residence
             <select id="regBarangay" required></select>
           </label>
+
           <label>Contact Number
             <input type="tel" id="regContact" required placeholder="09XXXXXXXXX">
           </label>
         </div>
+
         <input type="hidden" id="regRole" value="Mother / Parent">
-        <button class="primary-btn" type="submit">Create parent account</button>
+        <button class="primary-btn full-btn" type="submit">Create parent account</button>
         <button class="ghost-btn full-btn" type="button" id="backToLogin">Back to login</button>
+      </form>
+
+      <!-- STAFF REGISTRATION FORM (Healthcare Web App) -->
+      <form id="staffRegisterForm" class="auth-form hidden">
+        <div class="border-b border-line pb-2 mb-1">
+          <h3 class="text-sm font-bold text-text">Healthcare Staff Registration</h3>
+          <p class="text-xs text-text-muted mt-0.5">Authorized registration for Nurse/Midwife, MHO, and Doctor personnel.</p>
+        </div>
+
+        <label>Full Name & Title
+          <input type="text" id="staffRegName" required placeholder="e.g. Nurse Elena Ramos, RN">
+        </label>
+
+        <label>Professional Email
+          <input type="email" id="staffRegEmail" required placeholder="elena.ramos@rhu.gov">
+        </label>
+
+        <div class="two-col">
+          <label>Role Assignment
+            <select id="staffRegRole" required>
+              <option value="Nurse / Midwife">Nurse / Midwife</option>
+              <option value="Doctor">Doctor</option>
+              <option value="MHO">Municipal Health Officer (MHO)</option>
+            </select>
+          </label>
+
+          <label>Assigned Barangay / Station
+            <select id="staffRegBarangay" required></select>
+          </label>
+        </div>
+
+        <div class="two-col">
+          <label>Password
+            <div class="password-input-wrap">
+              <input type="password" id="staffRegPassword" required minlength="6" placeholder="Min. 6 chars">
+              <button type="button" class="toggle-password-btn" data-target="staffRegPassword" title="Show/Hide Password" aria-label="Toggle password visibility">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
+          </label>
+
+          <label>Confirm Password
+            <div class="password-input-wrap">
+              <input type="password" id="staffRegConfirm" required minlength="6" placeholder="Repeat password">
+              <button type="button" class="toggle-password-btn" data-target="staffRegConfirm" title="Show/Hide Password" aria-label="Toggle password visibility">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
+          </label>
+        </div>
+
+        <button class="primary-btn full-btn" type="submit">Register Staff Account</button>
+        <button class="ghost-btn full-btn" type="button" id="backToLoginFromStaff">Back to login</button>
       </form>
     </section>
   </main>
 
+  <!-- APP SHELL -->
   <div id="appShell" class="app-shell hidden">
     <div id="sidebarOverlay" class="sidebar-overlay hidden" aria-hidden="true"></div>
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-head">
-        <div class="brand-mark small logo-placeholder"><img src="logo.jpg" alt="RHU logo" class="brand-logo"
+        <div class="brand-mark small"><img src="logo.jpg" alt="Padre Burgos RHU Logo" class="brand-logo"
             onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';"><span
-            class="logo-fallback">Logo</span></div>
-        <div>
-          <strong>Health Monitor</strong>
+            class="logo-fallback">RHU</span></div>
+        <div class="sidebar-brand-text">
+          <strong>Padre Burgos RHU</strong>
           <span id="rolePill" class="role-pill"></span>
         </div>
       </div>
@@ -107,22 +212,19 @@
         </button>
         <div class="topbar-title-wrap">
           <h2 id="pageTitle">Dashboard</h2>
-          <div id="topbarBarangayWrapper" class="flex items-center gap-2 flex-wrap">
-            <span id="pageSubtitle" class="text-xs text-slate-500 font-medium">Monitoring summary</span>
+          <div id="topbarBarangayWrapper" class="flex items-center gap-2 flex-wrap mt-0.5">
+            <span id="pageSubtitle" class="text-xs text-text-muted font-medium">Clinical monitoring summary</span>
             <select id="topbarBarangaySelect"
-              class="text-xs border border-slate-300 rounded px-2 py-0.5 bg-white text-slate-700 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 hidden"></select>
+              class="text-xs border border-line rounded px-2.5 py-1 bg-surface text-text font-semibold focus:outline-none focus:ring-1 focus:ring-brand-primary hidden"></select>
           </div>
         </div>
         <div class="topbar-actions">
           <input id="globalSearch" type="search" placeholder="Search records...">
-          <button class="icon-btn notification-btn flex items-center justify-center" aria-label="Notifications">
-            <span class="material-symbols-outlined text-lg">notifications</span>
-          </button>
           <div class="user-chip">
-            <span id="userInitials"></span>
-            <div>
-              <strong id="currentUserName"></strong>
-              <small id="currentUserMeta"></small>
+            <div class="user-avatar" id="userInitials">U</div>
+            <div class="hidden sm:block">
+              <strong id="currentUserName" class="text-xs block text-text">User</strong>
+              <small id="currentUserMeta" class="text-[11px] text-text-muted block">Staff</small>
             </div>
           </div>
         </div>
@@ -132,11 +234,12 @@
     </section>
   </div>
 
+  <!-- UNIVERSAL APP MODAL -->
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-card">
       <div class="modal-head">
-        <h3 id="modalTitle"></h3>
-        <button class="icon-btn flex items-center justify-center" id="modalClose" aria-label="Close modal">
+        <h3 id="modalTitle">Modal Header</h3>
+        <button class="icon-btn flex items-center justify-center sm-btn" id="modalClose" aria-label="Close modal">
           <span class="material-symbols-outlined text-xl">close</span>
         </button>
       </div>

@@ -1,67 +1,83 @@
 /**
  * Check-up Schedules UI Module
+ * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
+import { isNurse, isParent } from '../auth.js';
 
-export function renderSchedulesView(state, selectedBarangay, currentUser) {
-  const isParent = currentUser?.role === "Mother / Parent";
-  const parentName = currentUser?.name || "";
+export function renderSchedulesView(state, selectedBarangay = "All Barangays", currentUser = null) {
+  const isUserParent = isParent(currentUser);
+  const isUserNurse = isNurse(currentUser);
+  const parentName = (currentUser?.name || currentUser?.fullName || '').toLowerCase().trim();
 
-  let schedules = state.checkupSchedules;
-  if (isParent) {
-    schedules = schedules.filter(s => s.patientName && s.patientName.toLowerCase() === parentName.toLowerCase());
-  } else if (selectedBarangay) {
+  let schedules = state.checkupSchedules || [];
+  if (isUserParent) {
+    schedules = schedules.filter(s => s.patientName && s.patientName.toLowerCase().trim() === parentName);
+  } else if (isUserNurse && currentUser?.barangay) {
+    schedules = schedules.filter(s => s.barangay === currentUser.barangay);
+  } else if (selectedBarangay && selectedBarangay !== "All Barangays") {
     schedules = schedules.filter(s => s.barangay === selectedBarangay);
   }
 
+  // Sort by date ascending
+  schedules.sort((a, b) => new Date(a.date || '2099-01-01') - new Date(b.date || '2099-01-01'));
+
   return `
-    <div class="page-header flex items-center justify-between mb-6">
+    <div class="page-header flex items-center justify-between flex-wrap gap-4 mb-4">
       <div>
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <span class="material-symbols-outlined text-amber-600 text-2xl">event</span>
-          <span>Check-up Schedules</span>
+        <h2 class="text-xl font-bold flex items-center gap-2 text-text">
+          <span class="material-symbols-outlined text-amber-600 text-2xl">event_available</span>
+          <span>Check-up Appointments & Schedules</span>
         </h2>
-        <p class="text-sm text-slate-500">${isParent ? 'My Appointment Requests' : `Barangay: ${escapeHtml(selectedBarangay || 'All')}`} (${schedules.length} schedules)</p>
+        <p class="text-xs text-text-muted">
+          ${isUserParent ? 'Your scheduled prenatal and pediatric clinical visits' : `Barangay Station: ${escapeHtml(isUserNurse ? currentUser.barangay : selectedBarangay)} (${schedules.length} scheduled visits)`}
+        </p>
       </div>
-      <button class="primary-btn flex items-center gap-1.5" id="addScheduleBtn">
-        <span class="material-symbols-outlined text-lg">edit_calendar</span>
-        <span>${isParent ? 'Request Check-up' : 'Schedule Appointment'}</span>
-      </button>
+
+      ${!isUserParent ? `
+        <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addScheduleBtn">
+          <span class="material-symbols-outlined text-base">add_circle</span>
+          <span>Schedule Check-up</span>
+        </button>
+      ` : ''}
     </div>
 
     <div class="panel">
-      <div class="table-container">
-        <table class="data-table">
+      <div class="table-container overflow-x-auto">
+        <table class="data-table text-xs">
           <thead>
             <tr>
-              <th>Patient Name</th>
-              <th>Type</th>
-              <th>Barangay</th>
-              <th>Date & Time</th>
-              <th>Assigned Nurse</th>
+              <th>Patient Full Name</th>
+              <th>Care Category</th>
+              <th>Barangay Station</th>
+              <th>Scheduled Date & Time</th>
+              <th>Assigned Provider</th>
               <th>Status</th>
-              <th>Actions</th>
+              ${!isUserParent ? '<th>Actions</th>' : ''}
             </tr>
           </thead>
           <tbody>
             ${schedules.length === 0 ? `
-              <tr><td colspan="7" class="text-center text-muted">No check-up schedules found.</td></tr>
+              <tr><td colspan="7" class="text-center py-6 text-text-muted">No appointments scheduled for this station.</td></tr>
             ` : schedules.map(s => `
               <tr>
                 <td><strong>${escapeHtml(s.patientName)}</strong></td>
-                <td><span class="badge badge-info">${escapeHtml(s.type || 'MC')}</span></td>
+                <td><span class="badge badge-info text-[10px]">${s.type === 'MC' ? 'Maternal Prenatal' : 'Child Immunization'}</span></td>
                 <td>${escapeHtml(s.barangay)}</td>
-                <td>${formatDate(s.date)} ${s.time ? `at ${escapeHtml(s.time)}` : ''}</td>
-                <td>${escapeHtml(s.assignedNurse || 'RHU Staff')}</td>
-                <td><span class="badge ${s.status === 'Completed' ? 'badge-success' : 'badge-warning'}">${escapeHtml(s.status || 'Pending')}</span></td>
-                <td class="space-x-1">
-                  <button class="icon-btn edit-schedule-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(s.id)}" title="Edit">
-                    <span class="material-symbols-outlined text-blue-600 text-lg">edit</span>
-                  </button>
-                  <button class="icon-btn delete-schedule-btn p-1.5 hover:bg-slate-100 rounded-lg inline-flex items-center justify-center" data-id="${escapeHtml(s.id)}" title="Delete">
-                    <span class="material-symbols-outlined text-red-600 text-lg">delete</span>
-                  </button>
+                <td><strong class="text-brand-primary">${formatDate(s.date)}</strong> at ${escapeHtml(s.time || '08:30 AM')}</td>
+                <td class="text-text-muted">${escapeHtml(s.assignedNurse || 'RHU Midwife')}</td>
+                <td>
+                  <span class="badge ${s.status === 'Completed' ? 'badge-complete' : 'badge-pending'} text-[10px]">
+                    ${escapeHtml(s.status || 'Scheduled')}
+                  </span>
                 </td>
+                ${!isUserParent ? `
+                  <td>
+                    <button type="button" class="icon-btn delete-schedule-btn p-1 text-red-600 hover:bg-red-50" data-id="${escapeHtml(s.id)}" title="Cancel Schedule">
+                      <span class="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </td>
+                ` : ''}
               </tr>
             `).join('')}
           </tbody>
