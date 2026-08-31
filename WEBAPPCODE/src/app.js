@@ -55,11 +55,42 @@ function visibleBarangays() {
   return ["All Barangays", ...allBgy];
 }
 
+export function isNativeMobileApp() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("mode") === "mobile" || urlParams.get("app") === "parent" || urlParams.get("platform") === "apk") {
+    return true;
+  }
+  if (urlParams.get("mode") === "staff" || urlParams.get("app") === "staff" || urlParams.get("platform") === "web") {
+    return false;
+  }
+
+  if (typeof window.Capacitor !== "undefined") {
+    if (typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform()) {
+      return true;
+    }
+    if (typeof window.Capacitor.getPlatform === "function" && window.Capacitor.getPlatform() !== "web") {
+      return true;
+    }
+  }
+
+  if (window.location.protocol === "capacitor:" || window.location.href.startsWith("capacitor://")) {
+    return true;
+  }
+
+  return false;
+}
+
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   initTheme();
   initSyncEngine();
+
+  // In .apk, default to Mother/Parent portal; In web, default to Healthcare Staff portal
+  const isApk = isNativeMobileApp();
+  activeAuthMode = isApk ? "motherMobile" : "webStaff";
+  updateAuthModeUI();
+
   hydrateAuthOptions();
   bindAuthEvents();
   bindShellEvents();
@@ -340,30 +371,46 @@ function hydrateAuthOptions() {
 }
 
 function updateAuthModeUI() {
-  const isWebStaff = activeAuthMode === "webStaff";
+  const isApk = isNativeMobileApp();
+  // Ensure mode strictly matches detected platform environment
+  activeAuthMode = isApk ? "motherMobile" : "webStaff";
+
+  const isMobile = activeAuthMode === "motherMobile";
+  const switcher = document.getElementById("authAppSwitcher");
   const webBtn = document.getElementById("switchWebAppBtn");
   const mobBtn = document.getElementById("switchMobileAppBtn");
   const webActions = document.getElementById("webStaffAuthActions");
   const mobActions = document.getElementById("motherMobileAuthActions");
   const heading = document.getElementById("authHeading");
   const subtitle = document.getElementById("authSubtitle");
+  const loginEmail = document.getElementById("loginEmail");
+  const loginEmailLabelText = document.getElementById("loginEmailLabelText");
+  const regForm = document.getElementById("registerForm");
+  const staffRegForm = document.getElementById("staffRegisterForm");
 
-  if (webBtn && mobBtn) {
-    if (isWebStaff) {
-      webBtn.classList.add("active");
-      mobBtn.classList.remove("active");
-      if (webActions) webActions.classList.remove("hidden");
-      if (mobActions) mobActions.classList.add("hidden");
-      if (heading) heading.textContent = "RHU Healthcare Web Portal";
-      if (subtitle) subtitle.textContent = "Authorized Portal for Nurses, Midwives, MHO, and Doctors • Padre Burgos RHU";
-    } else {
-      mobBtn.classList.add("active");
-      webBtn.classList.remove("active");
-      if (mobActions) mobActions.classList.remove("hidden");
-      if (webActions) webActions.classList.add("hidden");
-      if (heading) heading.textContent = "Mother & Child Mobile Portal";
-      if (subtitle) subtitle.textContent = "Padre Burgos RHU • Maternal & Infant Health Monitoring for Parents";
-    }
+  // Keep auth mode switcher strictly hidden in both Web and APK
+  if (switcher) switcher.classList.add("hidden");
+
+  if (isMobile) {
+    if (mobBtn) mobBtn.classList.add("active");
+    if (webBtn) webBtn.classList.remove("active");
+    if (mobActions) mobActions.classList.remove("hidden");
+    if (webActions) webActions.classList.add("hidden");
+    if (staffRegForm) staffRegForm.classList.add("hidden");
+    if (heading) heading.textContent = "RHU Mother & Child Portal";
+    if (subtitle) subtitle.textContent = "Padre Burgos RHU • Maternal & Infant Health Monitoring for Parents";
+    if (loginEmailLabelText) loginEmailLabelText.textContent = "Mother / Parent Email Address";
+    if (loginEmail) loginEmail.placeholder = "e.g. maria.santos@gmail.com";
+  } else {
+    if (webBtn) webBtn.classList.add("active");
+    if (mobBtn) mobBtn.classList.remove("active");
+    if (webActions) webActions.classList.remove("hidden");
+    if (mobActions) mobActions.classList.add("hidden");
+    if (regForm) regForm.classList.add("hidden");
+    if (heading) heading.textContent = "RHU Healthcare Web Portal";
+    if (subtitle) subtitle.textContent = "Authorized Portal for Nurses, Midwives, MHO, and Doctors • Padre Burgos RHU";
+    if (loginEmailLabelText) loginEmailLabelText.textContent = "Healthcare Staff Email Address";
+    if (loginEmail) loginEmail.placeholder = "e.g. elena.ramos@rhu.gov or admin@rhu.gov";
   }
 }
 
@@ -518,22 +565,32 @@ function bindAuthEvents() {
 }
 
 function bindPasswordVisibilityToggles() {
-  document.querySelectorAll(".toggle-password-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      const targetId = btn.getAttribute("data-target");
-      const input = document.getElementById(targetId);
-      const icon = btn.querySelector(".material-symbols-outlined");
-      if (!input || !icon) return;
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".toggle-password-btn");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
 
-      if (input.type === "password") {
-        input.type = "text";
-        icon.textContent = "visibility_off";
-      } else {
-        input.type = "password";
-        icon.textContent = "visibility";
-      }
-    });
+    const targetId = btn.getAttribute("data-target");
+    let input = targetId ? document.getElementById(targetId) : null;
+    if (!input) {
+      const wrap = btn.closest(".password-input-wrap");
+      if (wrap) input = wrap.querySelector("input");
+    }
+    if (!input) return;
+
+    const icon = btn.querySelector(".material-symbols-outlined") || btn.querySelector("span");
+    if (input.type === "password") {
+      input.type = "text";
+      if (icon) icon.textContent = "visibility_off";
+      btn.setAttribute("title", "Hide password");
+      btn.setAttribute("aria-label", "Hide password");
+    } else {
+      input.type = "password";
+      if (icon) icon.textContent = "visibility";
+      btn.setAttribute("title", "Show password");
+      btn.setAttribute("aria-label", "Show password");
+    }
   });
 }
 

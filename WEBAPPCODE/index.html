@@ -28,8 +28,8 @@
   <!-- AUTHENTICATION SCREEN -->
   <main id="authScreen" class="auth-shell">
     <section class="auth-panel">
-      <!-- App Mode Switcher (Web Staff vs Mother Mobile) -->
-      <div class="auth-app-switcher mb-4">
+      <!-- App Mode Switcher (Hidden in both Web and APK as each has its dedicated portal) -->
+      <div class="auth-app-switcher mb-4 hidden" id="authAppSwitcher">
         <button type="button" class="app-switch-btn active" id="switchWebAppBtn">
           <span class="material-symbols-outlined text-base">local_hospital</span>
           <span>Healthcare Web App</span>
@@ -57,7 +57,7 @@
 
       <!-- LOGIN FORM -->
       <form id="loginForm" class="auth-form">
-        <label>Email / Username
+        <label id="loginEmailLabel"><span id="loginEmailLabelText">Email / Username</span>
           <input type="text" id="loginEmail" required autocomplete="username" placeholder="admin@rhu.gov">
         </label>
         
