@@ -618,6 +618,9 @@ export function openSidebar() {
 
 function bindShellEvents() {
   document.getElementById("modalClose")?.addEventListener("click", closeModal);
+  document.getElementById("modal")?.addEventListener("click", (e) => {
+    if (e.target.id === "modal") closeModal();
+  });
 
   document.getElementById("menuToggle")?.addEventListener("click", (e) => {
     e.stopPropagation();
