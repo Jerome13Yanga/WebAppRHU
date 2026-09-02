@@ -5,12 +5,12 @@
 import { STORE_KEYS, pages, getDynamicBarangays, defaultBarangays, TABLES } from './config.js';
 import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow } from './db.js';
 import { initSyncEngine, queueOfflineAction, flushPendingSyncQueue } from './sync.js';
-import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, createManagedAuthAccount, isParent, isNurse, isMho, isDoctor, isAdmin, isStaff } from './auth.js';
+import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, isParent, isNurse, isMho, isAdmin, isStaff } from './auth.js';
 import { toast, escapeHtml, formatDate } from './utils/sanitize.js';
 import { exportMcCcReportToExcel } from './utils/excelExport.js';
 import { initTheme, toggleTheme } from './utils/theme.js';
 import { renderRolePill, openModal, closeModal, refreshLucideIcons } from './ui/components.js';
-import { renderDashboardView } from './ui/dashboard.js';
+import { renderDashboardView, renderBarangayMonitoringDashboard } from './ui/dashboard.js';
 import { renderMaternalView } from './ui/maternal.js';
 import { renderInfantsView } from './ui/infants.js';
 import { renderCheckupHistoryView, generatePrintableCheckupHistoryHtml } from './ui/checkupHistory.js';
@@ -19,8 +19,8 @@ import { renderReportsView } from './ui/reports.js';
 import { renderPadreBurgosMaternalFormHtml } from './ui/maternalCardForm.js';
 import { renderTodoLigtasImmunizationCardHtml } from './ui/infantCardForm.js';
 import { renderPrenatalClinicalRecordHtml } from './ui/prenatalClinicalForm.js';
-import { renderUsersView } from './ui/users.js';
 import { renderBackupView, renderContactsView } from './ui/backup.js';
+import { renderRemindersView } from './ui/reminders.js';
 
 let state = {
   users: [],
@@ -258,8 +258,7 @@ function getMaterialIcon(pageId) {
     reminders: "notifications",
     barangay: "apartment",
     reports: "analytics",
-    users: "manage_accounts",
-    backup: "database",
+    backup: "storage",
     contacts: "contact_phone",
     logout: "logout"
   };
@@ -294,7 +293,7 @@ function renderPage(pageId) {
   }
 
   const subtitles = {
-    dashboard: isUserParent ? "Mother & Child Health Portal" : (isDoctor(current) ? "Physician Clinical Oversight" : (isMho(current) ? "Barangay Record & Submission Monitor" : (isAdmin(current) ? "Central Administration" : "Barangay Health Station"))),
+    dashboard: isUserParent ? "Mother & Child Health Portal" : (isMho(current) ? "Barangay Record & Submission Monitor" : (isAdmin(current) ? "Central Administration" : "Barangay Health Station")),
     maternal: "Pregnancy monitoring and DOH maternal health records",
     infants: "Child immunization monitoring and digitized health cards",
     history: "Append-only clinical checkup visit history and physical printouts",
@@ -302,7 +301,6 @@ function renderPage(pageId) {
     reminders: "Health notifications and vaccine follow-ups",
     barangay: "Cross-barangay health indicators and monitoring",
     reports: "Official DOH MC and CC monthly reports",
-    users: "Staff account provisioning and access control",
     backup: "Database export and recovery",
     contacts: "Padre Burgos RHU emergency hotlines and clinic contacts"
   };
@@ -335,16 +333,15 @@ function renderPage(pageId) {
       contentEl.innerHTML = renderSchedulesView(state, selectedBarangay, current);
       bindSchedulesEvents();
       break;
+    case "reminders":
+      contentEl.innerHTML = renderRemindersView(state, current);
+      break;
     case "reports":
       contentEl.innerHTML = renderReportsView(state, selectedBarangay, selectedReportMonth, selectedReportYear);
       bindReportsEvents();
       break;
     case "barangay":
-      contentEl.innerHTML = renderDoctorDashboard(state, current, selectedBarangay, searchTerm);
-      break;
-    case "users":
-      contentEl.innerHTML = renderUsersView(state);
-      bindUsersEvents();
+      contentEl.innerHTML = renderBarangayMonitoringDashboard(state, current, selectedBarangay, searchTerm);
       break;
     case "backup":
       contentEl.innerHTML = renderBackupView(state);
@@ -408,7 +405,7 @@ function updateAuthModeUI() {
     if (mobActions) mobActions.classList.add("hidden");
     if (regForm) regForm.classList.add("hidden");
     if (heading) heading.textContent = "RHU Healthcare Web Portal";
-    if (subtitle) subtitle.textContent = "Authorized Portal for Nurses, Midwives, MHO, and Doctors • Padre Burgos RHU";
+    if (subtitle) subtitle.textContent = "Authorized Portal for Nurses, Midwives, and MHO • Padre Burgos RHU";
     if (loginEmailLabelText) loginEmailLabelText.textContent = "Healthcare Staff Email Address";
     if (loginEmail) loginEmail.placeholder = "e.g. elena.ramos@rhu.gov or admin@rhu.gov";
   }
@@ -1744,58 +1741,8 @@ function bindReportsEvents() {
 }
 
 // -------------------------------------------------------------
-// Admin & Backup Module Binders
+// Backup Module Binders
 // -------------------------------------------------------------
-function bindUsersEvents() {
-  document.getElementById("addStaffBtn")?.addEventListener("click", () => {
-    const generatedPassword = `RHU_${Math.floor(100000 + Math.random() * 900000)}`;
-    const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
-
-    openModal("Add Healthcare Staff Account", `
-      <form id="staffForm" class="modal-form space-y-3 text-xs">
-        <label>Full Name <input type="text" id="stName" required></label>
-        <label>Email Address <input type="email" id="stEmail" required></label>
-        <label>Role 
-          <select id="stRole" class="input-field">
-            <option value="Nurse / Midwife">Nurse / Midwife</option>
-            <option value="Doctor">Doctor</option>
-            <option value="MHO">MHO (Municipal Health Officer)</option>
-          </select>
-        </label>
-        <label>Barangay / Station Assignment 
-          <select id="stBarangay" class="input-field">${bgyOptions}</select>
-        </label>
-        <div class="p-3 bg-amber-soft border border-amber/30 rounded-lg text-amber">
-          <strong>Generated Permanent Password:</strong> <code>${generatedPassword}</code>
-          <br><small>Copy and share this password securely with the staff member.</small>
-        </div>
-        <button class="primary-btn full-btn" type="submit">Create Staff Account</button>
-      </form>
-    `);
-
-    document.getElementById("staffForm")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const row = {
-        id: `usr_${Date.now()}`,
-        name: document.getElementById("stName").value.trim(),
-        email: document.getElementById("stEmail").value.trim(),
-        role: document.getElementById("stRole").value,
-        barangay: document.getElementById("stBarangay").value
-      };
-
-      try {
-        await createManagedAuthAccount(row, generatedPassword);
-        await persistRecord("users", row);
-        closeModal();
-        toast("Staff account created successfully.");
-        renderPage("users");
-      } catch (err) {
-        toast(err.message, true);
-      }
-    });
-  });
-}
-
 function bindBackupEvents() {
   document.getElementById("exportBackupBtn")?.addEventListener("click", () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));

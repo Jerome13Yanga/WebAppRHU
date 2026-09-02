@@ -3,7 +3,7 @@
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
-import { isNurse, isParent, isDoctor, isMho, isAdmin } from '../auth.js';
+import { isNurse, isParent, isMho, isAdmin } from '../auth.js';
 
 export function renderCheckupHistoryView(state, currentUser, selectedBarangay = "All Barangays") {
   const isUserNurse = isNurse(currentUser);

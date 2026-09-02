@@ -24,7 +24,7 @@ export function renderImmunizationBadge(status) {
 export function renderRolePill(role) {
   let cls = 'role-parent';
   if (role === 'Administrator') cls = 'role-admin';
-  else if (role === 'MHO' || role === 'Doctor') cls = 'role-doctor';
+  else if (role === 'MHO') cls = 'role-mho';
   else if (role === 'Nurse / Midwife') cls = 'role-nurse';
 
   return `<span class="role-pill ${cls}">${escapeHtml(role || 'User')}</span>`;

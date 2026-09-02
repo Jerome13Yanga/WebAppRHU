@@ -9,7 +9,7 @@ Parent side:
 Nurse/Midwife side:
 - Maternal Records now includes a Prenatal Form button.
 - Nurse/Midwife can edit prenatal records only for records within their assigned barangay.
-- Doctors and nurses can view the submitted prenatal details using the View button in Maternal Records.
+- MHO and nurses can view the submitted prenatal details using the View button in Maternal Records.
 
 Database:
 - No new SQL is needed if update-mc-cc-template-fields.sql was already run, because the prenatal details are saved inside formDetails/form_details JSON.

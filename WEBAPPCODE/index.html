@@ -138,7 +138,7 @@
       <form id="staffRegisterForm" class="auth-form hidden">
         <div class="border-b border-line pb-2 mb-1">
           <h3 class="text-sm font-bold text-text">Healthcare Staff Registration</h3>
-          <p class="text-xs text-text-muted mt-0.5">Authorized registration for Nurse/Midwife, MHO, and Doctor personnel.</p>
+          <p class="text-xs text-text-muted mt-0.5">Authorized registration for Nurse/Midwife and MHO personnel.</p>
         </div>
 
         <label>Full Name & Title
@@ -153,7 +153,6 @@
           <label>Role Assignment
             <select id="staffRegRole" required>
               <option value="Nurse / Midwife">Nurse / Midwife</option>
-              <option value="Doctor">Doctor</option>
               <option value="MHO">Municipal Health Officer (MHO)</option>
             </select>
           </label>
@@ -186,6 +185,14 @@
         <button class="primary-btn full-btn" type="submit">Register Staff Account</button>
         <button class="ghost-btn full-btn" type="button" id="backToLoginFromStaff">Back to login</button>
       </form>
+
+      <!-- APK DOWNLOAD BUTTON ON LOGIN SCREEN -->
+      <div id="authApkDownloadSection" class="mt-4 pt-3 border-t border-line text-center">
+        <a href="rhu-mother-app.apk" download="rhu-mother-app.apk" class="apk-download-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all" title="Download Android APK">
+          <span class="material-symbols-outlined text-sm">download</span>
+          <span>Download Mobile App (.apk)</span>
+        </a>
+      </div>
     </section>
   </main>
 
@@ -203,6 +210,14 @@
         </div>
       </div>
       <nav id="mainNav" class="main-nav"></nav>
+      
+      <!-- SIDEBAR APK DOWNLOAD FOOTER -->
+      <div id="sidebarApkDownload" class="p-2.5 border-t border-line mt-auto">
+        <a href="rhu-mother-app.apk" download="rhu-mother-app.apk" class="apk-download-btn inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all w-full justify-center" title="Download Mobile App">
+          <span class="material-symbols-outlined text-sm">download</span>
+          <span>Download Mobile App (.apk)</span>
+        </a>
+      </div>
     </aside>
 
     <section class="workspace">
@@ -220,6 +235,10 @@
         </div>
         <div class="topbar-actions">
           <input id="globalSearch" type="search" placeholder="Search records...">
+          <a href="rhu-mother-app.apk" download="rhu-mother-app.apk" id="topbarApkDownload" class="apk-download-btn hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all" title="Download Mobile App">
+            <span class="material-symbols-outlined text-sm">download</span>
+            <span>Download Mobile App (.apk)</span>
+          </a>
           <div class="user-chip">
             <div class="user-avatar" id="userInitials">U</div>
             <div class="hidden sm:block">

@@ -11,7 +11,7 @@ create table if not exists public.profiles (
   name text not null,
   email text unique not null,
   username text,
-  role text not null check (role in ('Administrator', 'MHO', 'Nurse / Midwife', 'Doctor', 'Mother / Parent')),
+  role text not null check (role in ('Administrator', 'MHO', 'Nurse / Midwife', 'Mother / Parent')),
   barangay text not null,
   "motherId" text default '',
   "createdAt" timestamptz default now()
@@ -203,7 +203,7 @@ create policy "Allow user self-management on profiles" on public.profiles for al
 create policy "Allow staff or owner read on maternal_records" on public.maternal_records for select
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
     OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = maternal_records.barangay)
     OR user_id = auth.uid()
   )
@@ -212,7 +212,7 @@ using (
 create policy "Allow staff write on maternal_records" on public.maternal_records for all
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
     OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = maternal_records.barangay)
   )
 );
@@ -221,7 +221,7 @@ using (
 create policy "Allow staff or parent read on infant_records" on public.infant_records for select
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
     OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = infant_records.barangay)
     OR user_id = auth.uid()
   )
@@ -230,7 +230,7 @@ using (
 create policy "Allow staff write on infant_records" on public.infant_records for all
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
     OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = infant_records.barangay)
   )
 );
@@ -239,7 +239,7 @@ using (
 create policy "Allow staff or patient read on maternal_checkup_history" on public.maternal_checkup_history for select
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
     OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = maternal_checkup_history.barangay)
     OR exists (select 1 from public.maternal_records where id = maternal_checkup_history."maternalRecordId" and user_id = auth.uid())
   )
@@ -248,14 +248,14 @@ using (
 create policy "Allow staff write on maternal_checkup_history" on public.maternal_checkup_history for all
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO', 'Nurse / Midwife'))
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO', 'Nurse / Midwife'))
   )
 );
 
 create policy "Allow staff or patient read on infant_checkup_history" on public.infant_checkup_history for select
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO'))
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
     OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = infant_checkup_history.barangay)
     OR exists (select 1 from public.infant_records where id = infant_checkup_history."infantRecordId" and user_id = auth.uid())
   )
@@ -264,7 +264,7 @@ using (
 create policy "Allow staff write on infant_checkup_history" on public.infant_checkup_history for all
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'Doctor', 'MHO', 'Nurse / Midwife'))
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO', 'Nurse / Midwife'))
   )
 );
 

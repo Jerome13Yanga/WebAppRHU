@@ -3,7 +3,7 @@
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow } from './db.js';
-import { embeddedAdminEmails, TABLES, SUPABASE_URL } from './config.js';
+import { embeddedAdminEmails, TABLES } from './config.js';
 import { toast } from './utils/sanitize.js';
 
 let currentUser = null;
@@ -20,10 +20,6 @@ export function isAdmin(user = currentUser) {
   return user?.role === 'Administrator' || embeddedAdminEmails.includes(String(user?.email || '').toLowerCase());
 }
 
-export function isDoctor(user = currentUser) {
-  return user?.role === 'Doctor';
-}
-
 export function isMho(user = currentUser) {
   return user?.role === 'MHO';
 }
@@ -38,40 +34,6 @@ export function isParent(user = currentUser) {
 
 export function isStaff(user = currentUser) {
   return !isParent(user);
-}
-
-export async function createManagedAuthAccount(row, password) {
-  if (!isOnlineMode()) {
-    toast("Created staff account in local store.", false);
-    return;
-  }
-  const { data: sessionData } = await db.auth.getSession();
-  const token = sessionData?.session?.access_token;
-  if (!token) {
-    throw new Error("Missing active administrator access token.");
-  }
-
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-create-user`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      email: row.email,
-      password,
-      role: row.role,
-      name: row.name,
-      barangay: row.barangay,
-      motherId: row.motherId || ""
-    })
-  });
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(result.error || "Edge function could not create staff account.");
-  }
-  return result.profile;
 }
 
 export async function getOrCreateCurrentProfile(authUser, overrides = {}) {

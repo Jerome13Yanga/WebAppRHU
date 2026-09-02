@@ -17,8 +17,8 @@ export const STORE_KEYS = [
   "backupMeta"
 ];
 
-export const roles = ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"];
-export const staffRoles = ["Doctor", "MHO", "Nurse / Midwife"];
+export const roles = ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"];
+export const staffRoles = ["MHO", "Nurse / Midwife"];
 export const publicRegisterRole = "Mother / Parent";
 export const embeddedAdminEmails = ["admin@rhu.gov", "administrator@rhu.gov"];
 
@@ -76,18 +76,17 @@ export function reportTypeShort(type) {
 }
 
 export const pages = [
-  { id: "dashboard", label: "Dashboard", icon: "layout-dashboard", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "maternal", label: "Maternal Records", icon: "heart-pulse", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "infants", label: "Infant Records", icon: "baby", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "history", label: "Checkup History", icon: "clipboard-list", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "schedules", label: "Check-up Schedules", icon: "calendar", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "dashboard", label: "Dashboard", icon: "layout-dashboard", roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "maternal", label: "Maternal Records", icon: "heart-pulse", roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "infants", label: "Infant Records", icon: "baby", roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "history", label: "Checkup History", icon: "clipboard-list", roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "schedules", label: "Check-up Schedules", icon: "calendar", roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] },
   { id: "reminders", label: "Reminders & Advisories", icon: "bell", roles: ["Administrator", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "barangay", label: "Barangay Monitoring", icon: "building-2", roles: ["Administrator", "Doctor", "MHO"] },
-  { id: "reports", label: "Monthly Reports", icon: "file-bar-chart", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife"] },
-  { id: "users", label: "Users and Roles", icon: "users", roles: ["Administrator"] },
+  { id: "barangay", label: "Barangay Monitoring", icon: "building-2", roles: ["Administrator", "MHO"] },
+  { id: "reports", label: "Monthly Reports", icon: "file-bar-chart", roles: ["Administrator", "MHO", "Nurse / Midwife"] },
   { id: "backup", label: "Backup and Recovery", icon: "hard-drive-download", roles: ["Administrator"] },
-  { id: "contacts", label: "Emergency Contacts", icon: "phone-call", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "logout", label: "Logout", icon: "log-out", roles: ["Administrator", "Doctor", "MHO", "Nurse / Midwife", "Mother / Parent"] }
+  { id: "contacts", label: "Emergency Contacts", icon: "phone-call", roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] },
+  { id: "logout", label: "Logout", icon: "log-out", roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] }
 ];
 
 export const SUPABASE_URL = "https://rkortcwwnrpvhrxikunb.supabase.co";

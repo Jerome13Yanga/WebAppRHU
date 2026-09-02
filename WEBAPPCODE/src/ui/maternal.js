@@ -4,7 +4,7 @@
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
 import { renderRiskBadge, renderProgressBar } from './components.js';
-import { isNurse, isParent, isDoctor, isMho, isAdmin } from '../auth.js';
+import { isNurse, isParent, isMho, isAdmin } from '../auth.js';
 
 function isMatchingParentRecord(record, currentUser) {
   if (!currentUser || !record) return false;

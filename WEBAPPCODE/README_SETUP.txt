@@ -14,10 +14,8 @@ RHU Supabase Online Setup
 Updated role flow:
 - The public registration form is limited to Mother / Parent accounts only.
 - There is one login form. After login, the app reads the user's profile role and opens the correct dashboard.
-- The embedded admin email is admin@rhu.gov. Create this account in Supabase Auth first, then sign in with it.
-- Admin can manage staff profiles in Users and Roles. Parents create their own accounts through public registration.
-- Staff roles managed by admin: MHO, Nurse / Midwife, Doctor.
-- To let staff sign in online, create or invite their matching email in Supabase Authentication, then create/update their profile in the admin dashboard using the same email.
+- Healthcare staff register their accounts via Healthcare Staff Registration on the login screen. Parents create their own accounts through public registration.
+- Staff roles: MHO, Nurse / Midwife.
 
 Parent account capabilities:
 - Submit/update maternal information forms.
@@ -27,7 +25,7 @@ Parent account capabilities:
 
 Admin/staff capabilities:
 - Admin: all dashboards, user/profile management, backup/export, records.
-- MHO and Doctor: monitoring dashboards, barangay summaries, reports, and records view.
+- MHO: monitoring dashboards, barangay summaries, reports, and records view.
 - Nurse / Midwife: manage maternal/infant records, check-up schedules, reminders, and reports for assigned barangay.
 
 Notes:
@@ -47,20 +45,10 @@ Monthly report coding and template match:
 - The Monthly Reports form now auto-generates report counts from the selected barangay's maternal or infant records.
 - The uploaded CSV reference files are included in the reference-templates folder.
 
-ADMIN-MANAGED PASSWORDS / STAFF LOGIN
-------------------------------------
-The Admin dashboard now generates a permanent password when creating staff accounts for MHO, Nurse/Midwife, and Doctor users.
-For online mode, this uses the included Supabase Edge Function:
-
-  supabase/functions/admin-create-user/index.ts
-
-Deploy it with:
-
-  supabase functions deploy admin-create-user --project-ref rkortcwwnrpvhrxikunb
-
-After deployment, Admin can create MHO, Nurse/Midwife, and Doctor staff accounts with an email and generated permanent password. Parents should use the public registration form. All users log in through the same login form using their email and password.
-
-Never place the service_role key in app.js. The service_role key belongs only in Supabase server-side/Edge Function environment secrets.
+HEALTHCARE STAFF & PARENT USER REGISTRATION
+--------------------------------------------
+Healthcare personnel (MHO, Nurse/Midwife) register their own login accounts directly using the Healthcare Staff Registration form on the web app login screen.
+Parents register using the Mother / Parent registration form on the login screen.
 
 DETAILED PARENT HEALTH FORMS + MC/CC TEMPLATE UPDATE
 ----------------------------------------------------

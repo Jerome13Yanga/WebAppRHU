@@ -1,18 +1,15 @@
 /**
- * Role-Based Dashboards (Admin, Doctor, MHO, Nurse/Midwife, Parent)
+ * Role-Based Dashboards (Admin, MHO, Nurse/Midwife, Parent)
  * Clean, light, modern healthcare aesthetic with crisp SVG pixel art accents.
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
-import { isParent, isNurse, isMho, isDoctor, isAdmin } from '../auth.js';
+import { isParent, isNurse, isMho, isAdmin } from '../auth.js';
 import { renderPixelParentChild, renderPixelHeart, renderPixelCross, renderPixelRattle } from './pixelArt.js';
 
 export function renderDashboardView(state, currentUser, selectedBarangay, visibleBarangaysList, searchTerm = '') {
   if (isAdmin(currentUser)) {
     return renderAdminDashboard(state, currentUser);
-  }
-  if (isDoctor(currentUser)) {
-    return renderDoctorDashboard(state, currentUser, selectedBarangay, searchTerm);
   }
   if (isMho(currentUser)) {
     return renderMhoDashboard(state, currentUser, selectedBarangay, searchTerm);
@@ -27,15 +24,13 @@ export function renderDashboardView(state, currentUser, selectedBarangay, visibl
 // 1. ADMIN DASHBOARD
 // -------------------------------------------------------------
 function renderAdminDashboard(state, currentUser) {
-  const users = state.users || [];
   const maternal = state.maternalRecords || [];
   const infants = state.infantRecords || [];
   const reports = state.monthlyReports || [];
+  const schedules = state.checkupSchedules || [];
 
-  const nurses = users.filter(u => u.role === 'Nurse / Midwife' || u.role === 'Nurse' || u.role === 'Midwife');
-  const doctors = users.filter(u => u.role === 'Doctor');
-  const mhos = users.filter(u => u.role === 'MHO');
-  const parents = users.filter(u => u.role === 'Mother / Parent');
+  const highRisk = maternal.filter(r => (r.riskLevel || "").toLowerCase().includes("high") || (r.riskLevel || "").toLowerCase().includes("elevated"));
+  const ficCount = infants.filter(i => (i.immunizationStatus || "").includes("FIC") || (i.immunizationStatus || "").includes("Fully")).length;
 
   return `
     <div class="space-y-6">
@@ -50,8 +45,8 @@ function renderAdminDashboard(state, currentUser) {
               </span>
               <span class="text-xs text-slate-500 font-medium">Padre Burgos RHU Central Command</span>
             </div>
-            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">System & Account Management</h2>
-            <p class="text-xs text-slate-600 mt-1">Full administrative control over healthcare staff credentials, access permissions, and database operations.</p>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Municipal Health System Administration</h2>
+            <p class="text-xs text-slate-600 mt-1">System-wide operational oversight for maternal records, infant immunization programs, and database backups.</p>
           </div>
           <div class="flex items-center gap-3 p-2 bg-white/80 rounded-xl border border-sky-100 shadow-2xs">
             ${renderPixelParentChild(44)}
@@ -63,79 +58,115 @@ function renderAdminDashboard(state, currentUser) {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="stat-card">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-text-muted">Total Accounts</span>
-            <span class="material-symbols-outlined text-indigo-600 text-xl">group</span>
+            <span class="text-xs font-semibold text-text-muted">Maternal Records</span>
+            <span class="material-symbols-outlined text-pink-600 text-xl">pregnant_woman</span>
           </div>
-          <strong class="text-2xl font-bold text-text">${users.length}</strong>
-          <small class="text-[11px] text-text-muted mt-1 block">Active system users</small>
+          <strong class="text-2xl font-bold text-text">${maternal.length}</strong>
+          <small class="text-[11px] text-pink-600 font-semibold mt-1 block">${highRisk.length} High-Risk Alert(s)</small>
         </div>
 
         <div class="stat-card">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-text-muted">Nurses & Midwives</span>
-            <span class="material-symbols-outlined text-emerald-600 text-xl">clinical_notes</span>
+            <span class="text-xs font-semibold text-text-muted">Infant Records</span>
+            <span class="material-symbols-outlined text-indigo-600 text-xl">child_care</span>
           </div>
-          <strong class="text-2xl font-bold text-text">${nurses.length}</strong>
-          <small class="text-[11px] text-emerald-600 font-semibold mt-1 block">Assigned to stations</small>
+          <strong class="text-2xl font-bold text-text">${infants.length}</strong>
+          <small class="text-[11px] text-emerald-600 font-semibold mt-1 block">${ficCount} Fully Immunized (FIC)</small>
         </div>
 
         <div class="stat-card">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-text-muted">Doctors & MHO</span>
-            <span class="material-symbols-outlined text-blue-600 text-xl">medical_services</span>
+            <span class="text-xs font-semibold text-text-muted">Monthly Reports</span>
+            <span class="material-symbols-outlined text-teal-600 text-xl">analytics</span>
           </div>
-          <strong class="text-2xl font-bold text-text">${doctors.length + mhos.length}</strong>
-          <small class="text-[11px] text-blue-600 font-semibold mt-1 block">Clinical overseers</small>
+          <strong class="text-2xl font-bold text-text">${reports.length}</strong>
+          <small class="text-[11px] text-teal-600 font-semibold mt-1 block">MC & CC DOH Submissions</small>
         </div>
 
         <div class="stat-card">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-text-muted">Parent Accounts</span>
-            <span class="material-symbols-outlined text-pink-600 text-xl">family_restroom</span>
+            <span class="text-xs font-semibold text-text-muted">Barangay Coverage</span>
+            <span class="material-symbols-outlined text-blue-600 text-xl">apartment</span>
           </div>
-          <strong class="text-2xl font-bold text-text">${parents.length}</strong>
-          <small class="text-[11px] text-pink-600 font-semibold mt-1 block">Registered mothers</small>
+          <strong class="text-2xl font-bold text-text">22</strong>
+          <small class="text-[11px] text-blue-600 font-semibold mt-1 block">Active Health Stations</small>
         </div>
       </div>
 
-      <!-- Quick Actions & System User Summary -->
+      <!-- System Summary & Administrative Operations -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="panel lg:col-span-2">
-          <div class="flex items-center justify-between mb-4 pb-2 border-b border-line">
+        <div class="panel lg:col-span-2 space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-line">
             <h3 class="text-sm font-bold text-text flex items-center gap-2">
-              <span class="material-symbols-outlined text-indigo-600 text-lg">manage_accounts</span>
-              <span>Recent User Accounts & Station Assignments</span>
+              <span class="material-symbols-outlined text-brand-primary text-lg">medical_information</span>
+              <span>Recent Health Records Activity</span>
             </h3>
-            <span class="text-xs text-text-muted font-medium">${users.length} accounts</span>
+            <span class="text-xs text-text-muted font-medium">${maternal.length + infants.length} total patient records</span>
           </div>
-          <div class="table-container overflow-x-auto">
-            <table class="data-table text-xs">
-              <thead>
-                <tr>
-                  <th>User Name</th>
-                  <th>Email</th>
-                  <th>System Role</th>
-                  <th>Assigned Barangay</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${users.slice(0, 6).map(u => `
+          
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-text-muted uppercase tracking-wider">Latest Maternal Records</h4>
+            <div class="table-container overflow-x-auto">
+              <table class="data-table text-xs">
+                <thead>
                   <tr>
-                    <td class="font-bold text-text">${escapeHtml(u.name || 'User')}</td>
-                    <td class="text-text-muted">${escapeHtml(u.email || '-')}</td>
-                    <td><span class="badge badge-info text-[10px]">${escapeHtml(u.role || 'Staff')}</span></td>
-                    <td>${escapeHtml(u.barangay || 'All Barangays')}</td>
+                    <th>Patient Name</th>
+                    <th>Barangay</th>
+                    <th>Risk Level</th>
+                    <th>Visits</th>
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${maternal.length === 0 ? `
+                    <tr><td colspan="4" class="text-center py-4 text-text-muted">No maternal records recorded yet.</td></tr>
+                  ` : maternal.slice(0, 4).map(m => `
+                    <tr>
+                      <td class="font-bold text-text">${escapeHtml(m.fullName)}</td>
+                      <td><span class="badge badge-info text-[10px]">${escapeHtml(m.barangay)}</span></td>
+                      <td><span class="badge ${(m.riskLevel || '').toLowerCase().includes('high') ? 'badge-high' : 'badge-info'} text-[10px]">${escapeHtml(m.riskLevel || 'Normal')}</span></td>
+                      <td>${m.checkupsCompleted || 0} / 8 visits</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <h4 class="text-xs font-bold text-text-muted uppercase tracking-wider pt-2">Latest Infant Records</h4>
+            <div class="table-container overflow-x-auto">
+              <table class="data-table text-xs">
+                <thead>
+                  <tr>
+                    <th>Child Name</th>
+                    <th>Barangay</th>
+                    <th>Age</th>
+                    <th>Immunization Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${infants.length === 0 ? `
+                    <tr><td colspan="4" class="text-center py-4 text-text-muted">No infant records recorded yet.</td></tr>
+                  ` : infants.slice(0, 4).map(i => `
+                    <tr>
+                      <td class="font-bold text-text">${escapeHtml(i.infantName)}</td>
+                      <td><span class="badge badge-info text-[10px]">${escapeHtml(i.barangay)}</span></td>
+                      <td>${i.ageMonths || 0} mos</td>
+                      <td>
+                        <span class="badge ${(i.immunizationStatus || '').includes('FIC') ? 'badge-complete' : 'badge-pending'} text-[10px]">
+                          ${escapeHtml(i.immunizationStatus || 'Incomplete')}
+                        </span>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         <div class="panel space-y-4">
           <h3 class="text-sm font-bold text-text flex items-center gap-2 pb-2 border-b border-line">
-            <span class="material-symbols-outlined text-emerald-600 text-lg">database</span>
-            <span>Database Status & Tools</span>
+            <span class="material-symbols-outlined text-emerald-600 text-lg">storage</span>
+            <span>Database Status & Operations</span>
           </h3>
           <div class="space-y-3 text-xs">
             <div class="flex justify-between py-1 border-b border-line">
@@ -147,18 +178,30 @@ function renderAdminDashboard(state, currentUser) {
               <strong class="text-text">${infants.length} entries</strong>
             </div>
             <div class="flex justify-between py-1 border-b border-line">
-              <span class="text-text-muted">Monthly Reports:</span>
+              <span class="text-text-muted">Check-up Schedules:</span>
+              <strong class="text-text">${schedules.length} entries</strong>
+            </div>
+            <div class="flex justify-between py-1 border-b border-line">
+              <span class="text-text-muted">Monthly DOH Reports:</span>
               <strong class="text-text">${reports.length} generated</strong>
             </div>
             <div class="flex justify-between py-1 border-b border-line">
-              <span class="text-text-muted">Padre Burgos Barangays:</span>
-              <strong class="text-emerald-600 font-bold">22 Active Stations</strong>
+              <span class="text-text-muted">Health Stations:</span>
+              <strong class="text-emerald-600 font-bold">22 Active Barangays</strong>
             </div>
           </div>
-          <div class="pt-2">
-            <button type="button" class="primary-btn full-btn text-xs py-2" onclick="document.querySelector('[data-page=users]')?.click()">
-              <span class="material-symbols-outlined text-sm">person_add</span>
-              <span>Manage User Roles</span>
+          <div class="pt-2 space-y-2">
+            <button type="button" class="primary-btn full-btn text-xs py-2" onclick="document.querySelector('[data-page=backup]')?.click()">
+              <span class="material-symbols-outlined text-sm">cloud_download</span>
+              <span>Backup & Recovery</span>
+            </button>
+            <button type="button" class="secondary-btn full-btn text-xs py-2" onclick="document.querySelector('[data-page=barangay]')?.click()">
+              <span class="material-symbols-outlined text-sm">location_city</span>
+              <span>Barangay Health Monitoring</span>
+            </button>
+            <button type="button" class="ghost-btn full-btn text-xs py-2" onclick="document.querySelector('[data-page=reports]')?.click()">
+              <span class="material-symbols-outlined text-sm">analytics</span>
+              <span>Monthly DOH Reports</span>
             </button>
           </div>
         </div>
@@ -168,9 +211,9 @@ function renderAdminDashboard(state, currentUser) {
 }
 
 // -------------------------------------------------------------
-// 2. DOCTOR DASHBOARD (Municipality-Wide Clinical Oversight)
+// 2. BARANGAY MONITORING DASHBOARD (Municipality-Wide Clinical Oversight)
 // -------------------------------------------------------------
-function renderDoctorDashboard(state, currentUser, selectedBarangay, searchTerm = '') {
+export function renderBarangayMonitoringDashboard(state, currentUser, selectedBarangay, searchTerm = '') {
   const matchBgy = (rBgy, tBgy) => {
     if (!tBgy || tBgy === "All Barangays") return true;
     if (!rBgy) return true;
@@ -189,18 +232,18 @@ function renderDoctorDashboard(state, currentUser, selectedBarangay, searchTerm 
 
   return `
     <div class="space-y-6">
-      <!-- Doctor Banner with Clean Light Aesthetic & Pixel Art -->
+      <!-- Banner with Clean Light Aesthetic & Pixel Art -->
       <div class="panel bg-gradient-to-r from-blue-50 via-white to-sky-50 border border-blue-200/80 p-6 shadow-sm rounded-2xl">
         <div class="flex items-center justify-between flex-wrap gap-4">
           <div>
             <div class="flex items-center gap-2 mb-1.5">
               <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 border border-blue-300/60 text-[11px] px-2.5 py-0.5 rounded-md font-semibold tracking-wide">
-                <span class="material-symbols-outlined text-xs">stethoscope</span>
-                <span>Doctor Oversight</span>
+                <span class="material-symbols-outlined text-xs">monitoring</span>
+                <span>Barangay Health Monitoring</span>
               </span>
               <span class="text-xs text-slate-500 font-medium">Padre Burgos Clinical Monitoring</span>
             </div>
-            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Physician Clinical Oversight Dashboard</h2>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Barangay Clinical & Health Monitoring</h2>
             <p class="text-xs text-slate-600 mt-1">Cross-barangay clinical health indicators, high-risk triage, and maternal-infant trend monitoring across all 22 barangays.</p>
           </div>
           <div class="flex items-center gap-3 p-2 bg-white/80 rounded-xl border border-blue-100 shadow-2xs">
@@ -640,6 +683,14 @@ function renderParentDashboard(state, currentUser) {
             ${renderPixelParentChild(52)}
           </div>
         </div>
+      </div>
+
+      <!-- APK Download for Mother Mobile App -->
+      <div id="parentDashboardApkBanner" class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+        <a href="rhu-mother-app.apk" download="rhu-mother-app.apk" class="apk-download-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all">
+          <span class="material-symbols-outlined text-sm">download</span>
+          <span>Download Mobile App (.apk)</span>
+        </a>
       </div>
 
       <!-- Maternal Care Milestone Card -->

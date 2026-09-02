@@ -10,8 +10,8 @@ const STORE_KEYS = [
   "backupMeta"
 ];
 
-const roles = ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"];
-const staffRoles = ["MHO", "Nurse / Midwife", "Doctor"];
+const roles = ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"];
+const staffRoles = ["MHO", "Nurse / Midwife"];
 const publicRegisterRole = "Mother / Parent";
 const embeddedAdminEmails = ["admin@rhu.gov"];
 const barangays = [
@@ -59,16 +59,15 @@ function reportTypeShort(type) {
 
 const pages = [
   { id: "dashboard", label: "Dashboard", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">dashboard</span>', roles },
-  { id: "maternal", label: "Maternal Records", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">health_and_safety</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "infants", label: "Infant Records", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">child_care</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "schedules", label: "Check-up Schedules", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">event</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
+  { id: "maternal", label: "Maternal Records", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">health_and_safety</span>', roles: ["Administrator", "MHO", "Nurse / Midwife"] },
+  { id: "infants", label: "Infant Records", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">child_care</span>', roles: ["Administrator", "MHO", "Nurse / Midwife"] },
+  { id: "schedules", label: "Check-up Schedules", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">event</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] },
   { id: "forms", label: "My Health Forms", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">description</span>', roles: ["Mother / Parent"] },
   { id: "reminders", label: "Reminders", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">notifications</span>', roles: ["Administrator", "Nurse / Midwife", "Mother / Parent"] },
-  { id: "barangay", label: "Barangay Monitoring", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">location_city</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "reports", label: "Monthly Reports", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">analytics</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor"] },
-  { id: "users", label: "Users and Roles", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">group</span>', roles: ["Administrator"] },
+  { id: "barangay", label: "Barangay Monitoring", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">location_city</span>', roles: ["Administrator", "MHO", "Nurse / Midwife"] },
+  { id: "reports", label: "Monthly Reports", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">analytics</span>', roles: ["Administrator", "MHO", "Nurse / Midwife"] },
   { id: "backup", label: "Backup and Recovery", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">settings_backup_restore</span>', roles: ["Administrator"] },
-  { id: "contacts", label: "Emergency Contacts", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">call</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Doctor", "Mother / Parent"] },
+  { id: "contacts", label: "Emergency Contacts", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">call</span>', roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] },
   { id: "logout", label: "Logout", icon: '<span class="material-symbols-outlined text-lg leading-none align-middle mr-2">logout</span>', roles }
 ];
 
@@ -312,25 +311,7 @@ function rememberRow(key, row, idKey) {
   else state[key].unshift(row);
 }
 
-async function createManagedAuthAccount(row, password) {
-  if (!isOnlineMode()) return row;
-  if (!password || password.length < 8) throw new Error("Generated staff password must be at least 8 characters.");
 
-  const payload = {
-    name: row.name,
-    email: row.email,
-    password,
-    role: row.role,
-    barangay: row.barangay,
-    motherId: row.motherId || ""
-  };
-
-  const { data, error } = await db.functions.invoke("admin-create-user", { body: payload });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  if (!data?.profile) throw new Error("No profile was returned by the admin-create-user function.");
-  return data.profile;
-}
 
 async function getOrCreateCurrentProfile(authUser, overrides = {}) {
   const email = String(authUser.email || overrides.email || "").toLowerCase();
@@ -685,7 +666,6 @@ function renderPage(page) {
     reminders: ["Reminder System", "Check-up and follow-up reminders"],
     barangay: ["Barangay Monitoring", "Monthly records by barangay clinic"],
     reports: ["Monthly Reports", "MC maternal care and CC child immunization summaries"],
-    users: ["Users and Roles", "Account and assignment management"],
     backup: ["Backup and Recovery", "LocalStorage data export and restore"],
     contacts: ["Emergency Contacts", "Nurse and midwife contact information"]
   };
@@ -787,7 +767,7 @@ function renderPatientDashboard() {
       <section class="section">
         <div class="card card-pad">
           <div class="section-head">
-            <div><h3>Welcome, ${escapeHtml(current.name)}</h3><p>Complete your maternal profile first so nurses, doctors, and the MHO can review your information.</p></div>
+            <div><h3>Welcome, ${escapeHtml(current.name)}</h3><p>Complete your maternal profile first so nurses and the MHO can review your information.</p></div>
             ${badge("Parent")}
           </div>
           ${empty("No maternal profile has been submitted yet.")}
@@ -1237,7 +1217,7 @@ function renderSchedules() {
       <section class="section">
         ${toolbar("Check-up Schedules", "Request and view your maternal or infant check-up schedules.", actions)}
         <div class="card card-pad">
-          ${recordTable(rows, ["Patient", "Type", "Barangay", "Date", "Time", "Assigned Doctor", "Status", "Notes", "Actions"], (s) => [s.patientName, s.type, s.barangay, fmtDate(s.date), s.time, s.assignedNurse, badge(s.status), s.notes, scheduleActions(s, canEdit)])}
+          ${recordTable(rows, ["Patient", "Type", "Barangay", "Date", "Time", "Assigned Staff", "Status", "Notes", "Actions"], (s) => [s.patientName, s.type, s.barangay, fmtDate(s.date), s.time, s.assignedNurse, badge(s.status), s.notes, scheduleActions(s, canEdit)])}
         </div>
       </section>
     `);
@@ -1256,7 +1236,7 @@ function renderSchedules() {
         <div class="card card-pad chart-card"><div class="section-head"><div><h3>Maternal vs Infant</h3><p>Check-up volume by patient type</p></div></div><div id="scheduleTypeChart" class="chart-box"></div></div>
       </div>
       ${filterBar([{ id: "barangayFilter", label: "Barangay", options: ["", ...visibleBarangays()], value: filters.barangay }, { id: "statusFilter", label: "Status", options: ["", "Requested", "Upcoming", "Completed", "Missed", "Rescheduled"], value: filters.status }], true)}
-      <div class="card card-pad">${recordTable(rows, ["Patient", "Type", "Barangay", "Date", "Time", "Assigned Doctor", "Status", "Notes", "Actions"], (s) => [s.patientName, s.type, s.barangay, fmtDate(s.date), s.time, s.assignedNurse, badge(s.status), s.notes, scheduleActions(s, canEdit)])}</div>
+      <div class="card card-pad">${recordTable(rows, ["Patient", "Type", "Barangay", "Date", "Time", "Assigned Staff", "Status", "Notes", "Actions"], (s) => [s.patientName, s.type, s.barangay, fmtDate(s.date), s.time, s.assignedNurse, badge(s.status), s.notes, scheduleActions(s, canEdit)])}</div>
     </section>
   `);
   renderDonutChart("scheduleStatusChart", analytics.status);
@@ -1403,9 +1383,9 @@ function renderUsers() {
   if (filters.role) rows = rows.filter((r) => r.role === filters.role);
   setContent(`
     <section class="section">
-      ${toolbar("Users and Roles", "Admin-managed staff accounts for MHO, Nurse/Midwife, and Doctor.", `<button class="primary-btn" data-open-user>Add staff account</button>`)}
+      ${toolbar("Users and Roles", "Admin-managed staff accounts for MHO and Nurse/Midwife.", `<button class="primary-btn" data-open-user>Add staff account</button>`)}
       <div class="card card-pad">
-        <p class="help-note">Public registration creates Mother / Parent accounts only. Admin creates staff login accounts here for MHO, Nurse/Midwife, and Doctor. Parents should register themselves.</p>
+        <p class="help-note">Public registration creates Mother / Parent accounts only. Admin creates staff login accounts here for MHO and Nurse/Midwife. Parents should register themselves.</p>
       </div>
       ${filterBar([{ id: "roleFilter", label: "Role", options: ["", ...roles], value: filters.role }])}
       <div class="card card-pad">${recordTable(rows, ["Name", "Email", "Role", "Assignment", "Created", "Actions"], (u) => [u.name, u.email, badge(u.role), u.barangay, fmtDate(u.createdAt), userActions(u)])}</div>
@@ -1866,29 +1846,13 @@ function openUserForm(id = "") {
     row.username = row.email;
     if (!row.authUserId) delete row.authUserId;
 
-    if (!isEditing && !staffRoles.includes(row.role)) return toast("Admin can only create MHO, Nurse/Midwife, or Doctor staff accounts here. Parents should use public registration.", true);
+    if (!isEditing && !staffRoles.includes(row.role)) return toast("Admin can only create MHO or Nurse/Midwife staff accounts here. Parents should use public registration.", true);
     if (!isEditing && password !== confirmPassword) return toast("Passwords do not match.", true);
 
-    if (!isEditing && isOnlineMode()) {
-      try {
-        const profile = await createManagedAuthAccount(row, password);
-        const finalProfile = { ...row, ...profile, username: profile.username || profile.email };
-        rememberRow("users", finalProfile, "id");
-        closeModal();
-        renderUsers();
-        toast("Staff account created. The user can now log in using the email and generated password.");
-      } catch (error) {
-        console.error(error);
-        toast(`Could not create login account: ${error.message}`, true);
-      }
-      return;
-    }
-
-    if (!isOnlineMode() && !isEditing) row.password = password;
     upsert("users", row, "id");
     closeModal();
     renderUsers();
-    toast(isEditing ? "Managed profile updated." : "Staff account created for local testing.");
+    toast(isEditing ? "Managed profile updated." : "Staff profile saved. Staff can register/sign in using their email.");
   });
 }
 
@@ -1985,7 +1949,7 @@ function openScheduleForm(id = "") {
     <form id="scheduleForm" class="form-grid">
       ${input("Schedule ID", "id", record.id || makeId("S"), true)}
       <div class="two-col">${input("Patient Name", "patientName", record.patientName)}${select("Type", "type", ["Maternal", "Infant"], record.type)}</div>
-      <div class="two-col">${select("Barangay", "barangay", visibleBarangays(), record.barangay || defaultVisibleBarangay())}${input("Assigned Doctor", "assignedNurse", record.assignedNurse)}</div>
+      <div class="two-col">${select("Barangay", "barangay", visibleBarangays(), record.barangay || defaultVisibleBarangay())}${input("Assigned Staff / Nurse", "assignedNurse", record.assignedNurse)}</div>
       <div class="two-col">${input("Date", "date", record.date, false, "date")}${input("Time", "time", record.time, false, "time")}</div>
       ${select("Status", "status", ["Requested", "Upcoming", "Completed", "Missed", "Rescheduled"], record.status)}
       ${textarea("Notes", "notes", record.notes)}
@@ -2018,7 +1982,7 @@ function openParentScheduleRequestForm() {
       <div class="two-col">${select("Patient", "patientName", patientOptions, mother.fullName)}${select("Type", "type", ["Maternal", "Infant"], "Maternal")}</div>
       <div class="two-col">${input("Preferred Date", "date", today(), false, "date")}${input("Preferred Time", "time", "09:00", false, "time")}</div>
       <input type="hidden" name="barangay" value="${escapeHtml(mother.barangay)}">
-      <input type="hidden" name="assignedNurse" value="For doctor assignment">
+      <input type="hidden" name="assignedNurse" value="For staff assignment">
       <input type="hidden" name="status" value="Requested">
       ${textarea("Reason / Notes", "notes", "Requested by parent through the online portal.")}
       <button class="primary-btn" type="submit">Submit schedule request</button>
@@ -2994,7 +2958,7 @@ function currentInfantRecords() {
 
 function scoped(rows) {
   const current = getCurrentUser();
-  if (["Administrator", "MHO", "Doctor"].includes(current.role)) return rows;
+  if (["Administrator", "MHO"].includes(current.role)) return rows;
   if (current.role === "Nurse / Midwife") return rows.filter((r) => r.barangay === current.barangay);
   return rows;
 }
