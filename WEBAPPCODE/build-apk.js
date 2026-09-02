@@ -58,8 +58,11 @@ execSync('gradlew assembleDebug', { stdio: 'inherit', cwd: androidDir, env });
 
 console.log('--- APK Build Finished! ---');
 const apkOutput = path.join(androidDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+const targetApk = path.join(appDir, 'rhu-mother-app.apk');
+
 if (fs.existsSync(apkOutput)) {
-  console.log(`SUCCESS: Installable APK created at: ${apkOutput}`);
+  fs.copyFileSync(apkOutput, targetApk);
+  console.log(`SUCCESS: Installable APK created and copied to: ${targetApk}`);
 } else {
   console.log(`Check ${androidDir}/app/build/outputs/apk/ for compiled output.`);
 }
