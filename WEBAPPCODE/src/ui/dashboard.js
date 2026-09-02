@@ -5,6 +5,7 @@
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
 import { isParent, isNurse, isMho, isAdmin } from '../auth.js';
+import { isNativeMobileApp } from '../config.js';
 import { renderPixelParentChild, renderPixelHeart, renderPixelCross, renderPixelRattle } from './pixelArt.js';
 
 export function renderDashboardView(state, currentUser, selectedBarangay, visibleBarangaysList, searchTerm = '') {
@@ -685,13 +686,19 @@ function renderParentDashboard(state, currentUser) {
         </div>
       </div>
 
-      <!-- APK Download for Mother Mobile App -->
-      <div id="parentDashboardApkBanner" class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-        <a href="rhu-mother-app.apk" download="rhu-mother-app.apk" class="apk-download-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all">
+      <!-- APK Download for Mother Mobile App (Web only) -->
+      ${!isNativeMobileApp() ? `
+      <div id="parentDashboardApkBanner" class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <strong class="text-xs text-emerald-900 block font-bold">Install Padre Burgos RHU Mobile App</strong>
+          <span class="text-[11px] text-emerald-700 block">Get direct native checkup alerts and digital health cards on your Android phone.</span>
+        </div>
+        <a href="rhu-mother-app.apk" download="rhu-mother-app.apk" class="apk-download-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all shadow-2xs">
           <span class="material-symbols-outlined text-sm">download</span>
           <span>Download Mobile App (.apk)</span>
         </a>
       </div>
+      ` : ''}
 
       <!-- Maternal Care Milestone Card -->
       <div class="panel p-5 rounded-2xl border border-pink-100 bg-surface">

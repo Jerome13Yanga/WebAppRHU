@@ -89,6 +89,32 @@ export const pages = [
   { id: "logout", label: "Logout", icon: "log-out", roles: ["Administrator", "MHO", "Nurse / Midwife", "Mother / Parent"] }
 ];
 
+export function isNativeMobileApp() {
+  if (typeof window === "undefined") return false;
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("mode") === "mobile" || urlParams.get("app") === "parent" || urlParams.get("platform") === "apk") {
+    return true;
+  }
+  if (urlParams.get("mode") === "staff" || urlParams.get("app") === "staff" || urlParams.get("platform") === "web") {
+    return false;
+  }
+
+  if (typeof window.Capacitor !== "undefined") {
+    if (typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform()) {
+      return true;
+    }
+    if (typeof window.Capacitor.getPlatform === "function" && window.Capacitor.getPlatform() !== "web") {
+      return true;
+    }
+  }
+
+  if (window.location.protocol === "capacitor:" || window.location.href.startsWith("capacitor://")) {
+    return true;
+  }
+
+  return false;
+}
+
 export const SUPABASE_URL = "https://rkortcwwnrpvhrxikunb.supabase.co";
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrb3J0Y3d3bnJwdmhyeGlrdW5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NDk5NjMsImV4cCI6MjA5ODQyNTk2M30.hKXXe2sG7kBvFFeWmJO8qdTEfKPjMdQlT8HrjmhgPOM";
 

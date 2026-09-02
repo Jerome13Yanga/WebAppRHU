@@ -6,6 +6,7 @@
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
 import { isParent, isNurse, isMho, isAdmin, getCurrentUser } from '../auth.js';
+import { isNotificationSupported, isNotificationGranted, getNotificationPermission } from '../utils/notifications.js';
 
 export function renderRemindersView(state, currentUser) {
   const schedules = state.checkupSchedules || [];
@@ -15,6 +16,9 @@ export function renderRemindersView(state, currentUser) {
   const userBgy = currentUser?.barangay || '';
   const isUserParent = isParent(currentUser);
   const isUserNurse = isNurse(currentUser);
+  const notifSupported = isNotificationSupported();
+  const notifGranted = isNotificationGranted();
+  const notifPermission = getNotificationPermission();
 
   // Filter schedules based on role
   let filteredSchedules = schedules;
@@ -124,6 +128,42 @@ export function renderRemindersView(state, currentUser) {
 
   return `
     <div class="space-y-6 max-w-4xl mx-auto">
+      <!-- Native Web Push Notification Banner -->
+      <div class="p-4 rounded-2xl border ${notifGranted ? 'bg-sky-50/80 border-sky-200' : 'bg-gradient-to-r from-blue-50 via-indigo-50 to-sky-50 border-blue-200'} shadow-2xs">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div class="flex items-start gap-3">
+            <span class="material-symbols-outlined ${notifGranted ? 'text-sky-600' : 'text-blue-600'} text-2xl mt-0.5">
+              ${notifGranted ? 'notifications_active' : 'notifications'}
+            </span>
+            <div>
+              <strong class="text-xs font-bold text-slate-900 block">
+                ${notifGranted ? 'Native Push Notifications Active' : 'Enable Immunization & Checkup Push Notifications'}
+              </strong>
+              <p class="text-[11px] text-slate-600 mt-0.5">
+                ${notifGranted 
+                  ? 'Your device will receive automatic native alerts when infant vaccines or maternal prenatal appointments are due.'
+                  : 'Receive direct native pop-up alerts on this device for upcoming child vaccines, ANC checkups, and clinic announcements.'}
+              </p>
+            </div>
+          </div>
+          <div>
+            ${notifGranted ? `
+              <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] px-3 py-1.5 rounded-xl font-semibold">
+                <span class="material-symbols-outlined text-xs">check_circle</span>
+                <span>Active</span>
+              </span>
+            ` : notifSupported ? `
+              <button type="button" class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5 shadow-sm" id="enablePushNotificationsBtn">
+                <span class="material-symbols-outlined text-base">notifications</span>
+                <span>Enable Alerts</span>
+              </button>
+            ` : `
+              <span class="text-[11px] text-slate-400 font-medium">Push not supported on this browser</span>
+            `}
+          </div>
+        </div>
+      </div>
+
       <!-- Health Advisories -->
       <div class="space-y-3">
         <h3 class="text-sm font-bold text-text flex items-center gap-2">

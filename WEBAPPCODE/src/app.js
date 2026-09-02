@@ -2,7 +2,7 @@
  * Main Application Orchestrator & Router (ES Module)
  * Padre Burgos RHU Maternal & Infant Health Monitoring System
  */
-import { STORE_KEYS, pages, getDynamicBarangays, defaultBarangays, TABLES } from './config.js';
+import { STORE_KEYS, pages, getDynamicBarangays, defaultBarangays, TABLES, isNativeMobileApp } from './config.js';
 import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow } from './db.js';
 import { initSyncEngine, queueOfflineAction, flushPendingSyncQueue } from './sync.js';
 import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, isParent, isNurse, isMho, isAdmin, isStaff } from './auth.js';
@@ -21,6 +21,7 @@ import { renderTodoLigtasImmunizationCardHtml } from './ui/infantCardForm.js';
 import { renderPrenatalClinicalRecordHtml } from './ui/prenatalClinicalForm.js';
 import { renderBackupView, renderContactsView } from './ui/backup.js';
 import { renderRemindersView } from './ui/reminders.js';
+import { requestNotificationPermission, checkImmunizationAndScheduleReminders, isNotificationGranted } from './utils/notifications.js';
 
 let state = {
   users: [],
@@ -53,31 +54,6 @@ function visibleBarangays() {
     return [current.barangay];
   }
   return ["All Barangays", ...allBgy];
-}
-
-export function isNativeMobileApp() {
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get("mode") === "mobile" || urlParams.get("app") === "parent" || urlParams.get("platform") === "apk") {
-    return true;
-  }
-  if (urlParams.get("mode") === "staff" || urlParams.get("app") === "staff" || urlParams.get("platform") === "web") {
-    return false;
-  }
-
-  if (typeof window.Capacitor !== "undefined") {
-    if (typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform()) {
-      return true;
-    }
-    if (typeof window.Capacitor.getPlatform === "function" && window.Capacitor.getPlatform() !== "web") {
-      return true;
-    }
-  }
-
-  if (window.location.protocol === "capacitor:" || window.location.href.startsWith("capacitor://")) {
-    return true;
-  }
-
-  return false;
 }
 
 document.addEventListener("DOMContentLoaded", init);
@@ -193,6 +169,18 @@ function showApp(userData) {
   document.getElementById("authScreen")?.classList.add("hidden");
   document.getElementById("appShell")?.classList.remove("hidden");
 
+  // Manage APK download buttons: strictly hide inside native APK, show in Web App
+  const isApk = isNativeMobileApp();
+  const sidebarApk = document.getElementById("sidebarApkDownload");
+  const topbarApk = document.getElementById("topbarApkDownload");
+  if (isApk) {
+    sidebarApk?.classList.add("hidden");
+    topbarApk?.classList.add("hidden");
+  } else {
+    sidebarApk?.classList.remove("hidden");
+    topbarApk?.classList.remove("hidden");
+  }
+
   const initials = (userData.name || "U").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   const initialsEl = document.getElementById("userInitials");
   if (initialsEl) initialsEl.textContent = initials;
@@ -215,6 +203,9 @@ function showApp(userData) {
       globalSearch.classList.remove("hidden");
     }
   }
+
+  // Trigger immunization & checkup appointment reminder check
+  checkImmunizationAndScheduleReminders(state, userData).catch(err => console.warn('Reminder scan warning:', err));
 
   renderNav();
   renderPage(activePage);
@@ -637,6 +628,19 @@ function bindShellEvents() {
   });
 
   document.getElementById("globalSearch")?.addEventListener("input", () => {
+    renderPage(activePage);
+  });
+
+  // Enable Web Push Notifications event listener
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest("#enablePushNotificationsBtn");
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm">sync</span><span>Enabling...</span>`;
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      await checkImmunizationAndScheduleReminders(state, getCurrentUser());
+    }
     renderPage(activePage);
   });
 }
