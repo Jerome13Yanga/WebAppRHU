@@ -64,6 +64,12 @@ async function init() {
 
   // In .apk, default to Mother/Parent portal; In web, default to Healthcare Staff portal
   const isApk = isNativeMobileApp();
+  if (isApk) {
+    document.body.classList.add("is-native-apk");
+    document.querySelectorAll(".apk-download-btn, #authApkDownloadSection, #sidebarApkDownload, #topbarApkDownload, #parentDashboardApkBanner").forEach(el => {
+      el.remove();
+    });
+  }
   activeAuthMode = isApk ? "motherMobile" : "webStaff";
   updateAuthModeUI();
 
@@ -188,6 +194,10 @@ function showAuth() {
   document.getElementById("forgotPasswordForm")?.classList.add("hidden");
   document.getElementById("registerForm")?.classList.add("hidden");
   document.getElementById("staffRegisterForm")?.classList.add("hidden");
+  if (isNativeMobileApp()) {
+    document.getElementById("authApkDownloadSection")?.remove();
+    document.querySelectorAll(".apk-download-btn").forEach(el => el.remove());
+  }
   updateAuthModeUI();
 }
 
@@ -195,13 +205,16 @@ function showApp(userData) {
   document.getElementById("authScreen")?.classList.add("hidden");
   document.getElementById("appShell")?.classList.remove("hidden");
 
-  // Manage APK download buttons: strictly hide inside native APK, show in Web App
+  // Manage APK download buttons: strictly remove inside native APK, show in Web App
   const isApk = isNativeMobileApp();
   const sidebarApk = document.getElementById("sidebarApkDownload");
   const topbarApk = document.getElementById("topbarApkDownload");
+  const authApk = document.getElementById("authApkDownloadSection");
   if (isApk) {
-    sidebarApk?.classList.add("hidden");
-    topbarApk?.classList.add("hidden");
+    sidebarApk?.remove();
+    topbarApk?.remove();
+    authApk?.remove();
+    document.querySelectorAll(".apk-download-btn, #parentDashboardApkBanner").forEach(el => el.remove());
   } else {
     sidebarApk?.classList.remove("hidden");
     topbarApk?.classList.remove("hidden");
@@ -284,7 +297,6 @@ function getMaterialIcon(pageId) {
 
 function renderPage(pageId) {
   const titleEl = document.getElementById("pageTitle");
-  const subEl = document.getElementById("pageSubtitle");
   const contentEl = document.getElementById("content");
   const bSelect = document.getElementById("topbarBarangaySelect");
   if (!contentEl) return;
@@ -309,22 +321,8 @@ function renderPage(pageId) {
     selectedBarangay = vis[0] || "All Barangays";
   }
 
-  const subtitles = {
-    dashboard: isUserParent ? "Mother & Child Health Portal" : (isMho(current) ? "Barangay Record & Submission Monitor" : (isAdmin(current) ? "Central Administration" : "Barangay Health Station")),
-    maternal: "Pregnancy monitoring and DOH maternal health records",
-    infants: "Child immunization monitoring and digitized health cards",
-    history: "Append-only clinical checkup visit history and physical printouts",
-    schedules: "Check-up appointment calendar and dispatch",
-    reminders: "Health notifications and vaccine follow-ups",
-    barangay: "Cross-barangay health indicators and monitoring",
-    reports: "Official DOH MC and CC monthly reports",
-    backup: "Database export and recovery",
-    contacts: "Padre Burgos RHU emergency hotlines and clinic contacts"
-  };
-
   const pg = pages.find(p => p.id === pageId);
   if (titleEl) titleEl.textContent = pg ? pg.label : "Dashboard";
-  if (subEl) subEl.textContent = subtitles[pageId] || "Clinical monitoring summary";
 
   const searchInput = document.getElementById("globalSearch");
   const searchTerm = searchInput ? searchInput.value.trim() : "";
@@ -871,6 +869,10 @@ function bindDashboardEvents() {
     openParentAddChildModal();
   });
 
+  document.getElementById("parentRegisterPregnancyBtn")?.addEventListener("click", () => {
+    openParentPregnancyIntakeModal();
+  });
+
   document.querySelectorAll(".view-card-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
@@ -1237,6 +1239,14 @@ function openRecordCheckupModal(targetMaternalId = null) {
 function bindMaternalEvents() {
   document.getElementById("addMaternalBtn")?.addEventListener("click", () => {
     openPadreBurgosMaternalModal();
+  });
+
+  document.getElementById("parentRegisterPregnancyBtn")?.addEventListener("click", () => {
+    openParentPregnancyIntakeModal();
+  });
+
+  document.getElementById("emptyParentRegisterPregnancyBtn")?.addEventListener("click", () => {
+    openParentPregnancyIntakeModal();
   });
 
   document.querySelectorAll(".edit-maternal-btn").forEach(btn => {
@@ -1669,6 +1679,143 @@ function openParentAddChildModal() {
   });
 }
 
+function openParentPregnancyIntakeModal() {
+  const current = getCurrentUser();
+  const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}" ${b === current?.barangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
+
+  openModal("Register My Pregnancy Details", `
+    <form id="parentPregnancyForm" class="space-y-3 text-xs">
+      <div class="p-3 bg-pink-50 border border-pink-200 rounded-xl mb-2 flex items-center gap-2">
+        <span class="material-symbols-outlined text-pink-600 text-xl">pregnant_woman</span>
+        <div>
+          <strong class="text-slate-900 block text-xs">Maternal Health Timeline Registration</strong>
+          <span class="text-[11px] text-slate-600">Register your pregnancy dates to track your EDD, 8ANC clinical visits, and maternal guidance.</span>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Mother's Full Name *</label>
+          <input type="text" id="ppFullName" class="input-field" required value="${escapeHtml(current?.name || '')}" placeholder="First, Middle, Last name">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Age (years) *</label>
+          <input type="number" id="ppAge" class="input-field" min="10" max="65" required placeholder="e.g. 26">
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Contact / Mobile Number *</label>
+          <input type="tel" id="ppContact" class="input-field" required placeholder="09xxxxxxxxx">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Barangay Station *</label>
+          <select id="ppBarangay" class="input-field">${bgyOptions}</select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-semibold mb-1 text-slate-700">Complete Address / Sitio</label>
+        <input type="text" id="ppAddress" class="input-field" placeholder="Sitio / Street / House No.">
+      </div>
+
+      <div class="two-col">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Last Menstrual Period (LMP) *</label>
+          <input type="date" id="ppLmp" class="input-field" required>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Estimated Due Date (EDD)</label>
+          <input type="date" id="ppEdd" class="input-field" title="Auto-calculated from LMP or doctor's ultrasound">
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Number of Pregnancies (Gravida)</label>
+          <input type="number" id="ppGravida" class="input-field" min="1" value="1" placeholder="e.g. 1 for first pregnancy">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Living Children (Para)</label>
+          <input type="number" id="ppPara" class="input-field" min="0" value="0">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 border-t border-line pt-3 mt-3">
+        <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="primary-btn text-xs font-semibold py-1.5 px-4 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">save</span>
+          <span>Register Pregnancy</span>
+        </button>
+      </div>
+    </form>
+  `);
+
+  // Auto-calculate EDD from LMP (Naegele's rule: +280 days)
+  document.getElementById("ppLmp")?.addEventListener("change", (e) => {
+    const lmpVal = e.target.value;
+    if (lmpVal) {
+      const lmpDate = new Date(lmpVal);
+      if (!isNaN(lmpDate.getTime())) {
+        const eddDate = new Date(lmpDate.getTime() + 280 * 24 * 60 * 60 * 1000);
+        const eddInput = document.getElementById("ppEdd");
+        if (eddInput) eddInput.value = eddDate.toISOString().split("T")[0];
+      }
+    }
+  });
+
+  document.getElementById("parentPregnancyForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fullName = document.getElementById("ppFullName").value.trim();
+    const age = parseInt(document.getElementById("ppAge").value, 10) || null;
+    const contact = document.getElementById("ppContact").value.trim();
+    const barangay = document.getElementById("ppBarangay").value;
+    const address = document.getElementById("ppAddress").value.trim();
+    const lmp = document.getElementById("ppLmp").value;
+    const edd = document.getElementById("ppEdd").value;
+    const gravida = document.getElementById("ppGravida").value;
+    const para = document.getElementById("ppPara").value;
+
+    const newMaternalRec = {
+      id: `mat_${Date.now()}`,
+      user_id: current?.id,
+      fullName,
+      age,
+      contact,
+      barangay,
+      address,
+      lmp,
+      edd,
+      pregnancyStatus: "Active",
+      checkupsCompleted: 0,
+      riskLevel: "Normal",
+      verification_status: "Pending Clinic Verification",
+      assignedNurse: "Barangay Health Station Midwife",
+      notes: `Self-registered via Mother Mobile App. Gravida ${gravida}, Para ${para}.`,
+      formDetails: {
+        gravida,
+        para,
+        selfRegistered: true,
+        registrationDate: new Date().toISOString().split("T")[0]
+      },
+      created_at: new Date().toISOString()
+    };
+
+    await persistRecord("maternalRecords", newMaternalRec);
+
+    if (current && !current.motherId) {
+      const updatedUser = { ...current, motherId: newMaternalRec.id };
+      setCurrentUser(updatedUser);
+      await persistRecord("users", updatedUser);
+    }
+
+    closeModal();
+    toast(`Pregnancy registered for ${fullName}! Your prenatal timeline is now active.`);
+    renderPage(getCurrentPage());
+  });
+}
+
 function openDigitalImmunizationCardModal(infant = {}, readOnly = false) {
   const currentRec = infant || {};
   const isUserParent = isParent(getCurrentUser());
@@ -1790,52 +1937,179 @@ function openDigitalImmunizationCardModal(infant = {}, readOnly = false) {
   }
 }
 
-// -------------------------------------------------------------
-// Schedules Module Binders
-// -------------------------------------------------------------
-function bindSchedulesEvents() {
-  document.getElementById("addScheduleBtn")?.addEventListener("click", () => {
-    const current = getCurrentUser();
-    const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+function openAddScheduleModal(current) {
+  const isUserParent = isParent(current);
+  const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}" ${b === current?.barangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
 
-    openModal("Schedule Check-up Appointment", `
+  if (isUserParent) {
+    const myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, current));
+    const myInfants = (state.infantRecords || []).filter(i =>
+      isMatchingParentRecord(i, current) || (myMaternal && i.maternalRecordId === myMaternal.id)
+    );
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const patientOptions = [
+      `<option value="${escapeHtml(current.name)}" data-type="MC">${escapeHtml(current.name)} (Maternal Care / Self)</option>`,
+      ...myInfants.map(inf => `<option value="${escapeHtml(inf.infantName)}" data-type="CC">${escapeHtml(inf.infantName)} (Child Immunization & Health)</option>`),
+      `<option value="__custom__">Other Family Member...</option>`
+    ].join('');
+
+    openModal("Request Check-up Appointment", `
       <form id="schedForm" class="modal-form space-y-3 text-xs">
-        <label>Patient Name * <input type="text" id="sPatient" required placeholder="Patient full name"></label>
-        <label>Care Type 
-          <select id="sType" class="input-field">
-            <option value="MC">MC - Maternal Care</option>
-            <option value="CC">CC - Child Immunization</option>
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+          <p class="font-bold mb-0.5">Appointment Request</p>
+          <p>Submit your preferred date for clinical consultation or child vaccination. Your assigned Barangay Midwife will review and confirm this schedule.</p>
+        </div>
+
+        <label>Who is this appointment for? *
+          <select id="sPatientSelect" class="input-field">
+            ${patientOptions}
           </select>
         </label>
-        <label>Barangay Assignment 
+
+        <div id="sPatientCustomWrap" class="hidden">
+          <label>Patient Full Name *
+            <input type="text" id="sPatientCustom" placeholder="Enter patient's full name">
+          </label>
+        </div>
+
+        <label>Care Category
+          <select id="sType" class="input-field">
+            <option value="MC">MC - Maternal Prenatal Care</option>
+            <option value="CC">CC - Child Immunization & Growth Monitoring</option>
+          </select>
+        </label>
+
+        <label>Barangay Health Station
           <select id="sBarangay" class="input-field">${bgyOptions}</select>
         </label>
+
         <div class="two-col">
-          <label>Check-up Date * <input type="date" id="sDate" required value="${new Date().toISOString().split('T')[0]}"></label>
-          <label>Time Slot <input type="time" id="sTime" value="08:30"></label>
+          <label>Preferred Date *
+            <input type="date" id="sDate" required min="${todayStr}" value="${todayStr}">
+          </label>
+          <label>Preferred Time Slot
+            <select id="sTime" class="input-field">
+              <option value="08:00 AM">08:00 AM - Morning Clinic</option>
+              <option value="09:30 AM" selected>09:30 AM - Morning Clinic</option>
+              <option value="11:00 AM">11:00 AM - Late Morning</option>
+              <option value="01:30 PM">01:30 PM - Afternoon Clinic</option>
+              <option value="03:00 PM">03:00 PM - Afternoon Clinic</option>
+            </select>
+          </label>
         </div>
-        <button class="primary-btn full-btn mt-2" type="submit">Confirm Check-up Schedule</button>
+
+        <label>Purpose / Chief Complaint (Optional)
+          <textarea id="sNotes" rows="2" placeholder="e.g. 2nd prenatal check-up, Penta 2 vaccination, vitamins refill..."></textarea>
+        </label>
+
+        <button class="primary-btn full-btn mt-2" type="submit">Submit Appointment Request</button>
       </form>
     `);
 
+    const selectEl = document.getElementById("sPatientSelect");
+    const customWrap = document.getElementById("sPatientCustomWrap");
+    const typeSelect = document.getElementById("sType");
+
+    selectEl?.addEventListener("change", (e) => {
+      const val = e.target.value;
+      if (val === "__custom__") {
+        customWrap?.classList.remove("hidden");
+        document.getElementById("sPatientCustom")?.focus();
+      } else {
+        customWrap?.classList.add("hidden");
+        const opt = e.target.selectedOptions[0];
+        const assignedType = opt?.getAttribute("data-type");
+        if (assignedType && typeSelect) {
+          typeSelect.value = assignedType;
+        }
+      }
+    });
+
     document.getElementById("schedForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
+      let patientName = selectEl ? selectEl.value : "";
+      if (patientName === "__custom__") {
+        patientName = (document.getElementById("sPatientCustom")?.value || "").trim();
+        if (!patientName) {
+          toast("Please enter patient name.", true);
+          return;
+        }
+      }
+
+      const notes = (document.getElementById("sNotes")?.value || "").trim();
       const newSched = {
         id: `sch_${Date.now()}`,
-        patientName: document.getElementById("sPatient").value.trim(),
+        patientName,
         type: document.getElementById("sType").value,
         barangay: document.getElementById("sBarangay").value,
         date: document.getElementById("sDate").value,
         time: document.getElementById("sTime").value,
-        status: "Scheduled",
-        assignedNurse: current?.fullName || current?.name || "Barangay Midwife"
+        status: "Requested",
+        notes,
+        assignedNurse: "Barangay Health Station Midwife"
       };
+
       await persistRecord("checkupSchedules", newSched);
       closeModal();
-      toast("Check-up appointment scheduled.");
+      toast(`Appointment requested for ${patientName}! Your midwife will review this schedule.`);
       renderPage("schedules");
     });
+    return;
+  }
+
+  // Staff Schedule Modal
+  openModal("Schedule Check-up Appointment", `
+    <form id="schedForm" class="modal-form space-y-3 text-xs">
+      <label>Patient Name * <input type="text" id="sPatient" required placeholder="Patient full name"></label>
+      <label>Care Type 
+        <select id="sType" class="input-field">
+          <option value="MC">MC - Maternal Care</option>
+          <option value="CC">CC - Child Immunization</option>
+        </select>
+      </label>
+      <label>Barangay Assignment 
+        <select id="sBarangay" class="input-field">${bgyOptions}</select>
+      </label>
+      <div class="two-col">
+        <label>Check-up Date * <input type="date" id="sDate" required value="${new Date().toISOString().split('T')[0]}"></label>
+        <label>Time Slot <input type="time" id="sTime" value="08:30"></label>
+      </div>
+      <button class="primary-btn full-btn mt-2" type="submit">Confirm Check-up Schedule</button>
+    </form>
+  `);
+
+  document.getElementById("schedForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const newSched = {
+      id: `sch_${Date.now()}`,
+      patientName: document.getElementById("sPatient").value.trim(),
+      type: document.getElementById("sType").value,
+      barangay: document.getElementById("sBarangay").value,
+      date: document.getElementById("sDate").value,
+      time: document.getElementById("sTime").value,
+      status: "Scheduled",
+      assignedNurse: current?.fullName || current?.name || "Barangay Midwife"
+    };
+    await persistRecord("checkupSchedules", newSched);
+    closeModal();
+    toast("Check-up appointment scheduled.");
+    renderPage("schedules");
   });
+}
+
+// -------------------------------------------------------------
+// Schedules Module Binders
+// -------------------------------------------------------------
+function bindSchedulesEvents() {
+  const handleOpenScheduleModal = () => {
+    const current = getCurrentUser();
+    openAddScheduleModal(current);
+  };
+
+  document.getElementById("addScheduleBtn")?.addEventListener("click", handleOpenScheduleModal);
+  document.getElementById("emptyScheduleRequestBtn")?.addEventListener("click", handleOpenScheduleModal);
 
   document.querySelectorAll(".delete-schedule-btn").forEach(btn => {
     btn.addEventListener("click", async () => {

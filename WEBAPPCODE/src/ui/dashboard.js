@@ -736,8 +736,13 @@ function renderParentDashboard(state, currentUser) {
           </div>
         ` : `
           <div class="text-center py-6 text-text-muted text-xs">
+            <span class="material-symbols-outlined text-3xl text-pink-300 block mb-1">pregnant_woman</span>
             <p class="mb-1 font-semibold text-text">No Maternal Record on File Yet</p>
-            <p>Your assigned Barangay Midwife will fill up and register your official DOH maternal record during your initial prenatal checkup.</p>
+            <p class="mb-3">You can submit your pregnancy details directly, or your Barangay Midwife will register your official DOH card during your initial check-up.</p>
+            <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="parentRegisterPregnancyBtn">
+              <span class="material-symbols-outlined text-sm">pregnant_woman</span>
+              <span>Register My Pregnancy</span>
+            </button>
           </div>
         `}
       </div>

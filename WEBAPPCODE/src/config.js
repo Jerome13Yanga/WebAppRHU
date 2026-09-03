@@ -91,6 +91,9 @@ export const pages = [
 
 export function isNativeMobileApp() {
   if (typeof window === "undefined") return false;
+  if (document.body && document.body.classList.contains("is-native-apk")) {
+    return true;
+  }
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get("mode") === "mobile" || urlParams.get("app") === "parent" || urlParams.get("platform") === "apk") {
     return true;
@@ -106,9 +109,15 @@ export function isNativeMobileApp() {
     if (typeof window.Capacitor.getPlatform === "function" && window.Capacitor.getPlatform() !== "web") {
       return true;
     }
+    if (window.Capacitor.isPluginAvailable) {
+      return true;
+    }
   }
 
   if (window.location.protocol === "capacitor:" || window.location.href.startsWith("capacitor://")) {
+    return true;
+  }
+  if (window.location.origin === "https://localhost" && /Android/i.test(navigator.userAgent)) {
     return true;
   }
 

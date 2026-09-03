@@ -51,4 +51,26 @@ fs.readdirSync(srcDir).forEach(file => {
   }
 });
 
-console.log('Successfully updated www/ directory for Capacitor native build.');
+// Post-process www/index.html for native Android APK:
+// 1. Mark body as is-native-apk
+// 2. Completely remove any "Download Mobile App (.apk)" buttons from all interfaces
+const wwwIndexHtml = path.join(destDir, 'index.html');
+if (fs.existsSync(wwwIndexHtml)) {
+  let content = fs.readFileSync(wwwIndexHtml, 'utf8');
+
+  // Add is-native-apk class to body
+  content = content.replace(/<body([^>]*)>/i, '<body$1 class="is-native-apk">');
+
+  // Remove authApkDownloadSection
+  content = content.replace(/<!-- APK DOWNLOAD BUTTON ON LOGIN SCREEN -->[\s\S]*?<\/div>\s*<\/section>/i, '</section>');
+
+  // Remove sidebarApkDownload
+  content = content.replace(/<!-- SIDEBAR APK DOWNLOAD FOOTER -->[\s\S]*?<\/aside>/i, '</aside>');
+
+  // Remove topbarApkDownload
+  content = content.replace(/<a\s+[^>]*id="topbarApkDownload"[^>]*>[\s\S]*?<\/a>/i, '');
+
+  fs.writeFileSync(wwwIndexHtml, content, 'utf8');
+}
+
+console.log('Successfully updated www/ directory for Capacitor native build (all APK download buttons removed).');

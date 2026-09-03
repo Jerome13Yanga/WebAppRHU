@@ -52,12 +52,19 @@ export function renderMaternalView(state, selectedBarangay = "All Barangays", cu
         </p>
       </div>
 
-      ${!isUserParent ? `
+      ${isUserParent ? `
+        ${records.length === 0 ? `
+          <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="parentRegisterPregnancyBtn">
+            <span class="material-symbols-outlined text-base">pregnant_woman</span>
+            <span>Register My Pregnancy</span>
+          </button>
+        ` : ''}
+      ` : `
         <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addMaternalBtn">
           <span class="material-symbols-outlined text-base">person_add</span>
           <span>Register Pregnant Mother</span>
         </button>
-      ` : ''}
+      `}
     </div>
 
     <div class="panel">
@@ -77,7 +84,19 @@ export function renderMaternalView(state, selectedBarangay = "All Barangays", cu
           </thead>
           <tbody>
             ${records.length === 0 ? `
-              <tr><td colspan="8" class="text-center py-6 text-text-muted">No maternal records found.</td></tr>
+              <tr>
+                <td colspan="8" class="text-center py-8 text-text-muted">
+                  <span class="material-symbols-outlined text-3xl text-pink-300 block mb-1">pregnant_woman</span>
+                  <p class="font-semibold text-text mb-1">${isUserParent ? 'No Maternal Record Registered Yet' : 'No maternal records found.'}</p>
+                  <p class="text-xs mb-3">${isUserParent ? 'Register your pregnancy details directly to start tracking your prenatal care timeline.' : 'No records found for this barangay station.'}</p>
+                  ${isUserParent ? `
+                    <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="emptyParentRegisterPregnancyBtn">
+                      <span class="material-symbols-outlined text-base">pregnant_woman</span>
+                      <span>Register My Pregnancy</span>
+                    </button>
+                  ` : ''}
+                </td>
+              </tr>
             ` : records.map(r => `
               <tr>
                 <td>

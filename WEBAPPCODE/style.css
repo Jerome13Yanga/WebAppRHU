@@ -228,6 +228,19 @@ body {
   filter: brightness(0.85);
 }
 
+/* HIDE APK DOWNLOAD BUTTONS IN NATIVE MOBILE APP */
+body.is-native-apk .apk-download-btn,
+body.is-native-apk #authApkDownloadSection,
+body.is-native-apk #sidebarApkDownload,
+body.is-native-apk #topbarApkDownload,
+body.is-native-apk #parentDashboardApkBanner {
+  display: none !important;
+}
+
+#pageSubtitle {
+  display: none !important;
+}
+
 /* FORM CONTROLS & CHECKBOXES */
 form.auth-form,
 .modal-form {

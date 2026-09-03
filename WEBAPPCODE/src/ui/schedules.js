@@ -42,12 +42,10 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
         </p>
       </div>
 
-      ${!isUserParent ? `
-        <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addScheduleBtn">
-          <span class="material-symbols-outlined text-base">add_circle</span>
-          <span>Schedule Check-up</span>
-        </button>
-      ` : ''}
+      <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addScheduleBtn">
+        <span class="material-symbols-outlined text-base">${isUserParent ? 'calendar_add_on' : 'add_circle'}</span>
+        <span>${isUserParent ? 'Request Check-up Appointment' : 'Schedule Check-up'}</span>
+      </button>
     </div>
 
     <div class="panel">
@@ -66,16 +64,28 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
           </thead>
           <tbody>
             ${schedules.length === 0 ? `
-              <tr><td colspan="7" class="text-center py-6 text-text-muted">No appointments scheduled for this station.</td></tr>
+              <tr>
+                <td colspan="${isUserParent ? 6 : 7}" class="text-center py-8 text-text-muted">
+                  <span class="material-symbols-outlined text-3xl text-slate-300 block mb-1">event_available</span>
+                  <p class="font-semibold text-text mb-1">No Check-up Appointments Scheduled</p>
+                  <p class="text-xs mb-3">${isUserParent ? 'You can request an appointment for your prenatal check-up or your child\'s immunization.' : 'No scheduled checkups found for this barangay station.'}</p>
+                  ${isUserParent ? `
+                    <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="emptyScheduleRequestBtn">
+                      <span class="material-symbols-outlined text-sm">calendar_add_on</span>
+                      <span>Request Check-up Appointment</span>
+                    </button>
+                  ` : ''}
+                </td>
+              </tr>
             ` : schedules.map(s => `
               <tr>
                 <td><strong>${escapeHtml(s.patientName)}</strong></td>
                 <td><span class="badge badge-info text-[10px]">${s.type === 'MC' ? 'Maternal Prenatal' : 'Child Immunization'}</span></td>
                 <td>${escapeHtml(s.barangay)}</td>
                 <td><strong class="text-brand-primary">${formatDate(s.date)}</strong> at ${escapeHtml(s.time || '08:30 AM')}</td>
-                <td class="text-text-muted">${escapeHtml(s.assignedNurse || 'RHU Midwife')}</td>
+                <td>${escapeHtml(s.assignedNurse || 'RHU Midwife')}</td>
                 <td>
-                  <span class="badge ${s.status === 'Completed' ? 'badge-complete' : 'badge-pending'} text-[10px]">
+                  <span class="badge ${s.status === 'Completed' || s.status === 'Done' ? 'badge-complete' : (s.status === 'Requested' ? 'badge-pending' : 'badge-info')} text-[10px]">
                     ${escapeHtml(s.status || 'Scheduled')}
                   </span>
                 </td>
