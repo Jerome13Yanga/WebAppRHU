@@ -10,8 +10,7 @@ const MC_TEMPLATE_HEADER_ROWS = [
   ["", "", "", "", "", "", "", "", "", "Date of Prenatal Check-up (8ANC) and BP measurement\nd: (mm/dd/yy)\nbp: BP reading (systolic/diastolic mm Hg)", "", "", "Date of Prenatal Check-up (8ANC) and BP measurement\nd: (mm/dd/yy)\nbp: BP reading (systolic/diastolic mm Hg)", "", "", "", "", "", "", "", "", "", "Nutritional Assessment\n(Write the BMI for 1st Trimester (1st visit))", "", "", "Immunization Status", "", "", "", "", "Remarks/\nActions Taken", "", "Prenatal Supplementation", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Laboratory Screenings", "", "", "", "", "", "", "", "", "", "", "", "", "Remarks/\nActions Taken", "", "Delivery Outcome", "Delivery Type", "Birth Weight \n(with in the first 2 hours of life)", "", "", "Place of Delivery", "", "Birth Attendant", "Date and Time of Delivery", "", "Remarks/\nActions Taken", "Date of Postnatal Care (4PNC) and BP measurement\nd: (mm/dd/yy)\nbp: BP reading (systolic/diastolic mm Hg)", "", "", "", "", "", "", "", "", "Postpartum Supplementation", "", "", "", "", "Remarks/\nActions Taken"],
   ["", "", "", "", "", "", "", "", "", "1st Trimester (Non-negotiable)", "2nd Trimester", "", "3rd Trimester", "", "", "", "", "Completed 8ANC?\n\n1 - Yes\n0 - No\n", "*With High/\nElevated BP?\n\n1 - Yes\n0 - No", "With Danger Signs?\n\n1- Yes\n0 - No\n\nif Yes, Identify Danger Signs**\n(atleast 1)", "Identified with High BP/ Danger Signs and referred?\n\n1 - Yes\n0 - No", "A - Resident\nB - Trans in\nC - Trans Out before receiving 8ANC", "", "", "", "Date of Tetanus Diphtheria (Td)-containing vaccine given\n(mm/dd/yy)", "", "", "", "", "", "", "Received one dose of Deworming tablet?\n(during 2nd Trimester)\n1 - Yes\n0 - No\n\nd: Date (mm/dd/yy)", "Iron with Folic Acid (IFA) Supplementation\n\n#: Number of Tablets Given\nd: Date (mm/dd/yy)\n", "", "", "", "", "", "Completed \nIFA supplementation?\n\n1 - Yes\n0 - No\n\nif Yes, Date completed (mm/dd/yy)", "Multiple Micronutrient (MM) Supplementation\n \n#: Number of Tablets Given\nd: Date (mm/dd/yy)", "", "", "", "", "", "Completed \nMM supplementation?\n\n1 - Yes\n0 - No\n\nif Yes, Date completed (mm/dd/yy)", "Calcium Carbonate (CC) Supplementation\n\n#: Number of Tablets Given\nd: Date (mm/dd/yy)", "", "", "Completed \nCC supplementation?\n\n1 - Yes\n0 - No\n\nif Yes, date completed (mm/dd/yy)", "CBC/Hgb&Hct Count", "", "Gestational Diabetes Mellitus", "", "Hepatitis B", "", "HIV", "", "Syphilis", "", "", "", "", "", "", "FT - Full Term\nPT - Pre-term\nFD - Fetal Death\nAB - Abortion/\n        Miscarriage", "CS – Cesarean Section\nVD – Vaginal Delivery\nCVCD - Combined Vaginal-Cesarean Delivery", "Sex\nM - Male\nF - Female", "Weight\n(Write weight in grams)", "A - Normal (>2500g)\nB - Low (<2500g)\nC - Unknown", "Health Facility", "", "MD - Doctor\nRN - Nurse\nMW - Midwife\nO - Others, Pls specify:", "Date\n(mm/dd/yy)", "Time\n(hh:mm)", "", "within 24 hours after delivery", "on day 3", "between 7-14 days", "6 weeks after birth ", "Completed 4PNC?\n\n1 - Yes\n0 - No\n", "*With High/\nElevated BP?\n\n1 - Yes\n0 - No", "With Danger Signs?\n\n1- Yes\n0 - No\n\nif Yes, Identify Danger Signs**\n(atleast 1)", "Identified with High BP/ Danger Signs and referred?\n\n1 - Yes\n0 - No", "", "Iron with Folic Acid Supplementation\n#: Number of Tablets Given\nd: Date (mm/dd/yy)", "", "", "Completed \nIFA supplementation?\n\n1 - Yes\n0 - No\n\nif Yes, date completed (mm/dd/yy)", "Completed 200,000 I.U. of Vitamin A capsule  supplementation?\n(within 1 month after delivery)\n\n1 - Yes\n0 - No\n\nif Yes, date completed (mm/dd/yy)", ""],
   ["", "", "", "", "", "", "", "", "", "Recommended Timing:\nVisit (SHP)  1: \n8-13 weeks", "Recommended Timing:\nVisit (SHP) 2: 14-20 weeks\nVisit (SHP) 3: 21-27 weeks", "", "Recommended Timing:\nVisit (SHP) 4: 28-30 weeks\nVisit (SHP) 5: 31-34 weeks\nVisit (SHP) 6: 35 weeks\nVisit (SHP) 7: 36 weeks\nVisit (SHP)  8: 37-40 weeks", "", "", "", "", "", "", "", "", "", "Low: \n<18.5 kg/m2", "Normal: \n18.5 - 22.9 kg/m2", "High: \n≥ 23.0 kg/m2", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Date Screened\n(mm/dd/yy)", "Result:\n\n1 - with anemia\n0 - w/o anemia", "Date Screened\n(mm/dd/yy)", "Result:\n\n1 - positive\n0 - negative", "Date Screened\n(mm/dd/yy)", "Result:\n\n1 - Reactive\n0 - Non-reactive", "Date Screened\n(mm/dd/yy)", "Result:\n\n1 - Reactive\n0 - Non-reactive", "Date Screened\n(mm/dd/yy)", "Result:\n\n1 - Reactive\n0 - Non-reactive", "Date of Confirmatory Test\n(mm/dd/yy)", "Result:\n\n1 - Positive\n0 - Negative", "Treatment:\n\nGiven at least 1 dose of benzathine penicillin 2.4 mU at least 30 days prior to delivery\n\n1 - Yes\n0 - No ", "", "", "", "", "", "", "", "Facility Type\n1 - Public\n2 - Private", "Non-Health Facility\n1 - Home\n2 - Others (including emergency transport)", "", "", "", "", "", "", "", "", "", "", "", "", "A - Resident\nB - Trans in\nC - Trans Out before completing 4PNC", "", "", "", "", "", ""],
-  ["", "", "", "", "", "", "", "", "", "Visit 1", "Visit 2", "Visit 3", "Visit 4", "Visit 5", "Visit 6", "Visit 7", "Visit 8", "", "", "", "Date referred:\nd: (mm/dd/yy)", "Date\nd: (mm/dd/yy)", "", "", "", "Td1", "Td2", "Td3", "Td4", "Td5", "", "", "", "1st visit\n(1st tri)", "2nd visit\n(2nd tri)", "3rd visit\n(2nd tri)", "4th visit\n(3rd tri)", "5th visit\n(3rd tri)", "6th visit\n(3rd tri)", "", "1st visit\n(1st tri)", "2nd visit\n(2nd tri)", "3rd visit\n(2nd tri)", "4th visit\n(3rd tri)", "5th visit\n(3rd tri)", "6th visit\n(3rd tri)", "", "2nd visit\n(2nd tri)", "3rd visit\n(3rd tri)", "4th visit\n(3rd tri)", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Visit 1", "Visit 2", "Visit 3", "Visit 4", "", "", "", "Date referred:\nd: (mm/dd/yy)", "Date\nd: (mm/dd/yy)", "1st visit", "2nd visit", "3rd visit", "", "", ""],
-  ["", "", "", "", "", "", "", "LMP:", "", "d:", "d:", "d:", "d:", "d:", "d:", "d:", "d:", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "#:", "#:", "#:", "#:", "#:", "#:", "", "#:", "#:", "#:", "#:", "#:", "#:", "", "#:", "#:", "#:", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "d:", "d:", "d:", "d:", "", "", "", "", "", "#:", "#:", "#:", "", "", ""]
+  ["", "", "", "", "", "", "", "", "", "Visit 1", "Visit 2", "Visit 3", "Visit 4", "Visit 5", "Visit 6", "Visit 7", "Visit 8", "", "", "", "Date referred:\nd: (mm/dd/yy)", "Date\nd: (mm/dd/yy)", "", "", "", "Td1", "Td2", "Td3", "Td4", "Td5", "", "", "", "1st visit\n(1st tri)", "2nd visit\n(2nd tri)", "3rd visit\n(2nd tri)", "4th visit\n(3rd tri)", "5th visit\n(3rd tri)", "6th visit\n(3rd tri)", "", "1st visit\n(1st tri)", "2nd visit\n(2nd tri)", "3rd visit\n(2nd tri)", "4th visit\n(3rd tri)", "5th visit\n(3rd tri)", "6th visit\n(3rd tri)", "", "2nd visit\n(2nd tri)", "3rd visit\n(3rd tri)", "4th visit\n(3rd tri)", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Visit 1", "Visit 2", "Visit 3", "Visit 4", "", "", "", "Date referred:\nd: (mm/dd/yy)", "Date\nd: (mm/dd/yy)", "1st visit", "2nd visit", "3rd visit", "", "", ""]
 ];
 
 const CC_TEMPLATE_HEADER_ROWS = [
@@ -34,7 +33,7 @@ function fmtDate(v) {
 function codeYesNo(v) { return hasVal(v) ? (String(v).toLowerCase().includes("yes") || v === true || v === "1" ? "1" : "0") : ""; }
 function checkSym(v) { return String(v).toLowerCase().includes("yes") || v === true ? "✔" : ""; }
 
-export async function exportMcCcReportToExcel(reportType, barangay, month, records, stats) {
+export async function exportMcCcReportToExcel(reportType, barangay, month, records, stats, state = null) {
   if (typeof ExcelJS === "undefined") {
     alert("ExcelJS library is missing or loading. Please check internet connection.");
     return;
@@ -43,7 +42,9 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
   const isMC = reportType === "MC";
   const code = isMC ? "MC" : "CC";
   const templatePath = isMC ? "reference-templates/MC TCL.xlsx" : "reference-templates/CC Immunization.xlsx";
-  const startDataRow = 8;
+  // In official DOH MC template, headers are Rows 1-6; first patient starts at Row 7 (Line A: Row 7, Line B: Row 8)
+  // In official DOH CC template, headers are Rows 1-7; first child starts at Row 8 (Line A: Row 8, Line B: Row 9)
+  const startDataRow = isMC ? 7 : 8;
   const headerRows = isMC ? MC_TEMPLATE_HEADER_ROWS : CC_TEMPLATE_HEADER_ROWS;
   const colCount = headerRows[0].length;
 
@@ -71,12 +72,18 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
       lineB[7] = `G-P: G${d.obG || d.gravida || 1}P${d.obP || d.para || 0}`;
       lineA[8] = fmtDate(rec.edd || d.edd || d.edcDate || d.edc);
 
-      // 8 ANC Visits
+      // Gather visits from patient form details AND consultation history
+      const patientCheckups = (state?.maternalCheckupHistory || [])
+        .filter(h => h && (h.maternalRecordId === rec.id || (h.patientName && rec.fullName && h.patientName.trim().toLowerCase() === rec.fullName.trim().toLowerCase())))
+        .sort((a, b) => new Date(a.checkupDate || a.createdAt || 0) - new Date(b.checkupDate || b.createdAt || 0));
+
+      // 8 ANC Visits directly aligned under this patient's assigned rows
       for (let i = 1; i <= 8; i++) {
-        const vD = d[`vDate_${i}`] || d[`ancVisit${i}Date`];
-        const vBp = d[`vBp_${i}`] || d[`ancVisit${i}Bp`];
+        const hist = patientCheckups[i - 1];
+        const vD = d[`vDate_${i}`] || d[`ancVisit${i}Date`] || hist?.checkupDate;
+        const vBp = d[`vBp_${i}`] || d[`ancVisit${i}Bp`] || hist?.bloodPressure;
         lineA[8 + i] = fmtDate(vD);
-        lineB[8 + i] = vBp ? `bp: ${vBp}` : "";
+        lineB[8 + i] = vBp ? (String(vBp).startsWith("bp:") ? String(vBp) : `bp: ${vBp}`) : "";
       }
 
       lineA[17] = codeYesNo(d.completed8ANC || (rec.checkupsCompleted >= 8 ? "Yes" : "No"));
@@ -232,6 +239,24 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
           excelRow.getCell(cIdx + 1).value = val;
         });
       });
+
+      // Clear leftover placeholder strings on empty template rows below the last patient
+      const lastFilledRow = startDataRow + dataRows.length - 1;
+      const totalTemplateRows = Math.max(sheet.rowCount || 38, lastFilledRow + 1);
+      for (let r = lastFilledRow + 1; r <= totalTemplateRows; r++) {
+        const row = sheet.getRow(r);
+        const firstCell = row.getCell(1).value;
+        if (firstCell && typeof firstCell === "string" && firstCell.includes("*")) continue;
+        for (let c = 1; c <= colCount; c++) {
+          const cell = row.getCell(c);
+          if (cell.value && typeof cell.value === "string") {
+            const v = cell.value.trim();
+            if (v === "d:" || v === "bp:" || v === "bp: " || v === "LMP:" || v === "G-P:" || v === "#:" || v === "1" || v === "0" || v === "A:" || v === "A: ") {
+              cell.value = "";
+            }
+          }
+        }
+      }
 
       const outBuffer = await workbook.xlsx.writeBuffer();
       const filename = `${code}_TargetClientList_${barangay.replace(/[^a-zA-Z0-9]/g, "_")}_${month}.xlsx`;

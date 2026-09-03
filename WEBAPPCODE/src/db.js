@@ -112,6 +112,29 @@ export function cleanRemoteRow(key, row) {
     delete copy.mother_name;
   }
 
+  if (key === "checkupSchedules") {
+    // Sanitize time into valid Postgres 'time' format (HH:MM:SS)
+    if (copy.time) {
+      const match = String(copy.time).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = match[2];
+        const ampm = match[3] ? match[3].toUpperCase() : null;
+        if (ampm === "PM" && hours < 12) hours += 12;
+        if (ampm === "AM" && hours === 12) hours = 0;
+        copy.time = `${String(hours).padStart(2, '0')}:${minutes}:00`;
+      } else if (!/^\d{2}:\d{2}(:\d{2})?$/.test(String(copy.time))) {
+        copy.time = "08:30:00";
+      }
+    } else {
+      copy.time = "08:30:00";
+    }
+    // Delete local-only matching helper fields before Supabase upsert
+    delete copy.userId;
+    delete copy.user_id;
+    delete copy.parentName;
+  }
+
   // Clean empty string dates/timestamps to null
   const dateFields = [
     "lmp", "edd", "birthdate", "lastCheckup", "nextCheckup", "checkupDate", "nextCheckupDate",

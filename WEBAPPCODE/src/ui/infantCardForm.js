@@ -86,8 +86,12 @@ export function renderTodoLigtasImmunizationCardHtml(infant = {}, readOnly = fal
           <span>Routine Immunization Log (Bakuna Table)</span>
         </h4>
         
+        <div class="flex items-center gap-1 text-[11px] text-indigo-800 font-medium md:hidden mb-1">
+          <span class="material-symbols-outlined text-sm">swipe</span>
+          <span>Swipe horizontally to view full vaccine table</span>
+        </div>
         <div class="table-container overflow-x-auto">
-          <table class="data-table text-xs min-w-[700px]">
+          <table class="data-table text-xs" style="min-width: 650px; width: 100%;">
             <thead>
               <tr class="bg-indigo-950 text-white text-center">
                 <th class="w-[25%] text-left">BAKUNA (Vaccine)</th>

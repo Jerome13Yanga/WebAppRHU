@@ -839,6 +839,15 @@ function bindShellEvents() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   });
+
+  // Delegated check-up appointment request trigger for any screen
+  document.addEventListener("click", (e) => {
+    const reqBtn = e.target.closest("#addScheduleBtn, #emptyScheduleRequestBtn, #parentRequestAppointmentBtn, #parentRequestAppointmentEmptyBtn, [data-action='request-checkup']");
+    if (!reqBtn) return;
+    e.preventDefault();
+    const current = getCurrentUser();
+    openAddScheduleModal(current);
+  });
 }
 
 function handleLogout() {
@@ -1942,10 +1951,11 @@ function openAddScheduleModal(current) {
     );
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const parentName = current?.name || current?.fullName || myMaternal?.fullName || myMaternal?.parentName || "Parent";
 
     const patientOptions = [
-      `<option value="${escapeHtml(current.name)}" data-type="MC">${escapeHtml(current.name)} (Maternal Care / Self)</option>`,
-      ...myInfants.map(inf => `<option value="${escapeHtml(inf.infantName)}" data-type="CC">${escapeHtml(inf.infantName)} (Child Immunization & Health)</option>`),
+      `<option value="${escapeHtml(parentName)}" data-type="MC">${escapeHtml(parentName)} (Maternal Care / Self)</option>`,
+      ...myInfants.map(inf => `<option value="${escapeHtml(inf.infantName || inf.fullName || 'Child')}" data-type="CC">${escapeHtml(inf.infantName || inf.fullName || 'Child')} (Child Immunization & Health)</option>`),
       `<option value="__custom__">Other Family Member...</option>`
     ].join('');
 
@@ -2032,10 +2042,17 @@ function openAddScheduleModal(current) {
         }
       }
 
+      if (!patientName || patientName === "undefined") {
+        patientName = parentName || "Mother / Parent";
+      }
+
       const notes = (document.getElementById("sNotes")?.value || "").trim();
       const newSched = {
         id: `sch_${Date.now()}`,
         patientName,
+        parentName: parentName,
+        userId: current?.id || current?.authUserId || "",
+        user_id: current?.id || current?.authUserId || "",
         type: document.getElementById("sType").value,
         barangay: document.getElementById("sBarangay").value,
         date: document.getElementById("sDate").value,
@@ -2048,7 +2065,11 @@ function openAddScheduleModal(current) {
       await persistRecord("checkupSchedules", newSched);
       closeModal();
       toast(`Appointment requested for ${patientName}! Your midwife will review this schedule.`);
-      renderPage("schedules");
+      if (activePage === "dashboard") {
+        renderPage("dashboard");
+      } else {
+        renderPage("schedules");
+      }
     });
     return;
   }
@@ -2200,7 +2221,7 @@ function bindReportsEvents() {
         ? state.maternalRecords.filter(r => matchBgy(r.barangay, rep.barangay))
         : state.infantRecords.filter(r => matchBgy(r.barangay, rep.barangay));
 
-      exportMcCcReportToExcel(rep.type, rep.barangay, rep.month, records, rep);
+      exportMcCcReportToExcel(rep.type, rep.barangay, rep.month, records, rep, state);
     });
   });
 

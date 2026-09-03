@@ -17,8 +17,11 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
       isMatchingParentRecord(i, currentUser) || (myMaternal && i.maternalRecordId === myMaternal.id)
     );
     schedules = schedules.filter(s =>
-      isMatchingParentRecord({ patientName: s.patientName }, currentUser) ||
+      (s.userId && (s.userId === currentUser?.id || s.userId === currentUser?.authUserId)) ||
+      (s.user_id && (s.user_id === currentUser?.id || s.user_id === currentUser?.authUserId)) ||
+      isMatchingParentRecord({ patientName: s.patientName, parentName: s.parentName, fullName: s.patientName }, currentUser) ||
       (s.patientName && s.patientName.toLowerCase().trim() === parentName) ||
+      (s.parentName && s.parentName.toLowerCase().trim() === parentName) ||
       myInfants.some(inf => inf.infantName && s.patientName && s.patientName.toLowerCase().trim() === inf.infantName.toLowerCase().trim())
     );
   } else if (isUserNurse && currentUser?.barangay) {

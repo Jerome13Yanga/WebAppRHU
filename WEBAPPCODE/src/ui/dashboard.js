@@ -782,12 +782,26 @@ function renderParentDashboard(state, currentUser) {
 
       <!-- Upcoming Checkup Schedules -->
       <div class="panel p-5 rounded-2xl border border-line bg-surface">
-        <h3 class="text-sm font-bold text-text flex items-center gap-2 mb-3 pb-2 border-b border-line">
-          <span class="material-symbols-outlined text-emerald-600 text-xl">event_available</span>
-          <span>Upcoming Checkup Schedules & Reminders</span>
-        </h3>
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3 pb-2 border-b border-line">
+          <h3 class="text-sm font-bold text-text flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-600 text-xl">event_available</span>
+            <span>Upcoming Checkup Schedules & Appointments</span>
+          </h3>
+          <button type="button" class="primary-btn sm-btn text-xs py-1 px-3 flex items-center gap-1" id="parentRequestAppointmentBtn">
+            <span class="material-symbols-outlined text-sm">calendar_add_on</span>
+            <span>Request Appointment</span>
+          </button>
+        </div>
         ${mySchedules.length === 0 ? `
-          <p class="text-xs text-text-muted text-center py-4">No upcoming appointments scheduled at this time.</p>
+          <div class="text-center py-6 text-text-muted text-xs">
+            <span class="material-symbols-outlined text-3xl text-emerald-300 block mb-1">calendar_month</span>
+            <p class="font-semibold text-text mb-1">No Upcoming Appointments Scheduled</p>
+            <p class="mb-3">Request a prenatal check-up consultation or child routine immunization with your barangay midwife.</p>
+            <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="parentRequestAppointmentEmptyBtn">
+              <span class="material-symbols-outlined text-sm">calendar_add_on</span>
+              <span>Request Check-up Appointment</span>
+            </button>
+          </div>
         ` : `
           <div class="space-y-2">
             ${mySchedules.map(s => `
@@ -796,7 +810,10 @@ function renderParentDashboard(state, currentUser) {
                   <span class="material-symbols-outlined text-brand-primary text-lg">calendar_month</span>
                   <div>
                     <strong class="text-text block">${escapeHtml(s.patientName)}</strong>
-                    <span class="text-text-muted">${s.type === 'MC' ? 'Maternal Prenatal Care' : 'Child Health & Immunization'}</span>
+                    <span class="text-text-muted text-[11px]">${s.type === 'MC' ? 'Maternal Prenatal Care' : 'Child Health & Immunization'}</span>
+                    <span class="badge ${s.status === 'Completed' || s.status === 'Done' ? 'badge-complete' : (s.status === 'Requested' ? 'badge-pending' : 'badge-info')} text-[9px] ml-1">
+                      ${escapeHtml(s.status || 'Scheduled')}
+                    </span>
                   </div>
                 </div>
                 <div class="text-right">
