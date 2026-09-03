@@ -3,7 +3,7 @@
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
-import { isNurse, isParent } from '../auth.js';
+import { isNurse, isParent, isMatchingParentRecord } from '../auth.js';
 
 export function renderSchedulesView(state, selectedBarangay = "All Barangays", currentUser = null) {
   const isUserParent = isParent(currentUser);
@@ -12,7 +12,15 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
 
   let schedules = state.checkupSchedules || [];
   if (isUserParent) {
-    schedules = schedules.filter(s => s.patientName && s.patientName.toLowerCase().trim() === parentName);
+    const myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, currentUser));
+    const myInfants = (state.infantRecords || []).filter(i =>
+      isMatchingParentRecord(i, currentUser) || (myMaternal && i.maternalRecordId === myMaternal.id)
+    );
+    schedules = schedules.filter(s =>
+      isMatchingParentRecord({ patientName: s.patientName }, currentUser) ||
+      (s.patientName && s.patientName.toLowerCase().trim() === parentName) ||
+      myInfants.some(inf => inf.infantName && s.patientName && s.patientName.toLowerCase().trim() === inf.infantName.toLowerCase().trim())
+    );
   } else if (isUserNurse && currentUser?.barangay) {
     schedules = schedules.filter(s => s.barangay === currentUser.barangay);
   } else if (selectedBarangay && selectedBarangay !== "All Barangays") {

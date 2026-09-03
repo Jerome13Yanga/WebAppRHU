@@ -36,6 +36,26 @@ export function isStaff(user = currentUser) {
   return !isParent(user);
 }
 
+export function isMatchingParentRecord(record, user = currentUser) {
+  if (!user || !record) return false;
+  if (record.user_id && record.user_id === user.id) return true;
+  if (user.motherId && (record.id === user.motherId || record.maternalRecordId === user.motherId || record.motherId === user.motherId)) return true;
+
+  const targetName = (user.name || user.fullName || '').toLowerCase().trim();
+  if (!targetName) return false;
+
+  const recName = (record.fullName || record.parentName || record.motherName || record.patientName || '').toLowerCase().trim();
+  if (!recName) return false;
+
+  if (recName === targetName) return true;
+  if (recName.includes(targetName) || targetName.includes(recName)) return true;
+
+  const parts = targetName.split(/\s+/).filter(p => p.length > 2);
+  if (parts.length >= 2 && parts.every(p => recName.includes(p))) return true;
+
+  return false;
+}
+
 export async function getOrCreateCurrentProfile(authUser, overrides = {}) {
   const email = String(authUser.email || "").toLowerCase();
   const meta = authUser.user_metadata || {};

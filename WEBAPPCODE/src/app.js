@@ -74,6 +74,28 @@ async function init() {
   bindThemeToggleButtons();
 
   if (isOnlineMode()) {
+    // Listen for Password Recovery events (e.g. from email links or token resets)
+    db.auth.onAuthStateChange(async (event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        toast("Password recovery verified. Set your new password below.");
+        document.getElementById("loginForm")?.classList.add("hidden");
+        document.getElementById("registerForm")?.classList.add("hidden");
+        document.getElementById("staffRegisterForm")?.classList.add("hidden");
+        const forgotForm = document.getElementById("forgotPasswordForm");
+        if (forgotForm) {
+          forgotForm.classList.remove("hidden");
+          document.getElementById("forgotStep1")?.classList.add("hidden");
+          document.getElementById("forgotStep2")?.classList.remove("hidden");
+          if (session?.user?.email) {
+            const confirmEmail = document.getElementById("forgotConfirmEmail");
+            if (confirmEmail) confirmEmail.value = session.user.email;
+          }
+          // Hide OTP label when already verified via direct email link
+          document.getElementById("forgotOtpLabel")?.classList.add("hidden");
+        }
+      }
+    });
+
     const { data, error } = await db.auth.getSession();
     if (error) toast(error.message, true);
     if (data?.session?.user) {
@@ -162,6 +184,10 @@ async function deleteRecord(key, id) {
 function showAuth() {
   document.getElementById("authScreen")?.classList.remove("hidden");
   document.getElementById("appShell")?.classList.add("hidden");
+  document.getElementById("loginForm")?.classList.remove("hidden");
+  document.getElementById("forgotPasswordForm")?.classList.add("hidden");
+  document.getElementById("registerForm")?.classList.add("hidden");
+  document.getElementById("staffRegisterForm")?.classList.add("hidden");
   updateAuthModeUI();
 }
 
@@ -378,6 +404,8 @@ function updateAuthModeUI() {
 
   // Keep auth mode switcher strictly hidden in both Web and APK
   if (switcher) switcher.classList.add("hidden");
+  const forgotForm = document.getElementById("forgotPasswordForm");
+  if (forgotForm) forgotForm.classList.add("hidden");
 
   if (isMobile) {
     if (mobBtn) mobBtn.classList.add("active");
@@ -470,6 +498,168 @@ function bindAuthEvents() {
   document.getElementById("backToLoginFromStaff")?.addEventListener("click", () => {
     document.getElementById("staffRegisterForm")?.classList.add("hidden");
     document.getElementById("loginForm")?.classList.remove("hidden");
+  });
+
+  // Show Forgot Password Form
+  document.getElementById("showForgotPassword")?.addEventListener("click", () => {
+    document.getElementById("loginForm")?.classList.add("hidden");
+    document.getElementById("registerForm")?.classList.add("hidden");
+    document.getElementById("staffRegisterForm")?.classList.add("hidden");
+    const forgotForm = document.getElementById("forgotPasswordForm");
+    if (forgotForm) {
+      forgotForm.classList.remove("hidden");
+      document.getElementById("forgotStep1")?.classList.remove("hidden");
+      document.getElementById("forgotStep2")?.classList.add("hidden");
+      document.getElementById("forgotOtpLabel")?.classList.remove("hidden");
+      const loginEmailVal = document.getElementById("loginEmail")?.value.trim();
+      if (loginEmailVal && loginEmailVal.includes("@")) {
+        const forgotEmail = document.getElementById("forgotEmail");
+        if (forgotEmail) forgotEmail.value = loginEmailVal;
+      }
+    }
+  });
+
+  document.getElementById("backToLoginFromForgot")?.addEventListener("click", () => {
+    document.getElementById("forgotPasswordForm")?.classList.add("hidden");
+    document.getElementById("loginForm")?.classList.remove("hidden");
+  });
+
+  document.getElementById("alreadyHaveCodeBtn")?.addEventListener("click", () => {
+    const emailVal = document.getElementById("forgotEmail")?.value.trim();
+    if (emailVal) {
+      const confirmEmail = document.getElementById("forgotConfirmEmail");
+      if (confirmEmail) confirmEmail.value = emailVal;
+    }
+    document.getElementById("forgotStep1")?.classList.add("hidden");
+    document.getElementById("forgotStep2")?.classList.remove("hidden");
+    document.getElementById("forgotOtpLabel")?.classList.remove("hidden");
+  });
+
+  // Send / Resend Reset Code handler
+  const handleSendResetCode = async () => {
+    const emailInput = document.getElementById("forgotEmail");
+    const confirmEmailInput = document.getElementById("forgotConfirmEmail");
+    const email = (emailInput?.value || confirmEmailInput?.value || "").trim();
+
+    if (!email || !email.includes("@")) {
+      toast("Please enter a valid registered email address.", true);
+      return;
+    }
+
+    const sendBtn = document.getElementById("sendResetCodeBtn");
+    const resendBtn = document.getElementById("resendResetCodeBtn");
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = "Sending Code..."; }
+    if (resendBtn) { resendBtn.disabled = true; resendBtn.textContent = "Sending..."; }
+
+    try {
+      if (isOnlineMode()) {
+        const { error } = await db.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + window.location.pathname
+        });
+        if (error) {
+          toast(`Failed to send code: ${error.message}`, true);
+          return;
+        }
+        toast("Verification code sent! Please check your email inbox.");
+      } else {
+        toast("Verification code sent (Offline Mode). Check your email.");
+      }
+
+      if (confirmEmailInput) confirmEmailInput.value = email;
+      document.getElementById("forgotStep1")?.classList.add("hidden");
+      document.getElementById("forgotStep2")?.classList.remove("hidden");
+      document.getElementById("forgotOtpLabel")?.classList.remove("hidden");
+      document.getElementById("forgotOtp")?.focus();
+    } catch (err) {
+      toast(`Error sending reset code: ${err.message}`, true);
+    } finally {
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = "Send Reset Code"; }
+      if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = "Resend Code"; }
+    }
+  };
+
+  document.getElementById("sendResetCodeBtn")?.addEventListener("click", handleSendResetCode);
+  document.getElementById("resendResetCodeBtn")?.addEventListener("click", handleSendResetCode);
+
+  // Submit Password Reset Form
+  document.getElementById("forgotPasswordForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("forgotConfirmEmail")?.value.trim();
+    const otp = document.getElementById("forgotOtp")?.value.trim();
+    const newPass = document.getElementById("forgotNewPassword")?.value;
+    const confirmPass = document.getElementById("forgotConfirmPassword")?.value;
+
+    if (!email) {
+      toast("Please enter your registered email address.", true);
+      return;
+    }
+    if (!newPass || newPass.length < 6) {
+      toast("New password must be at least 6 characters.", true);
+      return;
+    }
+    if (newPass !== confirmPass) {
+      toast("Passwords do not match. Please re-enter.", true);
+      return;
+    }
+
+    const submitBtn = document.getElementById("submitResetPasswordBtn");
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Saving New Password..."; }
+
+    try {
+      if (isOnlineMode()) {
+        // Check if session is already established via magic link redirect
+        const { data: sessData } = await db.auth.getSession();
+        const hasActiveSession = Boolean(sessData?.session?.user);
+
+        if (!hasActiveSession) {
+          if (!otp) {
+            toast("Please enter the 6-digit verification code from your email.", true);
+            return;
+          }
+          // Verify recovery OTP
+          const { data: verifyData, error: verifyErr } = await db.auth.verifyOtp({
+            email,
+            token: otp,
+            type: "recovery"
+          });
+          if (verifyErr) {
+            toast(`Invalid or expired code: ${verifyErr.message}`, true);
+            return;
+          }
+        }
+
+        // Set the new password
+        const { data: updateData, error: updateErr } = await db.auth.updateUser({
+          password: newPass
+        });
+        if (updateErr) {
+          toast(`Could not update password: ${updateErr.message}`, true);
+          return;
+        }
+
+        toast("Password updated successfully! Please sign in with your new password.");
+        document.getElementById("forgotPasswordForm")?.reset();
+        document.getElementById("forgotStep2")?.classList.add("hidden");
+        document.getElementById("forgotStep1")?.classList.remove("hidden");
+        document.getElementById("forgotPasswordForm")?.classList.add("hidden");
+        document.getElementById("loginForm")?.classList.remove("hidden");
+        const loginEmailInput = document.getElementById("loginEmail");
+        if (loginEmailInput) loginEmailInput.value = email;
+        const loginPassInput = document.getElementById("loginPassword");
+        if (loginPassInput) loginPassInput.value = "";
+      } else {
+        toast("Password updated successfully (Offline Mode).");
+        document.getElementById("forgotPasswordForm")?.reset();
+        document.getElementById("forgotStep2")?.classList.add("hidden");
+        document.getElementById("forgotStep1")?.classList.remove("hidden");
+        document.getElementById("forgotPasswordForm")?.classList.add("hidden");
+        document.getElementById("loginForm")?.classList.remove("hidden");
+      }
+    } catch (err) {
+      toast(`Password reset error: ${err.message}`, true);
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Reset & Save Password"; }
+    }
   });
 
   // Mother Registration Submit
@@ -642,6 +832,20 @@ function bindShellEvents() {
       await checkImmunizationAndScheduleReminders(state, getCurrentUser());
     }
     renderPage(activePage);
+  });
+
+  // Delegated page navigation for in-card action buttons (e.g. data-nav-page="schedules")
+  document.addEventListener("click", (e) => {
+    const navBtn = e.target.closest("[data-nav-page]");
+    if (!navBtn) return;
+    const targetPage = navBtn.getAttribute("data-nav-page");
+    if (targetPage && pages.some(p => p.id === targetPage)) {
+      closeSidebar();
+      activePage = targetPage;
+      renderNav();
+      renderPage(activePage);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   });
 }
 

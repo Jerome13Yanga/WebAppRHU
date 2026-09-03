@@ -13,7 +13,8 @@ execSync('node build-www.js', { stdio: 'inherit', cwd: appDir });
 
 // 2. Sync Capacitor Android project
 console.log('[2/3] Syncing Capacitor native Android project...');
-execSync('npx cap sync android', { stdio: 'inherit', cwd: appDir });
+const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+execSync(`${npxCmd} cap sync android`, { stdio: 'inherit', cwd: appDir });
 
 // 3. Locate Android SDK and JDK 21 if available
 const sdkRoot = path.join(appDir, 'android-sdk');

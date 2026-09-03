@@ -4,7 +4,7 @@
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
-import { isParent, isNurse, isMho, isAdmin } from '../auth.js';
+import { isParent, isNurse, isMho, isAdmin, isMatchingParentRecord } from '../auth.js';
 import { isNativeMobileApp } from '../config.js';
 import { renderPixelParentChild, renderPixelHeart, renderPixelCross, renderPixelRattle } from './pixelArt.js';
 
@@ -620,26 +620,6 @@ function renderNurseDashboard(state, currentUser) {
 // -------------------------------------------------------------
 // 5. PARENT / MOTHER MOBILE DASHBOARD (View-Only Portal)
 // -------------------------------------------------------------
-function isMatchingParentRecord(record, currentUser) {
-  if (!currentUser || !record) return false;
-  if (record.user_id && record.user_id === currentUser.id) return true;
-  if (currentUser.motherId && (record.id === currentUser.motherId || record.maternalRecordId === currentUser.motherId || record.motherId === currentUser.motherId)) return true;
-
-  const targetName = (currentUser.name || currentUser.fullName || '').toLowerCase().trim();
-  if (!targetName) return false;
-
-  const recName = (record.fullName || record.parentName || record.motherName || '').toLowerCase().trim();
-  if (!recName) return false;
-
-  if (recName === targetName) return true;
-  if (recName.includes(targetName) || targetName.includes(recName)) return true;
-
-  const parts = targetName.split(/\s+/).filter(p => p.length > 2);
-  if (parts.length >= 2 && parts.every(p => recName.includes(p))) return true;
-
-  return false;
-}
-
 function renderParentDashboard(state, currentUser) {
   const motherName = (currentUser?.name || currentUser?.fullName || '').toLowerCase().trim();
   
