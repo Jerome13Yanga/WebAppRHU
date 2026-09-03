@@ -330,9 +330,9 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
         </div>
       </div>
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-        <div class="relative flex-1">
-          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-          <input type="text" id="contactsSearchInput" placeholder="Search by barangay name, assigned nurse, or clinic location..." value="${escapeHtml(searchTerm)}" class="input-field pl-9 py-2 text-xs w-full">
+        <div class="search-box-wrap flex-1">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input type="text" id="contactsSearchInput" placeholder="Search by barangay name, assigned nurse, or clinic location..." value="${escapeHtml(searchTerm)}" class="input-field text-xs">
         </div>
         <div class="text-xs text-slate-500 font-medium px-2 shrink-0">
           Showing <strong>${sortedBarangays.length}</strong> Barangay Health Stations (${configuredCount} configured)

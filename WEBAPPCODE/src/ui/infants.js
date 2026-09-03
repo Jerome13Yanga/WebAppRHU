@@ -74,9 +74,9 @@ export function renderInfantsView(state, selectedBarangay = "All Barangays", cur
 
     <!-- Search and Filter Toolbar -->
     <div class="flex items-center justify-between gap-3 mb-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
-      <div class="relative flex-1 max-w-md">
-        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
-        <input type="search" id="infantSearchInput" placeholder="Search children by name, mother, status, barangay..." value="${escapeHtml(searchTerm)}" class="input-field pl-9 py-1.5 text-xs w-full">
+      <div class="search-box-wrap max-w-md">
+        <span class="material-symbols-outlined search-icon">search</span>
+        <input type="search" id="infantSearchInput" placeholder="Search children by name, mother, status, barangay..." value="${escapeHtml(searchTerm)}" class="input-field text-xs">
       </div>
       <div class="text-xs text-slate-500 font-medium px-2 shrink-0">
         ${searchTerm ? `Found <strong>${records.length}</strong> matching records` : `Total: <strong>${records.length}</strong> children`}

@@ -3,7 +3,7 @@
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 
-const CACHE_NAME = "rhu-health-shell-v10";
+const CACHE_NAME = "rhu-health-shell-v11";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",

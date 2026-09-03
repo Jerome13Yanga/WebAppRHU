@@ -201,6 +201,40 @@ body {
   background: var(--surface-alt) !important;
 }
 
+/* SEARCH INPUT WRAPPER & SEARCH ICON ALIGNMENT */
+.search-box-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-box-wrap .search-icon,
+.relative > .material-symbols-outlined.search-icon,
+.relative:has(input[type="search"]) > .material-symbols-outlined {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  font-size: 18px !important;
+  height: 18px !important;
+  width: 18px !important;
+  pointer-events: none;
+  color: #94a3b8;
+  z-index: 2;
+}
+
+.search-box-wrap input[type="search"],
+.search-box-wrap input.input-field,
+.relative:has(> .material-symbols-outlined.search-icon) input {
+  padding-left: 36px !important;
+  width: 100%;
+}
+
 /* FORGOT PASSWORD LINK */
 .forgot-pass-wrap {
   display: flex;
