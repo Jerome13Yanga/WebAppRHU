@@ -205,19 +205,13 @@ function showApp(userData) {
   document.getElementById("authScreen")?.classList.add("hidden");
   document.getElementById("appShell")?.classList.remove("hidden");
 
-  // Manage APK download buttons: strictly remove inside native APK, show in Web App
-  const isApk = isNativeMobileApp();
-  const sidebarApk = document.getElementById("sidebarApkDownload");
-  const topbarApk = document.getElementById("topbarApkDownload");
-  const authApk = document.getElementById("authApkDownloadSection");
-  if (isApk) {
-    sidebarApk?.remove();
-    topbarApk?.remove();
-    authApk?.remove();
-    document.querySelectorAll(".apk-download-btn, #parentDashboardApkBanner").forEach(el => el.remove());
-  } else {
-    sidebarApk?.classList.remove("hidden");
-    topbarApk?.classList.remove("hidden");
+  // Ensure all inside-app APK download buttons are completely removed
+  document.getElementById("sidebarApkDownload")?.remove();
+  document.getElementById("topbarApkDownload")?.remove();
+  document.getElementById("parentDashboardApkBanner")?.remove();
+  if (isNativeMobileApp()) {
+    document.getElementById("authApkDownloadSection")?.remove();
+    document.querySelectorAll(".apk-download-btn").forEach(el => el.remove());
   }
 
   const initials = (userData.name || "U").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);

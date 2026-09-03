@@ -666,20 +666,6 @@ function renderParentDashboard(state, currentUser) {
         </div>
       </div>
 
-      <!-- APK Download for Mother Mobile App (Web only) -->
-      ${!isNativeMobileApp() ? `
-      <div id="parentDashboardApkBanner" class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <strong class="text-xs text-emerald-900 block font-bold">Install Padre Burgos RHU Mobile App</strong>
-          <span class="text-[11px] text-emerald-700 block">Get direct native checkup alerts and digital health cards on your Android phone.</span>
-        </div>
-        <a href="rhu-mother-app.apk" download="rhu-mother-app.apk" class="apk-download-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 transition-all shadow-2xs">
-          <span class="material-symbols-outlined text-sm">download</span>
-          <span>Download Mobile App (.apk)</span>
-        </a>
-      </div>
-      ` : ''}
-
       <!-- Maternal Care Milestone Card -->
       <div class="panel p-5 rounded-2xl border border-pink-100 bg-surface">
         <div class="flex items-center justify-between mb-3 pb-2 border-b border-line">
