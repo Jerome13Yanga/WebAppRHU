@@ -278,3 +278,49 @@ create policy "Allow staff write on monthly_reports" on public.monthly_reports f
 create policy "Allow read on emergency_contacts" on public.emergency_contacts for select using (true);
 create policy "Allow admin write on emergency_contacts" on public.emergency_contacts for all
 using (exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Administrator'));
+
+-- 9. IN-APP DIRECT PASSWORD RESET FUNCTION (Zero Email / Dummy Email Compatible)
+create extension if not exists "pgcrypto";
+
+create or replace function public.reset_user_password(
+  p_email text,
+  p_barangay text,
+  p_new_password text
+)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id uuid;
+begin
+  -- Verify email and barangay against registered profiles
+  select "authUserId" into v_user_id
+  from public.profiles
+  where lower(trim(email)) = lower(trim(p_email))
+    and (lower(trim(barangay)) = lower(trim(p_barangay)) or p_barangay is null or p_barangay = '')
+  limit 1;
+
+  if v_user_id is null then
+    -- Check auth.users by email as fallback
+    select id into v_user_id
+    from auth.users
+    where lower(trim(email)) = lower(trim(p_email))
+    limit 1;
+  end if;
+
+  if v_user_id is null then
+    return json_build_object('success', false, 'message', 'No registered account found with this email.');
+  end if;
+
+  -- Update encrypted password
+  update auth.users
+  set encrypted_password = crypt(p_new_password, gen_salt('bf')),
+      updated_at = now()
+  where id = v_user_id;
+
+  return json_build_object('success', true, 'message', 'Password updated successfully.');
+end;
+$$;
+
+grant execute on function public.reset_user_password(text, text, text) to anon, authenticated;

@@ -637,7 +637,11 @@ function renderParentDashboard(state, currentUser) {
   );
 
   const mySchedules = (state.checkupSchedules || []).filter(s =>
-    (s.patientName && s.patientName.toLowerCase().trim() === motherName) ||
+    (s.userId && currentUser?.id && (s.userId === currentUser.id || s.userId === currentUser.authUserId)) ||
+    (s.user_id && currentUser?.id && (s.user_id === currentUser.id || s.user_id === currentUser.authUserId)) ||
+    (s.parentName && motherName && s.parentName.toLowerCase().trim() === motherName) ||
+    (s.patientName && motherName && s.patientName.toLowerCase().trim() === motherName) ||
+    isMatchingParentRecord({ patientName: s.patientName, parentName: s.parentName, fullName: s.patientName }, currentUser) ||
     (myInfants.some(inf => inf.infantName && s.patientName && s.patientName.toLowerCase().trim() === inf.infantName.toLowerCase().trim()))
   );
 

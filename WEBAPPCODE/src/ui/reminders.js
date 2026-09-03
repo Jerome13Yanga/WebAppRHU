@@ -161,9 +161,9 @@ function renderParentRemindersView(state, currentUser, isApk) {
             <span class="material-symbols-outlined text-3xl text-slate-300 block mb-1">calendar_month</span>
             <p class="font-semibold text-text">No Upcoming Appointments</p>
             <p class="text-[11px] mt-0.5 mb-3">You can request or view check-up appointments for you or your child.</p>
-            <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1" data-nav-page="schedules">
-              <span class="material-symbols-outlined text-sm">add_circle</span>
-              <span>Request Check-up Schedule</span>
+            <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="reminderRequestAppointmentBtn" data-action="request-checkup">
+              <span class="material-symbols-outlined text-sm">calendar_add_on</span>
+              <span>Request Check-up Appointment</span>
             </button>
           </div>
         ` : `

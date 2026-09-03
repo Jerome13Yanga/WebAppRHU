@@ -88,65 +88,49 @@
         </div>
       </form>
 
-      <!-- FORGOT PASSWORD FORM -->
+      <!-- FORGOT PASSWORD FORM (In-App Identity Verification - No Email Required) -->
       <form id="forgotPasswordForm" class="auth-form hidden">
         <div class="border-b border-line pb-2 mb-1">
           <h3 class="text-sm font-bold text-text">Reset Your Password</h3>
-          <p class="text-xs text-text-muted mt-0.5">Recover your account using a verification code or reset link.</p>
+          <p class="text-xs text-text-muted mt-0.5">Verify your account details to set a new password instantly.</p>
         </div>
 
-        <!-- Stage 1: Request Code / Link -->
-        <div id="forgotStep1" class="space-y-3">
-          <label>Registered Email Address
-            <input type="email" id="forgotEmail" placeholder="e.g. maria@example.com or admin@rhu.gov">
-          </label>
-          <button class="primary-btn full-btn mt-2" type="button" id="sendResetCodeBtn">Send Reset Code</button>
-          <div class="text-center pt-1">
-            <button type="button" class="forgot-link-btn" id="alreadyHaveCodeBtn">
-              Already have a 6-digit code? Enter code here
-            </button>
-          </div>
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+          <span class="font-bold block mb-0.5">Direct Account Recovery</span>
+          <span>Enter your registered email and barangay station to verify your identity and set a new password.</span>
         </div>
 
-        <!-- Stage 2: Enter Code & New Password -->
-        <div id="forgotStep2" class="space-y-3 hidden">
-          <div class="p-3 rounded-xl bg-sky-50 border border-sky-200 text-xs text-sky-800">
-            <span class="font-bold block mb-0.5">Check Your Email</span>
-            <span>A 6-digit verification code or reset link was sent to your email. Enter the code and your new password below.</span>
-          </div>
+        <label>Registered Email Address *
+          <input type="email" id="forgotEmail" required placeholder="e.g. maria@example.com or admin@rhu.gov">
+        </label>
 
-          <label>Email Address
-            <input type="email" id="forgotConfirmEmail" placeholder="Confirm your email">
+        <label>Registered Barangay Station *
+          <select id="forgotBarangay" class="input-field" required>
+            <option value="">Select your Barangay Station</option>
+          </select>
+        </label>
+
+        <div class="two-col">
+          <label>New Password *
+            <div class="password-input-wrap">
+              <input type="password" id="forgotNewPassword" required minlength="6" placeholder="Min. 6 characters">
+              <button type="button" class="toggle-password-btn" data-target="forgotNewPassword" title="Show/Hide Password" aria-label="Toggle password visibility">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
           </label>
 
-          <label id="forgotOtpLabel">6-Digit Verification Code
-            <input type="text" id="forgotOtp" maxlength="8" placeholder="e.g. 123456" autocomplete="one-time-code">
+          <label>Confirm New Password *
+            <div class="password-input-wrap">
+              <input type="password" id="forgotConfirmPassword" required minlength="6" placeholder="Repeat password">
+              <button type="button" class="toggle-password-btn" data-target="forgotConfirmPassword" title="Show/Hide Password" aria-label="Toggle password visibility">
+                <span class="material-symbols-outlined">visibility</span>
+              </button>
+            </div>
           </label>
-
-          <div class="two-col">
-            <label>New Password
-              <div class="password-input-wrap">
-                <input type="password" id="forgotNewPassword" minlength="6" placeholder="Min. 6 chars">
-                <button type="button" class="toggle-password-btn" data-target="forgotNewPassword" title="Show/Hide Password" aria-label="Toggle password visibility">
-                  <span class="material-symbols-outlined">visibility</span>
-                </button>
-              </div>
-            </label>
-
-            <label>Confirm New Password
-              <div class="password-input-wrap">
-                <input type="password" id="forgotConfirmPassword" minlength="6" placeholder="Repeat password">
-                <button type="button" class="toggle-password-btn" data-target="forgotConfirmPassword" title="Show/Hide Password" aria-label="Toggle password visibility">
-                  <span class="material-symbols-outlined">visibility</span>
-                </button>
-              </div>
-            </label>
-          </div>
-
-          <button class="primary-btn full-btn mt-1" type="submit" id="submitResetPasswordBtn">Reset & Save Password</button>
-          <button class="secondary-btn full-btn" type="button" id="resendResetCodeBtn">Resend Code</button>
         </div>
 
+        <button class="primary-btn full-btn mt-2" type="submit" id="submitResetPasswordBtn">Reset & Save Password</button>
         <button class="ghost-btn full-btn mt-1" type="button" id="backToLoginFromForgot">Back to Sign In</button>
       </form>
 

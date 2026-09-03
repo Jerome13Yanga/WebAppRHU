@@ -3,7 +3,7 @@
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow } from './db.js';
-import { embeddedAdminEmails, TABLES } from './config.js';
+import { embeddedAdminEmails, TABLES, isNativeMobileApp } from './config.js';
 import { toast } from './utils/sanitize.js';
 
 let currentUser = null;
@@ -29,7 +29,10 @@ export function isNurse(user = currentUser) {
 }
 
 export function isParent(user = currentUser) {
-  return user?.role === 'Mother / Parent';
+  if (isNativeMobileApp()) return true;
+  if (!user) return false;
+  const r = String(user.role || '').toLowerCase().trim();
+  return r === 'mother / parent' || r === 'parent' || r === 'mother' || r.includes('parent') || r.includes('mother');
 }
 
 export function isStaff(user = currentUser) {

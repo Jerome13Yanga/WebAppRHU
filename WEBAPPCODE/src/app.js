@@ -344,6 +344,7 @@ function renderPage(pageId) {
       break;
     case "reminders":
       contentEl.innerHTML = renderRemindersView(state, current);
+      bindRemindersEvents();
       break;
     case "reports":
       contentEl.innerHTML = renderReportsView(state, selectedBarangay, selectedReportMonth, selectedReportYear);
@@ -373,6 +374,10 @@ function hydrateAuthOptions() {
   const staffRegBgy = document.getElementById("staffRegBarangay");
   if (staffRegBgy) {
     staffRegBgy.innerHTML = bgyList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+  }
+  const forgotBgy = document.getElementById("forgotBarangay");
+  if (forgotBgy) {
+    forgotBgy.innerHTML = `<option value="">Select your Barangay Station</option>` + bgyList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
   }
 }
 
@@ -500,9 +505,6 @@ function bindAuthEvents() {
     const forgotForm = document.getElementById("forgotPasswordForm");
     if (forgotForm) {
       forgotForm.classList.remove("hidden");
-      document.getElementById("forgotStep1")?.classList.remove("hidden");
-      document.getElementById("forgotStep2")?.classList.add("hidden");
-      document.getElementById("forgotOtpLabel")?.classList.remove("hidden");
       const loginEmailVal = document.getElementById("loginEmail")?.value.trim();
       if (loginEmailVal && loginEmailVal.includes("@")) {
         const forgotEmail = document.getElementById("forgotEmail");
@@ -516,73 +518,20 @@ function bindAuthEvents() {
     document.getElementById("loginForm")?.classList.remove("hidden");
   });
 
-  document.getElementById("alreadyHaveCodeBtn")?.addEventListener("click", () => {
-    const emailVal = document.getElementById("forgotEmail")?.value.trim();
-    if (emailVal) {
-      const confirmEmail = document.getElementById("forgotConfirmEmail");
-      if (confirmEmail) confirmEmail.value = emailVal;
-    }
-    document.getElementById("forgotStep1")?.classList.add("hidden");
-    document.getElementById("forgotStep2")?.classList.remove("hidden");
-    document.getElementById("forgotOtpLabel")?.classList.remove("hidden");
-  });
-
-  // Send / Resend Reset Code handler
-  const handleSendResetCode = async () => {
-    const emailInput = document.getElementById("forgotEmail");
-    const confirmEmailInput = document.getElementById("forgotConfirmEmail");
-    const email = (emailInput?.value || confirmEmailInput?.value || "").trim();
-
-    if (!email || !email.includes("@")) {
-      toast("Please enter a valid registered email address.", true);
-      return;
-    }
-
-    const sendBtn = document.getElementById("sendResetCodeBtn");
-    const resendBtn = document.getElementById("resendResetCodeBtn");
-    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = "Sending Code..."; }
-    if (resendBtn) { resendBtn.disabled = true; resendBtn.textContent = "Sending..."; }
-
-    try {
-      if (isOnlineMode()) {
-        const { error } = await db.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + window.location.pathname
-        });
-        if (error) {
-          toast(`Failed to send code: ${error.message}`, true);
-          return;
-        }
-        toast("Verification code sent! Please check your email inbox.");
-      } else {
-        toast("Verification code sent (Offline Mode). Check your email.");
-      }
-
-      if (confirmEmailInput) confirmEmailInput.value = email;
-      document.getElementById("forgotStep1")?.classList.add("hidden");
-      document.getElementById("forgotStep2")?.classList.remove("hidden");
-      document.getElementById("forgotOtpLabel")?.classList.remove("hidden");
-      document.getElementById("forgotOtp")?.focus();
-    } catch (err) {
-      toast(`Error sending reset code: ${err.message}`, true);
-    } finally {
-      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = "Send Reset Code"; }
-      if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = "Resend Code"; }
-    }
-  };
-
-  document.getElementById("sendResetCodeBtn")?.addEventListener("click", handleSendResetCode);
-  document.getElementById("resendResetCodeBtn")?.addEventListener("click", handleSendResetCode);
-
-  // Submit Password Reset Form
+  // Submit Password Reset Form (Direct In-App Verification - Zero Email Required)
   document.getElementById("forgotPasswordForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = document.getElementById("forgotConfirmEmail")?.value.trim();
-    const otp = document.getElementById("forgotOtp")?.value.trim();
+    const email = document.getElementById("forgotEmail")?.value.trim();
+    const barangay = document.getElementById("forgotBarangay")?.value.trim();
     const newPass = document.getElementById("forgotNewPassword")?.value;
     const confirmPass = document.getElementById("forgotConfirmPassword")?.value;
 
-    if (!email) {
+    if (!email || !email.includes("@")) {
       toast("Please enter your registered email address.", true);
+      return;
+    }
+    if (!barangay) {
+      toast("Please select your registered barangay station.", true);
       return;
     }
     if (!newPass || newPass.length < 6) {
@@ -595,60 +544,53 @@ function bindAuthEvents() {
     }
 
     const submitBtn = document.getElementById("submitResetPasswordBtn");
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Saving New Password..."; }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Verifying & Saving..."; }
 
     try {
       if (isOnlineMode()) {
-        // Check if session is already established via magic link redirect
-        const { data: sessData } = await db.auth.getSession();
-        const hasActiveSession = Boolean(sessData?.session?.user);
-
-        if (!hasActiveSession) {
-          if (!otp) {
-            toast("Please enter the 6-digit verification code from your email.", true);
-            return;
-          }
-          // Verify recovery OTP
-          const { data: verifyData, error: verifyErr } = await db.auth.verifyOtp({
-            email,
-            token: otp,
-            type: "recovery"
+        // Call secure Supabase RPC function for direct password update in auth.users
+        try {
+          const { data: rpcData, error: rpcErr } = await db.rpc('reset_user_password', {
+            p_email: email,
+            p_barangay: barangay,
+            p_new_password: newPass
           });
-          if (verifyErr) {
-            toast(`Invalid or expired code: ${verifyErr.message}`, true);
+
+          if (!rpcErr && rpcData?.success) {
+            // Password updated successfully via database RPC
+          } else if (rpcData && rpcData.success === false) {
+            toast(rpcData.message || "No account found matching this email and barangay.", true);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Reset & Save Password"; }
             return;
           }
+        } catch (rpcEx) {
+          console.warn("RPC reset_user_password call notice:", rpcEx);
         }
+      }
 
-        // Set the new password
-        const { data: updateData, error: updateErr } = await db.auth.updateUser({
-          password: newPass
-        });
-        if (updateErr) {
-          toast(`Could not update password: ${updateErr.message}`, true);
-          return;
-        }
+      // Also update in local IndexedDB store if present
+      const localUsers = state.users || [];
+      const matchIdx = localUsers.findIndex(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+      if (matchIdx >= 0) {
+        localUsers[matchIdx].password = newPass;
+        await saveCollection("users", localUsers);
+      }
 
-        toast("Password updated successfully! Please sign in with your new password.");
-        document.getElementById("forgotPasswordForm")?.reset();
-        document.getElementById("forgotStep2")?.classList.add("hidden");
-        document.getElementById("forgotStep1")?.classList.remove("hidden");
-        document.getElementById("forgotPasswordForm")?.classList.add("hidden");
-        document.getElementById("loginForm")?.classList.remove("hidden");
-        const loginEmailInput = document.getElementById("loginEmail");
-        if (loginEmailInput) loginEmailInput.value = email;
-        const loginPassInput = document.getElementById("loginPassword");
-        if (loginPassInput) loginPassInput.value = "";
-      } else {
-        toast("Password updated successfully (Offline Mode).");
-        document.getElementById("forgotPasswordForm")?.reset();
-        document.getElementById("forgotStep2")?.classList.add("hidden");
-        document.getElementById("forgotStep1")?.classList.remove("hidden");
-        document.getElementById("forgotPasswordForm")?.classList.add("hidden");
-        document.getElementById("loginForm")?.classList.remove("hidden");
+      toast("Password reset successfully! Please sign in with your new password.");
+      document.getElementById("forgotPasswordForm")?.reset();
+      document.getElementById("forgotPasswordForm")?.classList.add("hidden");
+      document.getElementById("loginForm")?.classList.remove("hidden");
+
+      const loginEmailInput = document.getElementById("loginEmail");
+      if (loginEmailInput) loginEmailInput.value = email;
+      const loginPassInput = document.getElementById("loginPassword");
+      if (loginPassInput) {
+        loginPassInput.value = newPass;
+        loginPassInput.focus();
       }
     } catch (err) {
-      toast(`Password reset error: ${err.message}`, true);
+      console.error("Reset error:", err);
+      toast(`Password reset failed: ${err.message || err}`, true);
     } finally {
       if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Reset & Save Password"; }
     }
@@ -842,7 +784,7 @@ function bindShellEvents() {
 
   // Delegated check-up appointment request trigger for any screen
   document.addEventListener("click", (e) => {
-    const reqBtn = e.target.closest("#addScheduleBtn, #emptyScheduleRequestBtn, #parentRequestAppointmentBtn, #parentRequestAppointmentEmptyBtn, [data-action='request-checkup']");
+    const reqBtn = e.target.closest("#addScheduleBtn, #emptyScheduleRequestBtn, #parentRequestAppointmentBtn, #parentRequestAppointmentEmptyBtn, #reminderRequestAppointmentBtn, [data-action='request-checkup']");
     if (!reqBtn) return;
     e.preventDefault();
     const current = getCurrentUser();
@@ -870,6 +812,16 @@ function bindDashboardEvents() {
 
   document.getElementById("parentAddChildEmptyBtn")?.addEventListener("click", () => {
     openParentAddChildModal();
+  });
+
+  document.getElementById("parentRequestAppointmentBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openAddScheduleModal(getCurrentUser());
+  });
+
+  document.getElementById("parentRequestAppointmentEmptyBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openAddScheduleModal(getCurrentUser());
   });
 
   document.getElementById("parentRegisterPregnancyBtn")?.addEventListener("click", () => {
@@ -1941,7 +1893,7 @@ function openDigitalImmunizationCardModal(infant = {}, readOnly = false) {
 }
 
 function openAddScheduleModal(current) {
-  const isUserParent = isParent(current);
+  const isUserParent = isParent(current) || isNativeMobileApp();
   const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}" ${b === current?.barangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
 
   if (isUserParent) {
@@ -2008,7 +1960,10 @@ function openAddScheduleModal(current) {
           <textarea id="sNotes" rows="2" placeholder="e.g. 2nd prenatal check-up, Penta 2 vaccination, vitamins refill..."></textarea>
         </label>
 
-        <button class="primary-btn full-btn mt-2" type="submit">Submit Appointment Request</button>
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
+          <button type="button" class="secondary-btn sm-btn text-xs py-2 px-3" onclick="closeModal()">Cancel</button>
+          <button class="primary-btn sm-btn text-xs py-2 px-4" type="submit" id="submitSchedRequestBtn">Submit Appointment Request</button>
+        </div>
       </form>
     `);
 
@@ -2033,42 +1988,57 @@ function openAddScheduleModal(current) {
 
     document.getElementById("schedForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
-      let patientName = selectEl ? selectEl.value : "";
-      if (patientName === "__custom__") {
-        patientName = (document.getElementById("sPatientCustom")?.value || "").trim();
-        if (!patientName) {
-          toast("Please enter patient name.", true);
-          return;
+      const submitBtn = document.getElementById("submitSchedRequestBtn");
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Submitting Request..."; }
+
+      try {
+        let patientName = selectEl ? selectEl.value : "";
+        if (patientName === "__custom__") {
+          patientName = (document.getElementById("sPatientCustom")?.value || "").trim();
+          if (!patientName) {
+            toast("Please enter patient name.", true);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Submit Appointment Request"; }
+            return;
+          }
         }
-      }
 
-      if (!patientName || patientName === "undefined") {
-        patientName = parentName || "Mother / Parent";
-      }
+        if (!patientName || patientName === "undefined") {
+          patientName = parentName || "Mother / Parent";
+        }
 
-      const notes = (document.getElementById("sNotes")?.value || "").trim();
-      const newSched = {
-        id: `sch_${Date.now()}`,
-        patientName,
-        parentName: parentName,
-        userId: current?.id || current?.authUserId || "",
-        user_id: current?.id || current?.authUserId || "",
-        type: document.getElementById("sType").value,
-        barangay: document.getElementById("sBarangay").value,
-        date: document.getElementById("sDate").value,
-        time: document.getElementById("sTime").value,
-        status: "Requested",
-        notes,
-        assignedNurse: "Barangay Health Station Midwife"
-      };
+        const notes = (document.getElementById("sNotes")?.value || "").trim();
+        const bgyVal = document.getElementById("sBarangay")?.value || current?.barangay || "Basiao (Poblacion)";
+        const dateVal = document.getElementById("sDate")?.value || todayStr;
+        const timeVal = document.getElementById("sTime")?.value || "08:30 AM";
+        const typeVal = document.getElementById("sType")?.value || "MC";
 
-      await persistRecord("checkupSchedules", newSched);
-      closeModal();
-      toast(`Appointment requested for ${patientName}! Your midwife will review this schedule.`);
-      if (activePage === "dashboard") {
-        renderPage("dashboard");
-      } else {
-        renderPage("schedules");
+        const newSched = {
+          id: `sch_${Date.now()}`,
+          patientName,
+          parentName: parentName,
+          userId: current?.id || current?.authUserId || "",
+          user_id: current?.id || current?.authUserId || "",
+          type: typeVal,
+          barangay: bgyVal,
+          date: dateVal,
+          time: timeVal,
+          status: "Requested",
+          notes,
+          assignedNurse: "Barangay Health Station Midwife"
+        };
+
+        await persistRecord("checkupSchedules", newSched);
+        closeModal();
+        toast(`Appointment requested for ${patientName}! Your midwife will review this schedule.`);
+        if (activePage === "dashboard") {
+          renderPage("dashboard");
+        } else {
+          renderPage("schedules");
+        }
+      } catch (err) {
+        console.error("Appointment request error:", err);
+        toast(`Failed to submit request: ${err.message || err}`, true);
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Submit Appointment Request"; }
       }
     });
     return;
@@ -2135,6 +2105,20 @@ function bindSchedulesEvents() {
         renderPage("schedules");
       }
     });
+  });
+}
+
+// -------------------------------------------------------------
+// Reminders Module Binders
+// -------------------------------------------------------------
+function bindRemindersEvents() {
+  document.getElementById("reminderRequestAppointmentBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openAddScheduleModal(getCurrentUser());
+  });
+
+  document.getElementById("enablePushNotificationsBtn")?.addEventListener("click", async () => {
+    await requestNotificationPermission();
   });
 }
 

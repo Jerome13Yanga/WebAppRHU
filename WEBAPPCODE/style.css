@@ -323,6 +323,19 @@ input[type="radio"] {
 }
 
 /* BUTTONS */
+button * {
+  pointer-events: none;
+}
+
+button,
+.primary-btn,
+.secondary-btn,
+.ghost-btn {
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 .primary-btn {
   background: var(--brand-primary);
   color: #ffffff;
