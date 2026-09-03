@@ -2217,9 +2217,19 @@ function bindReportsEvents() {
         return a === b || a.includes(b) || b.includes(a);
       };
 
-      const records = rep.type === "MC"
+      let records = rep.type === "MC"
         ? state.maternalRecords.filter(r => matchBgy(r.barangay, rep.barangay))
         : state.infantRecords.filter(r => matchBgy(r.barangay, rep.barangay));
+
+      if (records.length === 0) {
+        const all = rep.type === "MC" ? state.maternalRecords : state.infantRecords;
+        if (all.length > 0) {
+          records = all;
+          toast(`Note: Exporting all ${records.length} ${rep.type} records across all barangays.`);
+        } else {
+          toast(`No ${rep.type} records found in the system.`, true);
+        }
+      }
 
       exportMcCcReportToExcel(rep.type, rep.barangay, rep.month, records, rep, state);
     });

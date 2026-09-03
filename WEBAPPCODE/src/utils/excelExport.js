@@ -60,7 +60,7 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
       lineA[0] = num;
       lineA[1] = fmtDate(d.registrationDate || rec.created_at || rec.lmp);
       lineA[2] = d.familySerialNumber || `FAM-${1000 + num}`;
-      lineA[3] = rec.fullName || d.fullName || `${d.firstName || ''} ${d.surname || ''}`.trim();
+      lineA[3] = rec.fullName || d.fullName || `${d.firstName || ''} ${d.surname || ''}`.trim() || rec.name || rec.patientName || "Patient";
       lineA[4] = rec.address || d.address || rec.barangay || "";
       lineA[5] = rec.age || d.age || "";
 
@@ -151,11 +151,11 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
       lineA[0] = num;
       lineA[1] = fmtDate(d.registrationDate || rec.created_at || rec.birthdate || rec.birth_date);
       lineA[2] = d.familySerialNumber || `FAM-${2000 + num}`;
-      lineA[3] = rec.infantName || rec.infant_name || d.child_name || rec.fullName || rec.name || "";
+      lineA[3] = rec.infantName || rec.infant_name || d.child_name || rec.fullName || rec.name || d.infantName || "Child";
       lineA[4] = fmtDate(rec.birthdate || rec.birth_date || d.dob || d.birthdate);
       lineA[5] = rec.ageMonths !== undefined ? rec.ageMonths : (rec.age_months !== undefined ? rec.age_months : (d.ageMonths || 0));
       lineA[6] = (d.sex || rec.sex || "Male").toUpperCase().startsWith("F") ? "F" : "M";
-      lineA[7] = rec.motherName || rec.mother_name || rec.parentName || rec.parent_name || d.mother_name || d.parentName || "";
+      lineA[7] = rec.motherName || rec.mother_name || rec.parentName || rec.parent_name || d.mother_name || d.parentName || "Mother";
       lineA[8] = rec.address || d.address || rec.barangay || "";
       lineA[9] = checkSym(d.cpabTd2BeforeDelivery || d.td2Date);
       lineA[10] = checkSym(d.cpabTd3ToTd5BeforeDelivery || d.td3Date || d.td4Date || d.td5Date);
@@ -236,7 +236,9 @@ export async function exportMcCcReportToExcel(reportType, barangay, month, recor
       dataRows.forEach((rData, rIdx) => {
         const excelRow = sheet.getRow(startDataRow + rIdx);
         rData.forEach((val, cIdx) => {
-          excelRow.getCell(cIdx + 1).value = val;
+          if (val !== undefined && val !== null && String(val).trim() !== "") {
+            excelRow.getCell(cIdx + 1).value = val;
+          }
         });
       });
 
