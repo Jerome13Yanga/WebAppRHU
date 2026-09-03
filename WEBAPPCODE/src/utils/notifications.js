@@ -6,20 +6,65 @@
 import { toast, formatDate } from './sanitize.js';
 import { isParent } from '../auth.js';
 
-export function isNotificationSupported() {
-  return typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator;
+function getNativePlugin() {
+  if (typeof window !== 'undefined' && window.Capacitor?.Plugins?.LocalNotifications) {
+    return window.Capacitor.Plugins.LocalNotifications;
+  }
+  return null;
 }
 
-export function getNotificationPermission() {
+export function isNotificationSupported() {
+  if (getNativePlugin()) return true;
+  return typeof window !== 'undefined' && 'Notification' in window;
+}
+
+export async function getNotificationPermission() {
+  const plugin = getNativePlugin();
+  if (plugin) {
+    try {
+      const res = await plugin.checkPermissions();
+      return res.display; // 'granted', 'denied', 'prompt'
+    } catch (e) {
+      return 'unsupported';
+    }
+  }
   if (!isNotificationSupported()) return 'unsupported';
   return Notification.permission; // 'default', 'granted', 'denied'
 }
 
-export function isNotificationGranted() {
+export async function isNotificationGranted() {
+  const plugin = getNativePlugin();
+  if (plugin) {
+    try {
+      const res = await plugin.checkPermissions();
+      return res.display === 'granted';
+    } catch (e) {
+      return false;
+    }
+  }
   return isNotificationSupported() && Notification.permission === 'granted';
 }
 
 export async function requestNotificationPermission() {
+  const plugin = getNativePlugin();
+  if (plugin) {
+    try {
+      const res = await plugin.requestPermissions();
+      if (res.display === 'granted') {
+        toast('Mobile notifications enabled! You will receive check-up and vaccine alerts.');
+        await sendNativeNotification('RHU Health Notifications Active', {
+          body: 'Padre Burgos RHU will keep you updated on maternal appointments and child immunization schedules.'
+        });
+        return true;
+      }
+      toast('Notification permission was not granted.', true);
+      return false;
+    } catch (err) {
+      console.warn('Capacitor requestPermissions error:', err);
+      return false;
+    }
+  }
+
   if (!isNotificationSupported()) {
     toast('Notifications are not supported on this browser or platform.', true);
     return false;
@@ -48,53 +93,114 @@ export async function requestNotificationPermission() {
 }
 
 export async function sendNativeNotification(title, options = {}) {
-  if (!isNotificationGranted()) return false;
-
-  const defaultOptions = {
-    icon: './icon-192.png',
-    badge: './icon-32.png',
-    vibrate: [200, 100, 200],
-    renotify: true,
-    data: { url: './' },
-    actions: [
-      { action: 'open', title: 'View Details' },
-      { action: 'close', title: 'Dismiss' }
-    ]
-  };
-
-  const finalOptions = { ...defaultOptions, ...options };
-
-  try {
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      if (registration && registration.showNotification) {
-        await registration.showNotification(title, finalOptions);
-        return true;
-      }
-    }
-    // Fallback to standard Window Notification if SW is not ready
-    new Notification(title, finalOptions);
-    return true;
-  } catch (err) {
-    console.warn('Native notification failed, falling back:', err);
+  const plugin = getNativePlugin();
+  if (plugin) {
     try {
-      new Notification(title, finalOptions);
+      await plugin.schedule({
+        notifications: [
+          {
+            title: title,
+            body: options.body || '',
+            id: Math.floor(Math.random() * 1000000) + 1,
+            schedule: { at: new Date(Date.now() + 300) },
+            sound: null,
+            attachments: null,
+            actionTypeId: '',
+            extra: null
+          }
+        ]
+      });
       return true;
-    } catch (e) {
-      return false;
+    } catch (err) {
+      console.warn('LocalNotifications.schedule error, falling back:', err);
     }
   }
+
+  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    const defaultOptions = {
+      icon: './icon-192.png',
+      badge: './icon-32.png',
+      vibrate: [200, 100, 200],
+      renotify: true,
+      data: { url: './' },
+      actions: [
+        { action: 'open', title: 'View Details' },
+        { action: 'close', title: 'Dismiss' }
+      ]
+    };
+    const finalOptions = { ...defaultOptions, ...options };
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration && registration.showNotification) {
+          await registration.showNotification(title, finalOptions);
+          return true;
+        }
+      }
+      new Notification(title, finalOptions);
+      return true;
+    } catch (err) {
+      console.warn('Native web notification failed:', err);
+    }
+  }
+  return false;
+}
+
+/**
+ * Displays an in-app visual pop-up reminder modal on mobile or web
+ * so that users never miss important clinical dates upon opening the app.
+ */
+export function checkAndShowInAppReminderPopup(notifications) {
+  if (!notifications || notifications.length === 0) return;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const lastPopupDate = sessionStorage.getItem('rhu_reminder_popup_date');
+  if (lastPopupDate === todayStr) return; // Show once per session
+
+  sessionStorage.setItem('rhu_reminder_popup_date', todayStr);
+
+  const modal = document.getElementById("genericModal");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
+  if (!modal || !modalBody) return;
+
+  if (modalTitle) modalTitle.textContent = "Health Reminders & Updates";
+
+  modalBody.innerHTML = `
+    <div class="space-y-3 text-xs">
+      <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 flex items-start gap-2.5">
+        <span class="material-symbols-outlined text-emerald-600 text-2xl shrink-0">notifications_active</span>
+        <div>
+          <strong class="text-sm font-bold block mb-0.5">Upcoming Health Reminders</strong>
+          <p class="text-[11px] text-emerald-800">You have important maternal and child health schedules:</p>
+        </div>
+      </div>
+      <div class="space-y-2">
+        ${notifications.map(n => `
+          <div class="p-3 bg-surface border border-line rounded-xl shadow-2xs">
+            <strong class="text-text block font-bold mb-1">${n.title}</strong>
+            <p class="text-text-muted text-[11px] leading-relaxed">${n.body}</p>
+          </div>
+        `).join('')}
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
+        <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-4" onclick="document.getElementById('genericModal').classList.add('hidden')">
+          Understood, Close
+        </button>
+      </div>
+    </div>
+  `;
+  modal.classList.remove("hidden");
 }
 
 /**
  * Scan state for upcoming infant immunization milestones and appointments,
- * and dispatch native push notifications if not already notified today.
+ * and dispatch native push notifications + in-app reminders.
  */
 export async function checkImmunizationAndScheduleReminders(state, currentUser) {
-  if (!currentUser || !isNotificationGranted()) return;
+  if (!currentUser) return;
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const lastCheckDate = localStorage.getItem('rhu_last_notif_check_date');
   const notifiedKeys = JSON.parse(localStorage.getItem('rhu_notified_keys') || '[]');
 
   const isUserParent = isParent(currentUser);
@@ -115,7 +221,6 @@ export async function checkImmunizationAndScheduleReminders(state, currentUser) 
     if (!schedule.date || schedule.status === 'Completed' || schedule.status === 'Cancelled') return;
     
     const schedKey = `sched_${schedule.id}_${schedule.date}`;
-    if (notifiedKeys.includes(schedKey)) return;
 
     if (schedule.date === todayStr) {
       newNotifications.push({
@@ -166,26 +271,29 @@ export async function checkImmunizationAndScheduleReminders(state, currentUser) 
       if (pendingVaccines.length > 0) {
         const nextVac = pendingVaccines[0];
         const vacKey = `vac_${infant.id}_${nextVac.name}_${todayStr}`;
-        if (!notifiedKeys.includes(vacKey)) {
-          newNotifications.push({
-            key: vacKey,
-            title: `💉 Immunization Due: ${nextVac.name}`,
-            body: `${childName} is due for ${nextVac.name}. Please visit Padre Burgos RHU or your Barangay Health Station.`,
-            tag: `vac-${infant.id}`
-          });
-        }
+        newNotifications.push({
+          key: vacKey,
+          title: `💉 Immunization Due: ${nextVac.name}`,
+          body: `${childName} is due for ${nextVac.name}. Please visit Padre Burgos RHU or your Barangay Health Station.`,
+          tag: `vac-${infant.id}`
+        });
       }
     }
   });
 
-  // Dispatch notifications sequentially (up to 3 per check to avoid flooding)
+  // 1. Show in-app visual pop-up modal if there are active reminders
+  checkAndShowInAppReminderPopup(newNotifications);
+
+  // 2. Dispatch native system / push notifications (if not already sent today)
   for (const notif of newNotifications.slice(0, 3)) {
-    await sendNativeNotification(notif.title, {
-      body: notif.body,
-      tag: notif.tag,
-      data: { url: './' }
-    });
-    notifiedKeys.push(notif.key);
+    if (!notifiedKeys.includes(notif.key)) {
+      await sendNativeNotification(notif.title, {
+        body: notif.body,
+        tag: notif.tag,
+        data: { url: './' }
+      });
+      notifiedKeys.push(notif.key);
+    }
   }
 
   // Save state

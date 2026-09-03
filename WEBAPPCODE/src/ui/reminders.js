@@ -77,6 +77,21 @@ function renderParentRemindersView(state, currentUser, isApk) {
         </div>
       </div>
 
+      <!-- Mobile / Push Notification Enablement Banner -->
+      <div class="p-3.5 rounded-2xl border border-sky-200 bg-sky-50/70 text-xs flex items-center justify-between flex-wrap gap-2 shadow-2xs">
+        <div class="flex items-center gap-2.5">
+          <span class="material-symbols-outlined text-sky-600 text-xl">notifications_active</span>
+          <div>
+            <strong class="text-slate-900 text-xs block">Pop-up Mobile Alerts</strong>
+            <span class="text-[11px] text-slate-600">Receive reminder pop-ups on your phone for upcoming check-ups & child vaccines.</span>
+          </div>
+        </div>
+        <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3 inline-flex items-center gap-1 shrink-0" id="enablePushNotificationsBtn">
+          <span class="material-symbols-outlined text-sm">notifications</span>
+          <span>Enable Alerts</span>
+        </button>
+      </div>
+
       <!-- Overdue Appointments Notice (if any) -->
       ${overdueSchedules.length > 0 ? `
         <div class="p-4 rounded-2xl border border-rose-200 bg-rose-50/70 text-xs shadow-2xs space-y-2">
@@ -218,60 +233,6 @@ function renderParentRemindersView(state, currentUser, isApk) {
           </div>
         </div>
       ` : ''}
-
-      <!-- Official DOH Maternal & Child Health Advisories (Padre Burgos RHU) -->
-      <div class="panel p-5 rounded-2xl border border-line bg-surface shadow-xs space-y-4">
-        <h3 class="text-sm font-bold text-text flex items-center gap-2 pb-2 border-b border-line">
-          <span class="material-symbols-outlined text-amber-600 text-xl">campaign</span>
-          <span>DOH Maternal & Child Health Guidelines</span>
-        </h3>
-
-        <!-- Danger Signs Card -->
-        <div class="p-4 rounded-xl border border-rose-200 bg-rose-50/60 text-xs space-y-2">
-          <div class="flex items-center gap-2 text-rose-800 font-bold">
-            <span class="material-symbols-outlined text-rose-600 text-lg">emergency</span>
-            <span>Maternal Danger Signs — Seek Immediate Care</span>
-          </div>
-          <p class="text-rose-900 text-[11px] leading-relaxed">
-            If you or an expectant mother experience any of the following symptoms, go immediately to Padre Burgos RHU or call your midwife:
-          </p>
-          <ul class="list-disc pl-5 space-y-1 text-[11px] text-rose-800 font-medium">
-            <li>Severe, persistent headache or blurred vision</li>
-            <li>Vaginal bleeding or sudden leaking of fluid</li>
-            <li>High fever with body chills (38°C and above)</li>
-            <li>Severe abdominal or stomach pain</li>
-            <li>Sudden swelling of face, fingers, or legs (edema)</li>
-            <li>Absence or significant decrease in baby's movement</li>
-          </ul>
-        </div>
-
-        <!-- First 1,000 Days & Nutrition -->
-        <div class="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 text-xs space-y-1.5">
-          <div class="flex items-center gap-2 text-emerald-800 font-bold">
-            <span class="material-symbols-outlined text-emerald-600 text-lg">nutrition</span>
-            <span>First 1,000 Days: Nutrition & Breastfeeding</span>
-          </div>
-          <p class="text-emerald-900 text-[11px] leading-relaxed">
-            The first 1,000 days from pregnancy up to a child's 2nd birthday build brain development and immunity:
-          </p>
-          <ul class="list-disc pl-5 space-y-0.5 text-[11px] text-emerald-800">
-            <li>Take your daily Iron & Folic Acid supplements regularly during pregnancy.</li>
-            <li>Practice <strong>Exclusive Breastfeeding</strong> for the first 6 months (no water, formula, or tea).</li>
-            <li>Introduce nutrient-dense complementary home foods alongside breastfeeding starting at 6 months.</li>
-          </ul>
-        </div>
-
-        <!-- Todo Ligtas Immunization Advisory -->
-        <div class="p-4 rounded-xl border border-sky-200 bg-sky-50/60 text-xs space-y-1.5">
-          <div class="flex items-center gap-2 text-sky-800 font-bold">
-            <span class="material-symbols-outlined text-sky-600 text-lg">verified_user</span>
-            <span>Routine Immunization Protection (Bakuna Para sa Sanggol)</span>
-          </div>
-          <p class="text-sky-900 text-[11px] leading-relaxed">
-            Vaccines are free, safe, and effective. Bringing your child for routine shots protects them against Measles, Polio, Tetanus, Diphtheria, Pertussis, and Hepatitis B. Inquire with your Barangay Health Worker for the next immunization schedule in your area.
-          </p>
-        </div>
-      </div>
 
       <!-- Quick RHU Emergency & Clinic Contact Button -->
       <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 text-xs flex items-center justify-between flex-wrap gap-3">
