@@ -517,6 +517,7 @@ function renderNurseDashboard(state, currentUser, searchTerm = '') {
   const todayStr = new Date().toISOString().split('T')[0];
   const todaySchedules = schedules.filter(s => s.date === todayStr);
   const upcomingSchedules = schedules.filter(s => s.date && s.date > todayStr);
+  const pendingAppointments = schedules.filter(s => s.status === 'Requested');
 
   return `
     <div class="space-y-6">
@@ -539,6 +540,25 @@ function renderNurseDashboard(state, currentUser, searchTerm = '') {
           </div>
         </div>
       </div>
+
+      <!-- Pending Appointment Requests Alert for Nurse -->
+      ${pendingAppointments.length > 0 ? `
+        <div class="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start sm:items-center gap-3">
+            <span class="material-symbols-outlined text-amber-600 text-2xl shrink-0 mt-0.5 sm:mt-0">pending_actions</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <strong class="text-xs sm:text-sm text-amber-950 font-bold">${pendingAppointments.length} Check-up Request${pendingAppointments.length > 1 ? 's' : ''} Awaiting Review</strong>
+                <span class="bg-amber-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Review Needed</span>
+              </div>
+              <p class="text-[11px] text-amber-800 mt-0.5">Mothers in ${escapeHtml(bgy)} submitted appointment requests waiting for confirmation.</p>
+            </div>
+          </div>
+          <button type="button" class="primary-btn sm-btn bg-amber-600 hover:bg-amber-700 text-xs py-1.5 px-3.5 shrink-0" onclick="document.querySelector('[data-page=schedules]')?.click()">
+            Review in Schedules (${pendingAppointments.length})
+          </button>
+        </div>
+      ` : ''}
 
       <!-- KPI Stat Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

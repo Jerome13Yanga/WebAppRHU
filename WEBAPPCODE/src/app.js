@@ -2400,6 +2400,168 @@ function openAddScheduleModal(current) {
   });
 }
 
+function openReviewScheduleModal(scheduleId) {
+  const sched = (state.checkupSchedules || []).find(s => s.id === scheduleId);
+  if (!sched) {
+    toast("Appointment record not found.", true);
+    return;
+  }
+
+  const currentUser = getCurrentUser();
+  const isPending = sched.status === 'Requested';
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const timeOptions = [
+    "08:00 AM",
+    "08:30 AM",
+    "09:00 AM",
+    "09:30 AM",
+    "10:00 AM",
+    "10:30 AM",
+    "11:00 AM",
+    "01:00 PM",
+    "01:30 PM",
+    "02:00 PM",
+    "02:30 PM",
+    "03:00 PM",
+    "03:30 PM"
+  ];
+
+  openModal(isPending ? "Review Appointment Request" : "Edit Check-up Appointment", `
+    <form id="reviewSchedForm" class="modal-form space-y-4 text-xs">
+      ${isPending ? `
+        <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="material-symbols-outlined text-amber-600 text-base">pending_actions</span>
+            <strong class="font-bold">Pending Appointment Request</strong>
+          </div>
+          <p class="text-amber-900">This clinical check-up visit was requested by the patient. Verify the preferred date, time slot, and provide any clinical preparation instructions.</p>
+        </div>
+      ` : ''}
+
+      <!-- Patient Summary Card -->
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Patient Name</span>
+            <strong class="text-sm text-slate-900">${escapeHtml(sched.patientName)}</strong>
+          </div>
+          <span class="badge ${sched.type === 'MC' ? 'badge-info' : 'bg-indigo-100 text-indigo-800 border border-indigo-200'} text-[11px]">
+            ${sched.type === 'MC' ? '🤰 Maternal Prenatal' : '👶 Child Immunization'}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200">
+          <div>
+            <span class="text-slate-400 text-[10px] block">Barangay Station</span>
+            <span class="font-semibold text-slate-700">${escapeHtml(sched.barangay)}</span>
+          </div>
+          <div>
+            <span class="text-slate-400 text-[10px] block">Parent / Mother</span>
+            <span class="font-semibold text-slate-700">${escapeHtml(sched.parentName || sched.patientName)}</span>
+          </div>
+        </div>
+
+        ${sched.notes ? `
+          <div class="pt-2 border-t border-slate-200">
+            <span class="text-slate-400 text-[10px] block">Patient Request Note / Chief Complaint</span>
+            <p class="text-xs text-slate-700 italic mt-0.5 font-medium bg-white p-2 rounded border border-slate-200">"${escapeHtml(sched.notes)}"</p>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Schedule Timing Inputs -->
+      <div class="two-col">
+        <label>Appointment Date *
+          <input type="date" id="revSchedDate" required value="${sched.date || todayStr}" min="${todayStr}">
+        </label>
+        <label>Time Slot *
+          <select id="revSchedTime" class="input-field">
+            ${timeOptions.map(t => `<option value="${t}" ${sched.time === t ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+
+      <label>Assigned Healthcare Staff / Midwife *
+        <input type="text" id="revSchedNurse" required value="${escapeHtml(sched.assignedNurse || currentUser?.name || currentUser?.fullName || 'Barangay Health Station Midwife')}" placeholder="e.g. Midwife Anna To">
+      </label>
+
+      <label>Clinical Instructions for Mother (Optional)
+        <textarea id="revSchedInstructions" rows="2" placeholder="e.g. Please bring your Mother Card and arrive 15 minutes early. Fasting is required.">${escapeHtml(sched.instructions || '')}</textarea>
+        <small class="text-slate-400 text-[11px] block mt-0.5">This guidance will be displayed directly on the patient's schedule card and phone.</small>
+      </label>
+
+      <div class="flex items-center justify-between gap-2 pt-3 border-t border-line">
+        ${isPending ? `
+          <button type="button" class="secondary-btn text-rose-700 hover:bg-rose-50 border-rose-200 text-xs py-2 px-3 inline-flex items-center gap-1" id="declineSchedBtn">
+            <span class="material-symbols-outlined text-sm">cancel</span>
+            <span>Decline Request</span>
+          </button>
+        ` : `
+          <button type="button" class="secondary-btn text-xs py-2 px-3" onclick="closeModal()">Cancel</button>
+        `}
+
+        <div class="flex items-center gap-2">
+          ${isPending ? `<button type="button" class="ghost-btn text-xs py-2 px-3" onclick="closeModal()">Close</button>` : ''}
+          <button class="primary-btn text-xs py-2 px-4 inline-flex items-center gap-1.5 shadow-sm" type="submit" id="saveSchedReviewBtn">
+            <span class="material-symbols-outlined text-sm">check_circle</span>
+            <span>${isPending ? 'Approve & Confirm Appointment' : 'Save Changes'}</span>
+          </button>
+        </div>
+      </div>
+    </form>
+  `);
+
+  const form = document.getElementById("reviewSchedForm");
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const saveBtn = document.getElementById("saveSchedReviewBtn");
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving..."; }
+
+    try {
+      const dateVal = document.getElementById("revSchedDate")?.value;
+      const timeVal = document.getElementById("revSchedTime")?.value;
+      const nurseVal = document.getElementById("revSchedNurse")?.value.trim();
+      const instructionsVal = document.getElementById("revSchedInstructions")?.value.trim();
+
+      sched.date = dateVal;
+      sched.time = timeVal;
+      sched.assignedNurse = nurseVal || "Barangay Midwife";
+      sched.instructions = instructionsVal;
+      sched.status = "Confirmed";
+      sched.confirmedAt = new Date().toISOString();
+      sched.confirmedBy = currentUser?.name || currentUser?.fullName || "Midwife";
+
+      await persistRecord("checkupSchedules", sched);
+      closeModal();
+      toast(`Appointment confirmed for ${sched.patientName}! Reflected on mother's portal.`);
+      renderPage("schedules");
+    } catch (err) {
+      console.error("Save schedule review error:", err);
+      toast(`Failed to save: ${err.message || err}`, true);
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Approve & Confirm Appointment"; }
+    }
+  });
+
+  document.getElementById("declineSchedBtn")?.addEventListener("click", async () => {
+    const reason = prompt("Enter a brief note for declining this request (will be visible to the mother):", "Clinic slot full. Please select another day or contact your health worker.");
+    if (reason === null) return;
+
+    try {
+      sched.status = "Declined";
+      sched.declineReason = reason;
+      sched.instructions = reason;
+      await persistRecord("checkupSchedules", sched);
+      closeModal();
+      toast(`Appointment request for ${sched.patientName} was declined.`);
+      renderPage("schedules");
+    } catch (err) {
+      console.error("Decline error:", err);
+      toast(`Failed to decline request: ${err.message || err}`, true);
+    }
+  });
+}
+
 // -------------------------------------------------------------
 // Schedules Module Binders
 // -------------------------------------------------------------
@@ -2433,6 +2595,90 @@ function bindSchedulesEvents() {
     });
   }
 
+  // Quick Approve Button
+  document.querySelectorAll(".approve-schedule-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-id");
+      const name = btn.getAttribute("data-name") || "Patient";
+      const sched = (state.checkupSchedules || []).find(s => s.id === id);
+      if (!sched) return;
+
+      const current = getCurrentUser();
+      sched.status = "Confirmed";
+      sched.assignedNurse = sched.assignedNurse || current?.name || current?.fullName || "Barangay Midwife";
+      sched.confirmedAt = new Date().toISOString();
+      sched.confirmedBy = current?.name || current?.fullName || "Midwife";
+
+      try {
+        await persistRecord("checkupSchedules", sched);
+        toast(`Appointment confirmed for ${name}! Reflected on mother's portal.`);
+        renderPage("schedules");
+      } catch (err) {
+        toast(`Error approving: ${err.message || err}`, true);
+      }
+    });
+  });
+
+  // Review / Edit Schedule Details Button
+  document.querySelectorAll(".review-schedule-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-id");
+      openReviewScheduleModal(id);
+    });
+  });
+
+  // Mark Visit as Completed Button
+  document.querySelectorAll(".mark-done-schedule-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-id");
+      const sched = (state.checkupSchedules || []).find(s => s.id === id);
+      if (!sched) return;
+
+      sched.status = "Completed";
+      sched.completedAt = new Date().toISOString();
+
+      try {
+        await persistRecord("checkupSchedules", sched);
+        toast(`Check-up visit for ${sched.patientName} marked as Completed.`);
+        renderPage("schedules");
+      } catch (err) {
+        toast(`Error completing visit: ${err.message || err}`, true);
+      }
+    });
+  });
+
+  // Quick Status Filter Chips
+  document.querySelectorAll(".sched-filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const filter = btn.getAttribute("data-filter");
+      document.querySelectorAll(".sched-filter-btn").forEach(b => {
+        b.classList.remove("active");
+        b.classList.remove("bg-slate-200", "text-slate-800", "bg-amber-200", "text-amber-950");
+        b.classList.add("bg-slate-50", "text-slate-600");
+      });
+      btn.classList.add("active");
+      btn.classList.remove("bg-slate-50", "text-slate-600");
+      btn.classList.add("bg-slate-200", "text-slate-800");
+
+      document.querySelectorAll(".schedule-record-row").forEach(row => {
+        const rowStatus = row.getAttribute("data-status");
+        if (!filter || filter === "all") {
+          row.style.display = "";
+        } else if (filter === "Requested") {
+          row.style.display = (rowStatus === "Requested") ? "" : "none";
+        } else if (filter === "Confirmed") {
+          row.style.display = (rowStatus === "Confirmed" || rowStatus === "Scheduled") ? "" : "none";
+        } else if (filter === "Completed") {
+          row.style.display = (rowStatus === "Completed" || rowStatus === "Done") ? "" : "none";
+        }
+      });
+    });
+  });
+
+  // Delete / Cancel Schedule
   document.querySelectorAll(".delete-schedule-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-id");
