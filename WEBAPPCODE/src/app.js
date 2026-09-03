@@ -5,7 +5,7 @@
 import { STORE_KEYS, pages, getDynamicBarangays, defaultBarangays, TABLES, isNativeMobileApp } from './config.js';
 import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow, saveLocal } from './db.js';
 import { initSyncEngine, queueOfflineAction, flushPendingSyncQueue } from './sync.js';
-import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, isParent, isNurse, isMho, isAdmin, isStaff } from './auth.js';
+import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, isParent, isNurse, isMho, isAdmin, isStaff, isMatchingParentRecord } from './auth.js';
 import { toast, escapeHtml, formatDate } from './utils/sanitize.js';
 import { exportMcCcReportToExcel } from './utils/excelExport.js';
 import { initTheme, toggleTheme } from './utils/theme.js';
