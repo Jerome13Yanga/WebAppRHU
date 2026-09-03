@@ -76,198 +76,90 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
   // --------------------------------------------------------------------------
   if (isSingleNurseView) {
     return `
-      <div class="space-y-6 max-w-5xl mx-auto pb-10">
+      <div class="space-y-6 max-w-3xl mx-auto pb-10">
         <!-- Page Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] px-2.5 py-0.5 rounded-md font-semibold">
-                <span class="material-symbols-outlined text-xs">local_hospital</span>
-                <span>Assigned Health Station</span>
+        <div class="pb-4 border-b border-slate-200">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] px-2.5 py-0.5 rounded-md font-semibold">
+              <span class="material-symbols-outlined text-xs">local_hospital</span>
+              <span>Assigned Health Station</span>
+            </span>
+            <span class="text-xs text-slate-500 font-medium">Municipality of Padre Burgos</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-600 text-2xl">contact_phone</span>
+            <span>${escapeHtml(userBarangay)} Emergency Contact</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Manage your health station's direct phone number, clinic location, and emergency hotlines for mothers and patients.</p>
+        </div>
+
+        <!-- Nurse's Station Card -->
+        <div class="contact-card-item rounded-2xl border-2 border-emerald-500 shadow-md ring-2 ring-emerald-100 bg-white overflow-hidden" data-barangay-name="${escapeHtml(userBarangay.toLowerCase())}">
+          <div class="p-6">
+            <div class="flex items-start justify-between gap-2 mb-4">
+              <div>
+                <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">Your Station</span>
+                <h3 class="font-extrabold text-slate-900 text-lg sm:text-xl">${escapeHtml(userBarangay)}</h3>
+                <p class="text-xs text-slate-500 font-medium">Barangay Health Station</p>
+              </div>
+              <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold px-3 py-1 rounded-full">
+                <span class="material-symbols-outlined text-xs">verified</span>
+                <span>Assigned Station</span>
               </span>
-              <span class="text-xs text-slate-500 font-medium">Municipality of Padre Burgos</span>
             </div>
-            <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <span class="material-symbols-outlined text-emerald-600 text-2xl">contact_phone</span>
-              <span>${escapeHtml(userBarangay)} Emergency Contact & Hotline</span>
-            </h2>
-            <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Manage your health station's direct phone number, clinic location, and emergency hotlines for mothers and patients.</p>
+
+            <div class="space-y-4 pt-4 border-t border-slate-100 text-xs">
+              <!-- Assigned Nurse / Midwife -->
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">person</span>
+                <div class="flex-1">
+                  <span class="text-[11px] text-slate-400 block font-medium">Assigned Nurse / Midwife</span>
+                  <strong class="text-slate-900 text-sm">${escapeHtml(nurseStationContact?.nurseName || currentUser?.name || 'Not Set')}</strong>
+                </div>
+              </div>
+
+              <!-- Direct Station Phone -->
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-emerald-600 text-xl shrink-0 mt-0.5">phone_in_talk</span>
+                <div class="flex-1">
+                  <span class="text-[11px] text-slate-400 block font-medium">Direct Contact Number</span>
+                  ${nurseStationContact?.contactNumber ? `
+                    <a href="tel:${escapeHtml(nurseStationContact.contactNumber)}" class="text-emerald-700 font-extrabold text-base hover:underline inline-flex items-center gap-1">
+                      <span>${escapeHtml(nurseStationContact.contactNumber)}</span>
+                      <span class="material-symbols-outlined text-xs">open_in_new</span>
+                    </a>
+                  ` : `
+                    <span class="text-amber-700 font-semibold italic text-xs">Contact number not set yet — Click Edit Emergency Contact below to configure</span>
+                  `}
+                </div>
+              </div>
+
+              <!-- Clinic Location -->
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-indigo-600 text-xl shrink-0 mt-0.5">location_on</span>
+                <div class="flex-1">
+                  <span class="text-[11px] text-slate-400 block font-medium">Station Location</span>
+                  <span class="text-slate-800 font-medium text-sm">${escapeHtml(nurseStationContact?.clinicLocation || `${userBarangay} Barangay Health Station`)}</span>
+                </div>
+              </div>
+
+              <!-- 24/7 Hotline -->
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-red-600 text-xl shrink-0 mt-0.5">emergency</span>
+                <div class="flex-1">
+                  <span class="text-[11px] text-slate-400 block font-medium">24/7 Emergency Hotline</span>
+                  <span class="text-slate-800 font-medium text-sm">${escapeHtml(nurseStationContact?.hotline || 'RHU Padre Burgos: (042) 717-3211')}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <button type="button" class="primary-btn flex items-center gap-2 text-xs py-2 px-4 shadow-sm" data-action="edit-contact" data-barangay="${escapeHtml(userBarangay)}">
-              <span class="material-symbols-outlined text-base">edit_square</span>
-              <span>${nurseStationContact?.contactNumber ? 'Edit Station Contact' : 'Set Station Contact'}</span>
+          <!-- Single Clear Action Button -->
+          <div class="p-4 bg-emerald-50/60 border-t border-emerald-100 flex items-center justify-between">
+            <button type="button" class="w-full primary-btn text-sm py-2.5 flex items-center justify-center gap-2 shadow-xs" data-action="edit-contact" data-barangay="${escapeHtml(userBarangay)}">
+              <span class="material-symbols-outlined text-base">edit</span>
+              <span>${nurseStationContact?.contactNumber ? 'Edit Emergency Contact' : 'Set Emergency Contact Now'}</span>
             </button>
-          </div>
-        </div>
-
-        <!-- Role Action Banner -->
-        <div class="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border-2 border-emerald-300 shadow-sm relative overflow-hidden">
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div class="flex items-center gap-2 mb-1">
-                <span class="inline-flex items-center gap-1 bg-emerald-600 text-white text-[11px] px-2.5 py-0.5 rounded-full font-bold">
-                  <span class="material-symbols-outlined text-xs">verified</span>
-                  <span>Your Assigned Station</span>
-                </span>
-                <span class="text-xs font-bold text-emerald-950">${escapeHtml(userBarangay)}</span>
-              </div>
-              <h3 class="text-base font-bold text-slate-900">Station Contact & Hotline Settings</h3>
-              <p class="text-xs text-slate-700 mt-1 max-w-2xl">
-                You are registered as the healthcare staff for <strong>${escapeHtml(userBarangay)}</strong>.
-                ${nurseStationContact?.contactNumber ? `
-                  Current station contact: <strong>${escapeHtml(nurseStationContact.nurseName)}</strong> (${escapeHtml(nurseStationContact.contactNumber)}). Keep your number and clinic location updated so mothers and emergency teams can reach you promptly.
-                ` : `
-                  <span class="text-amber-800 font-semibold">Emergency contact details have not been set for ${escapeHtml(userBarangay)} yet. Please click below to configure your station's contact number and hotline.</span>
-                `}
-              </p>
-            </div>
-            <div class="shrink-0">
-              <button type="button" class="primary-btn bg-emerald-700 hover:bg-emerald-800 flex items-center gap-2 text-xs font-bold py-2.5 px-4 shadow-sm" data-action="edit-contact" data-barangay="${escapeHtml(userBarangay)}">
-                <span class="material-symbols-outlined text-base">edit_square</span>
-                <span>${nurseStationContact?.contactNumber ? 'Update Station Details' : 'Set Station Details Now'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2-Card Layout: Nurse Station Card + Municipal Emergency Dispatch -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Nurse's Station Card -->
-          <div class="contact-card-item rounded-2xl border-2 border-emerald-500 shadow-md ring-2 ring-emerald-100 bg-white overflow-hidden flex flex-col justify-between" data-barangay-name="${escapeHtml(userBarangay.toLowerCase())}">
-            <div class="p-5">
-              <div class="flex items-start justify-between gap-2 mb-3">
-                <div>
-                  <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">Your Station</span>
-                  <h3 class="font-extrabold text-slate-900 text-base sm:text-lg">${escapeHtml(userBarangay)}</h3>
-                  <p class="text-xs text-slate-500 font-medium">Barangay Health Station</p>
-                </div>
-                <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                  <span class="material-symbols-outlined text-[12px]">verified</span>
-                  <span>Assigned Station</span>
-                </span>
-              </div>
-
-              <div class="space-y-3 pt-3 border-t border-slate-100 text-xs">
-                <!-- Assigned Nurse / Midwife -->
-                <div class="flex items-start gap-3">
-                  <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">person</span>
-                  <div class="flex-1">
-                    <span class="text-[11px] text-slate-400 block font-medium">Assigned Nurse / Midwife</span>
-                    <strong class="text-slate-900 text-sm">${escapeHtml(nurseStationContact?.nurseName || currentUser?.name || 'Not Set')}</strong>
-                  </div>
-                </div>
-
-                <!-- Direct Station Phone -->
-                <div class="flex items-start gap-3">
-                  <span class="material-symbols-outlined text-emerald-600 text-xl shrink-0 mt-0.5">phone_in_talk</span>
-                  <div class="flex-1">
-                    <span class="text-[11px] text-slate-400 block font-medium">Direct Contact Number</span>
-                    ${nurseStationContact?.contactNumber ? `
-                      <a href="tel:${escapeHtml(nurseStationContact.contactNumber)}" class="text-emerald-700 font-extrabold text-sm hover:underline inline-flex items-center gap-1">
-                        <span>${escapeHtml(nurseStationContact.contactNumber)}</span>
-                        <span class="material-symbols-outlined text-xs">open_in_new</span>
-                      </a>
-                    ` : `
-                      <span class="text-amber-700 font-semibold italic text-xs">Contact number not set yet — Click Edit below to configure</span>
-                    `}
-                  </div>
-                </div>
-
-                <!-- Clinic Location -->
-                <div class="flex items-start gap-3">
-                  <span class="material-symbols-outlined text-indigo-600 text-xl shrink-0 mt-0.5">location_on</span>
-                  <div class="flex-1">
-                    <span class="text-[11px] text-slate-400 block font-medium">Station Location</span>
-                    <span class="text-slate-800 font-medium">${escapeHtml(nurseStationContact?.clinicLocation || `${userBarangay} Barangay Health Station`)}</span>
-                  </div>
-                </div>
-
-                <!-- 24/7 Hotline -->
-                <div class="flex items-start gap-3">
-                  <span class="material-symbols-outlined text-red-600 text-xl shrink-0 mt-0.5">emergency</span>
-                  <div class="flex-1">
-                    <span class="text-[11px] text-slate-400 block font-medium">24/7 Emergency Hotline</span>
-                    <span class="text-slate-800 font-medium">${escapeHtml(nurseStationContact?.hotline || 'RHU Padre Burgos: (042) 717-3211')}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-4 bg-emerald-50/60 border-t border-emerald-100 flex items-center justify-between">
-              <button type="button" class="w-full primary-btn text-xs py-2 flex items-center justify-center gap-1.5 shadow-xs" data-action="edit-contact" data-barangay="${escapeHtml(userBarangay)}">
-                <span class="material-symbols-outlined text-sm">edit</span>
-                <span>${nurseStationContact?.contactNumber ? 'Edit Emergency Contact' : 'Set Emergency Contact Now'}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Municipal Emergency Dispatch & Referral Directory -->
-          <div class="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col justify-between">
-            <div class="p-5">
-              <div class="flex items-start justify-between gap-2 mb-3">
-                <div>
-                  <span class="text-[11px] font-bold text-sky-800 uppercase tracking-wider block">Municipal Support</span>
-                  <h3 class="font-extrabold text-slate-900 text-base sm:text-lg">Padre Burgos Emergency Hotlines</h3>
-                  <p class="text-xs text-slate-500 font-medium">Central RHU & Municipal First Responders</p>
-                </div>
-                <span class="inline-flex items-center gap-1 bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  <span class="material-symbols-outlined text-[12px]">call</span>
-                  <span>24/7 Hotlines</span>
-                </span>
-              </div>
-
-              <div class="space-y-3 pt-3 border-t border-slate-100 text-xs">
-                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <div>
-                    <strong class="text-slate-900 block font-semibold">RHU Main Health Center</strong>
-                    <span class="text-[11px] text-slate-500">Maternal & Clinical Referrals</span>
-                  </div>
-                  <a href="tel:0427173211" class="text-brand-primary font-bold hover:underline inline-flex items-center gap-1">
-                    <span>(042) 717-3211</span>
-                    <span class="material-symbols-outlined text-xs">call</span>
-                  </a>
-                </div>
-
-                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <div>
-                    <strong class="text-slate-900 block font-semibold">MDRRMO / Ambulance Rescue</strong>
-                    <span class="text-[11px] text-slate-500">Emergency Patient Transport</span>
-                  </div>
-                  <a href="tel:09190000000" class="text-emerald-700 font-bold hover:underline inline-flex items-center gap-1">
-                    <span>0919-000-0000</span>
-                    <span class="material-symbols-outlined text-xs">call</span>
-                  </a>
-                </div>
-
-                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <div>
-                    <strong class="text-slate-900 block font-semibold">Padre Burgos PNP (Police)</strong>
-                    <span class="text-[11px] text-slate-500">Community Safety & Assistance</span>
-                  </div>
-                  <a href="tel:09985985683" class="text-blue-700 font-bold hover:underline inline-flex items-center gap-1">
-                    <span>0998-598-5683</span>
-                    <span class="material-symbols-outlined text-xs">call</span>
-                  </a>
-                </div>
-
-                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <div>
-                    <strong class="text-slate-900 block font-semibold">BFP Fire Station</strong>
-                    <span class="text-[11px] text-slate-500">Emergency & Disaster Response</span>
-                  </div>
-                  <a href="tel:09338202790" class="text-red-700 font-bold hover:underline inline-flex items-center gap-1">
-                    <span>0933-820-2790</span>
-                    <span class="material-symbols-outlined text-xs">call</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500 text-center">
-              In high-risk maternal emergencies, coordinate immediately with RHU Main for hospital delivery transport.
-            </div>
           </div>
         </div>
       </div>
