@@ -3,7 +3,7 @@
  * Padre Burgos RHU Maternal & Infant Health Monitoring System
  */
 import { escapeHtml } from '../utils/sanitize.js';
-import { isAdmin, isNurse, isParent, isMho } from '../auth.js';
+import { isAdmin, isNurse, isParent, isMho, isMatchingParentRecord } from '../auth.js';
 import { defaultBarangays } from '../config.js';
 
 export function renderBackupView(state) {
@@ -54,7 +54,13 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
   const userIsNurse = isNurse(currentUser);
   const userIsParent = isParent(currentUser);
   const userIsMho = isMho(currentUser);
-  const userBarangay = currentUser?.barangay || '';
+
+  let userBarangay = currentUser?.barangay || '';
+  if (userIsParent && (!userBarangay || userBarangay === 'All Barangays')) {
+    const myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, currentUser));
+    const myInfant = (state.infantRecords || []).find(i => isMatchingParentRecord(i, currentUser));
+    userBarangay = myMaternal?.barangay || myInfant?.barangay || '';
+  }
 
   const rawContacts = state.emergencyContacts || [];
   const contactsMap = {};
@@ -66,14 +72,12 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
 
   // Calculate statistics
   const configuredCount = defaultBarangays.filter(b => Boolean(contactsMap[b]?.contactNumber)).length;
-  const nurseStationContact = contactsMap[userBarangay];
+  const stationContact = userBarangay ? contactsMap[userBarangay] : null;
 
-  // For Nurse / Midwife: strictly show ONLY their assigned barangay. No other barangays.
+  // --------------------------------------------------------------------------
+  // 1. NURSE / MIDWIFE VIEW: ONLY THEIR ASSIGNED BARANGAY
+  // --------------------------------------------------------------------------
   const isSingleNurseView = userIsNurse && !userIsAdmin && Boolean(userBarangay) && userBarangay !== 'All Barangays';
-
-  // --------------------------------------------------------------------------
-  // 1. NURSE / MIDWIFE VIEW: ONLY THEIR ASSIGNED BARANGAY + MUNICIPAL HOTLINES
-  // --------------------------------------------------------------------------
   if (isSingleNurseView) {
     return `
       <div class="space-y-6 max-w-3xl mx-auto pb-10">
@@ -114,7 +118,7 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
                 <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">person</span>
                 <div class="flex-1">
                   <span class="text-[11px] text-slate-400 block font-medium">Assigned Nurse / Midwife</span>
-                  <strong class="text-slate-900 text-sm">${escapeHtml(nurseStationContact?.nurseName || currentUser?.name || 'Not Set')}</strong>
+                  <strong class="text-slate-900 text-sm">${escapeHtml(stationContact?.nurseName || currentUser?.name || 'Not Set')}</strong>
                 </div>
               </div>
 
@@ -123,9 +127,9 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
                 <span class="material-symbols-outlined text-emerald-600 text-xl shrink-0 mt-0.5">phone_in_talk</span>
                 <div class="flex-1">
                   <span class="text-[11px] text-slate-400 block font-medium">Direct Contact Number</span>
-                  ${nurseStationContact?.contactNumber ? `
-                    <a href="tel:${escapeHtml(nurseStationContact.contactNumber)}" class="text-emerald-700 font-extrabold text-base hover:underline inline-flex items-center gap-1">
-                      <span>${escapeHtml(nurseStationContact.contactNumber)}</span>
+                  ${stationContact?.contactNumber ? `
+                    <a href="tel:${escapeHtml(stationContact.contactNumber)}" class="text-emerald-700 font-extrabold text-base hover:underline inline-flex items-center gap-1">
+                      <span>${escapeHtml(stationContact.contactNumber)}</span>
                       <span class="material-symbols-outlined text-xs">open_in_new</span>
                     </a>
                   ` : `
@@ -139,7 +143,7 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
                 <span class="material-symbols-outlined text-indigo-600 text-xl shrink-0 mt-0.5">location_on</span>
                 <div class="flex-1">
                   <span class="text-[11px] text-slate-400 block font-medium">Station Location</span>
-                  <span class="text-slate-800 font-medium text-sm">${escapeHtml(nurseStationContact?.clinicLocation || `${userBarangay} Barangay Health Station`)}</span>
+                  <span class="text-slate-800 font-medium text-sm">${escapeHtml(stationContact?.clinicLocation || `${userBarangay} Barangay Health Station`)}</span>
                 </div>
               </div>
 
@@ -148,7 +152,7 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
                 <span class="material-symbols-outlined text-red-600 text-xl shrink-0 mt-0.5">emergency</span>
                 <div class="flex-1">
                   <span class="text-[11px] text-slate-400 block font-medium">24/7 Emergency Hotline</span>
-                  <span class="text-slate-800 font-medium text-sm">${escapeHtml(nurseStationContact?.hotline || 'RHU Padre Burgos: (042) 717-3211')}</span>
+                  <span class="text-slate-800 font-medium text-sm">${escapeHtml(stationContact?.hotline || 'RHU Padre Burgos: (042) 717-3211')}</span>
                 </div>
               </div>
             </div>
@@ -158,7 +162,7 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
           <div class="p-4 bg-emerald-50/60 border-t border-emerald-100 flex items-center justify-between">
             <button type="button" class="w-full primary-btn text-sm py-2.5 flex items-center justify-center gap-2 shadow-xs" data-action="edit-contact" data-barangay="${escapeHtml(userBarangay)}">
               <span class="material-symbols-outlined text-base">edit</span>
-              <span>${nurseStationContact?.contactNumber ? 'Edit Emergency Contact' : 'Set Emergency Contact Now'}</span>
+              <span>${stationContact?.contactNumber ? 'Edit Emergency Contact' : 'Set Emergency Contact Now'}</span>
             </button>
           </div>
         </div>
@@ -167,16 +171,124 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
   }
 
   // --------------------------------------------------------------------------
-  // 2. ADMIN, MHO & PARENT VIEW: FULL DIRECTORY
+  // 2. MOTHER / PARENT VIEW: STRICTLY ONLY HER RESIDENCE BARANGAY (NO OTHER BRGY)
   // --------------------------------------------------------------------------
-  let sortedBarangays = [...defaultBarangays].sort((a, b) => {
-    if (userBarangay) {
-      if (a === userBarangay) return -1;
-      if (b === userBarangay) return 1;
-    }
-    return a.localeCompare(b);
-  });
+  if (userIsParent) {
+    return `
+      <div class="space-y-6 max-w-2xl mx-auto pb-10">
+        <!-- Page Header -->
+        <div class="pb-4 border-b border-slate-200">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="inline-flex items-center gap-1 bg-sky-100 text-sky-800 border border-sky-300 text-[11px] px-2.5 py-0.5 rounded-md font-semibold">
+              <span class="material-symbols-outlined text-xs">local_hospital</span>
+              <span>Your Barangay Health Station</span>
+            </span>
+            <span class="text-xs text-slate-500 font-medium">Padre Burgos Maternal & Infant Care</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-600 text-2xl">contact_phone</span>
+            <span>Emergency Contacts</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Emergency hotline and direct contact details for your assigned barangay midwife and health station.</p>
+        </div>
 
+        ${userBarangay ? `
+          <!-- Mother's Assigned Barangay Station Card Only -->
+          <div class="contact-card-item rounded-2xl border-2 border-emerald-500 shadow-md ring-2 ring-emerald-100 bg-white overflow-hidden">
+            <div class="p-6">
+              <div class="flex items-start justify-between gap-2 mb-4">
+                <div>
+                  <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">Your Residence Barangay</span>
+                  <h3 class="font-extrabold text-slate-900 text-lg sm:text-xl">${escapeHtml(userBarangay)}</h3>
+                  <p class="text-xs text-slate-500 font-medium">Barangay Health Station</p>
+                </div>
+                <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold px-3 py-1 rounded-full">
+                  <span class="material-symbols-outlined text-xs">verified</span>
+                  <span>Assigned Station</span>
+                </span>
+              </div>
+
+              <div class="space-y-4 pt-4 border-t border-slate-100 text-xs">
+                <!-- Assigned Nurse / Midwife -->
+                <div class="flex items-start gap-3">
+                  <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">person</span>
+                  <div class="flex-1">
+                    <span class="text-[11px] text-slate-400 block font-medium">Assigned Midwife / Health Worker</span>
+                    <strong class="text-slate-900 text-sm">${escapeHtml(stationContact?.nurseName || 'Barangay Health Station Midwife')}</strong>
+                  </div>
+                </div>
+
+                <!-- Direct Station Contact -->
+                <div class="flex items-start gap-3">
+                  <span class="material-symbols-outlined text-emerald-600 text-xl shrink-0 mt-0.5">phone_in_talk</span>
+                  <div class="flex-1">
+                    <span class="text-[11px] text-slate-400 block font-medium">Direct Station Contact</span>
+                    ${stationContact?.contactNumber ? `
+                      <a href="tel:${escapeHtml(stationContact.contactNumber)}" class="text-emerald-700 font-extrabold text-base hover:underline inline-flex items-center gap-1">
+                        <span>${escapeHtml(stationContact.contactNumber)}</span>
+                        <span class="material-symbols-outlined text-xs">call</span>
+                      </a>
+                    ` : `
+                      <span class="text-slate-400 italic">Direct number not yet listed by station midwife</span>
+                    `}
+                  </div>
+                </div>
+
+                <!-- Station Location -->
+                <div class="flex items-start gap-3">
+                  <span class="material-symbols-outlined text-indigo-600 text-xl shrink-0 mt-0.5">location_on</span>
+                  <div class="flex-1">
+                    <span class="text-[11px] text-slate-400 block font-medium">Station Location</span>
+                    <span class="text-slate-800 font-medium text-sm">${escapeHtml(stationContact?.clinicLocation || `${userBarangay} Barangay Health Station`)}</span>
+                  </div>
+                </div>
+
+                <!-- 24/7 Hotline -->
+                <div class="flex items-start gap-3">
+                  <span class="material-symbols-outlined text-red-600 text-xl shrink-0 mt-0.5">emergency</span>
+                  <div class="flex-1">
+                    <span class="text-[11px] text-slate-400 block font-medium">24/7 Emergency Hotline</span>
+                    <span class="text-slate-800 font-medium text-sm">${escapeHtml(stationContact?.hotline || 'RHU Padre Burgos: (042) 717-3211')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Call Action Footer -->
+            <div class="p-4 bg-emerald-50/60 border-t border-emerald-100 flex items-center justify-between gap-3">
+              ${stationContact?.contactNumber ? `
+                <a href="tel:${escapeHtml(stationContact.contactNumber)}" class="w-full primary-btn text-sm py-2.5 flex items-center justify-center gap-2 shadow-xs">
+                  <span class="material-symbols-outlined text-base">call</span>
+                  <span>Call Station Midwife (${escapeHtml(stationContact.contactNumber)})</span>
+                </a>
+              ` : `
+                <a href="tel:0427173211" class="w-full primary-btn text-sm py-2.5 flex items-center justify-center gap-2 shadow-xs">
+                  <span class="material-symbols-outlined text-base">call</span>
+                  <span>Call RHU Main Hotline: (042) 717-3211</span>
+                </a>
+              `}
+            </div>
+          </div>
+        ` : `
+          <!-- Fallback when barangay is not specified -->
+          <div class="panel text-center py-8">
+            <span class="material-symbols-outlined text-4xl text-slate-300 block mb-2">location_off</span>
+            <h3 class="font-bold text-slate-800 mb-1">Barangay Not Set</h3>
+            <p class="text-xs text-slate-500 mb-4 max-w-sm mx-auto">Please select your residence barangay in your account profile to display your assigned station contact.</p>
+            <a href="tel:0427173211" class="primary-btn inline-flex items-center gap-1.5 text-xs py-2 px-4">
+              <span class="material-symbols-outlined text-sm">call</span>
+              <span>Call RHU Main Hotline: (042) 717-3211</span>
+            </a>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. ADMIN & MHO VIEW: FULL 22-BARANGAY DIRECTORY
+  // --------------------------------------------------------------------------
+  let sortedBarangays = [...defaultBarangays];
   if (searchTerm) {
     const q = searchTerm.toLowerCase().trim();
     sortedBarangays = sortedBarangays.filter(bgy => {
@@ -203,9 +315,9 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <span class="material-symbols-outlined text-emerald-600 text-2xl">contact_phone</span>
-            <span>Barangay Health Workers & Emergency Contacts</span>
+            <span>Municipal Health Directory (All 22 Stations)</span>
           </h2>
-          <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Direct contact numbers, health stations, and 24/7 hotlines for assigned barangay nurses and responders.</p>
+          <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Directory of health worker contact numbers and 24/7 hotlines across all 22 barangays.</p>
         </div>
 
         <div class="flex items-center gap-2">
@@ -217,33 +329,6 @@ export function renderContactsView(state, currentUser, searchTerm = '') {
           ` : ''}
         </div>
       </div>
-
-      ${userIsParent && userBarangay ? `
-        <div class="p-5 rounded-2xl bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 border border-sky-300 shadow-sm">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span class="text-[11px] font-bold text-sky-800 uppercase tracking-wider block">Your Residence Barangay</span>
-              <h3 class="text-base font-extrabold text-slate-900">${escapeHtml(userBarangay)} Health Station</h3>
-              <p class="text-xs text-slate-600 mt-0.5">Assigned Nurse/Midwife: <strong>${escapeHtml(contactsMap[userBarangay]?.nurseName || 'RHU Health Staff')}</strong></p>
-            </div>
-            <div>
-              ${contactsMap[userBarangay]?.contactNumber ? `
-                <a href="tel:${escapeHtml(contactsMap[userBarangay].contactNumber)}" class="primary-btn bg-sky-600 hover:bg-sky-700 flex items-center gap-2 text-xs py-2 px-4">
-                  <span class="material-symbols-outlined text-base">call</span>
-                  <span>Call Station (${escapeHtml(contactsMap[userBarangay].contactNumber)})</span>
-                </a>
-              ` : `
-                <a href="tel:0427173211" class="ghost-btn flex items-center gap-2 text-xs">
-                  <span class="material-symbols-outlined text-base">call</span>
-                  <span>Call RHU Main: (042) 717-3211</span>
-                </a>
-              `}
-            </div>
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- Search and Filter Bar -->
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
         <div class="relative flex-1">
           <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
