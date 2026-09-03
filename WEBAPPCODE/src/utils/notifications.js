@@ -4,7 +4,7 @@
  */
 
 import { toast, formatDate } from './sanitize.js';
-import { isParent } from '../auth.js';
+import { isParent, isMatchingParentRecord } from '../auth.js';
 
 function getNativePlugin() {
   if (typeof window !== 'undefined' && window.Capacitor?.Plugins?.LocalNotifications) {
@@ -210,8 +210,18 @@ export async function checkImmunizationAndScheduleReminders(state, currentUser) 
   let mySchedules = state.checkupSchedules || [];
 
   if (isUserParent) {
-    myInfants = myInfants.filter(i => (i.parentName || i.motherName || '').toLowerCase().trim() === parentName);
-    mySchedules = mySchedules.filter(s => (s.patientName || '').toLowerCase().trim() === parentName);
+    const myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, currentUser));
+    myInfants = myInfants.filter(i => isMatchingParentRecord(i, currentUser) || (myMaternal && i.maternalRecordId === myMaternal.id));
+    mySchedules = mySchedules.filter(s =>
+      (s.userId && (s.userId === currentUser.id || s.userId === currentUser.authUserId)) ||
+      (s.user_id && (s.user_id === currentUser.id || s.user_id === currentUser.authUserId)) ||
+      (s.maternalRecordId && myMaternal && s.maternalRecordId === myMaternal.id) ||
+      (s.infantRecordId && myInfants.some(inf => inf.id === s.infantRecordId)) ||
+      (s.parentName && parentName && s.parentName.toLowerCase().trim() === parentName) ||
+      isMatchingParentRecord({ patientName: s.patientName, parentName: s.parentName }, currentUser) ||
+      (s.patientName && s.patientName.toLowerCase().trim() === parentName) ||
+      myInfants.some(inf => inf.infantName && s.patientName && s.patientName.toLowerCase().trim() === inf.infantName.toLowerCase().trim())
+    );
   }
 
   const newNotifications = [];

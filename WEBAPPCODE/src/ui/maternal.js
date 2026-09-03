@@ -26,7 +26,7 @@ function isMatchingParentRecord(record, currentUser) {
   return false;
 }
 
-export function renderMaternalView(state, selectedBarangay = "All Barangays", currentUser = null) {
+export function renderMaternalView(state, selectedBarangay = "All Barangays", currentUser = null, searchTerm = "") {
   const isUserNurse = isNurse(currentUser);
   const isUserParent = isParent(currentUser);
 
@@ -38,6 +38,19 @@ export function renderMaternalView(state, selectedBarangay = "All Barangays", cu
     records = records.filter(r => r.barangay === currentUser.barangay);
   } else if (selectedBarangay && selectedBarangay !== "All Barangays") {
     records = records.filter(r => r.barangay === selectedBarangay);
+  }
+
+  // Apply search query filter
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase().trim();
+    records = records.filter(r =>
+      (r.fullName && r.fullName.toLowerCase().includes(q)) ||
+      (r.barangay && r.barangay.toLowerCase().includes(q)) ||
+      (r.contact && r.contact.toLowerCase().includes(q)) ||
+      (r.assignedNurse && r.assignedNurse.toLowerCase().includes(q)) ||
+      (r.riskLevel && r.riskLevel.toLowerCase().includes(q)) ||
+      (r.notes && r.notes.toLowerCase().includes(q))
+    );
   }
 
   return `
@@ -67,6 +80,17 @@ export function renderMaternalView(state, selectedBarangay = "All Barangays", cu
       `}
     </div>
 
+    <!-- Search and Filter Toolbar -->
+    <div class="flex items-center justify-between gap-3 mb-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+      <div class="relative flex-1 max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+        <input type="search" id="maternalSearchInput" placeholder="Search patients by name, contact, risk, barangay..." value="${escapeHtml(searchTerm)}" class="input-field pl-9 py-1.5 text-xs w-full">
+      </div>
+      <div class="text-xs text-slate-500 font-medium px-2 shrink-0">
+        ${searchTerm ? `Found <strong>${records.length}</strong> matching records` : `Total: <strong>${records.length}</strong> patients`}
+      </div>
+    </div>
+
     <div class="panel">
       <div class="table-container overflow-x-auto">
         <table class="data-table text-xs">
@@ -87,9 +111,9 @@ export function renderMaternalView(state, selectedBarangay = "All Barangays", cu
               <tr>
                 <td colspan="8" class="text-center py-8 text-text-muted">
                   <span class="material-symbols-outlined text-3xl text-pink-300 block mb-1">pregnant_woman</span>
-                  <p class="font-semibold text-text mb-1">${isUserParent ? 'No Maternal Record Registered Yet' : 'No maternal records found.'}</p>
-                  <p class="text-xs mb-3">${isUserParent ? 'Register your pregnancy details directly to start tracking your prenatal care timeline.' : 'No records found for this barangay station.'}</p>
-                  ${isUserParent ? `
+                  <p class="font-semibold text-text mb-1">${searchTerm ? 'No matching patients found.' : (isUserParent ? 'No Maternal Record Registered Yet' : 'No maternal records found.')}</p>
+                  <p class="text-xs mb-3">${searchTerm ? `No records matched "${escapeHtml(searchTerm)}". Try clearing your search.` : (isUserParent ? 'Register your pregnancy details directly to start tracking your prenatal care timeline.' : 'No records found for this barangay station.')}</p>
+                  ${isUserParent && !searchTerm ? `
                     <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="emptyParentRegisterPregnancyBtn">
                       <span class="material-symbols-outlined text-base">pregnant_woman</span>
                       <span>Register My Pregnancy</span>
@@ -98,7 +122,7 @@ export function renderMaternalView(state, selectedBarangay = "All Barangays", cu
                 </td>
               </tr>
             ` : records.map(r => `
-              <tr>
+              <tr class="maternal-record-row">
                 <td>
                   <strong>${escapeHtml(r.fullName)}</strong>
                   <div class="text-[11px] text-text-muted">${escapeHtml(r.contact || 'No contact')}</div>

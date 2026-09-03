@@ -10,25 +10,42 @@ import { renderPixelParentChild, renderPixelHeart, renderPixelCross, renderPixel
 
 export function renderDashboardView(state, currentUser, selectedBarangay, visibleBarangaysList, searchTerm = '') {
   if (isAdmin(currentUser)) {
-    return renderAdminDashboard(state, currentUser);
+    return renderAdminDashboard(state, currentUser, searchTerm);
   }
   if (isMho(currentUser)) {
     return renderMhoDashboard(state, currentUser, selectedBarangay, searchTerm);
   }
   if (isNurse(currentUser)) {
-    return renderNurseDashboard(state, currentUser);
+    return renderNurseDashboard(state, currentUser, searchTerm);
   }
-  return renderParentDashboard(state, currentUser);
+  return renderParentDashboard(state, currentUser, searchTerm);
 }
 
 // -------------------------------------------------------------
 // 1. ADMIN DASHBOARD
 // -------------------------------------------------------------
-function renderAdminDashboard(state, currentUser) {
-  const maternal = state.maternalRecords || [];
-  const infants = state.infantRecords || [];
+function renderAdminDashboard(state, currentUser, searchTerm = '') {
+  let maternal = state.maternalRecords || [];
+  let infants = state.infantRecords || [];
   const reports = state.monthlyReports || [];
   const schedules = state.checkupSchedules || [];
+
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase().trim();
+    maternal = maternal.filter(r =>
+      (r.fullName && r.fullName.toLowerCase().includes(q)) ||
+      (r.barangay && r.barangay.toLowerCase().includes(q)) ||
+      (r.contact && r.contact.toLowerCase().includes(q)) ||
+      (r.riskLevel && r.riskLevel.toLowerCase().includes(q))
+    );
+    infants = infants.filter(i =>
+      (i.infantName && i.infantName.toLowerCase().includes(q)) ||
+      (i.parentName && i.parentName.toLowerCase().includes(q)) ||
+      (i.motherName && i.motherName.toLowerCase().includes(q)) ||
+      (i.barangay && i.barangay.toLowerCase().includes(q)) ||
+      (i.immunizationStatus && i.immunizationStatus.toLowerCase().includes(q))
+    );
+  }
 
   const highRisk = maternal.filter(r => (r.riskLevel || "").toLowerCase().includes("high") || (r.riskLevel || "").toLowerCase().includes("elevated"));
   const ficCount = infants.filter(i => (i.immunizationStatus || "").includes("FIC") || (i.immunizationStatus || "").includes("Fully")).length;
@@ -472,11 +489,30 @@ function renderMhoDashboard(state, currentUser, selectedBarangay, searchTerm = '
 // -------------------------------------------------------------
 // 4. NURSE / MIDWIFE DASHBOARD (Assigned Barangay Focus)
 // -------------------------------------------------------------
-function renderNurseDashboard(state, currentUser) {
+function renderNurseDashboard(state, currentUser, searchTerm = '') {
   const bgy = currentUser?.barangay || "Basiao (Poblacion)";
-  const maternal = (state.maternalRecords || []).filter(r => r.barangay === bgy);
-  const infants = (state.infantRecords || []).filter(r => r.barangay === bgy);
-  const schedules = (state.checkupSchedules || []).filter(s => s.barangay === bgy);
+  let maternal = (state.maternalRecords || []).filter(r => r.barangay === bgy);
+  let infants = (state.infantRecords || []).filter(r => r.barangay === bgy);
+  let schedules = (state.checkupSchedules || []).filter(s => s.barangay === bgy);
+
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase().trim();
+    maternal = maternal.filter(r =>
+      (r.fullName && r.fullName.toLowerCase().includes(q)) ||
+      (r.contact && r.contact.toLowerCase().includes(q)) ||
+      (r.riskLevel && r.riskLevel.toLowerCase().includes(q))
+    );
+    infants = infants.filter(i =>
+      (i.infantName && i.infantName.toLowerCase().includes(q)) ||
+      (i.parentName && i.parentName.toLowerCase().includes(q)) ||
+      (i.motherName && i.motherName.toLowerCase().includes(q)) ||
+      (i.immunizationStatus && i.immunizationStatus.toLowerCase().includes(q))
+    );
+    schedules = schedules.filter(s =>
+      (s.patientName && s.patientName.toLowerCase().includes(q)) ||
+      (s.status && s.status.toLowerCase().includes(q))
+    );
+  }
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todaySchedules = schedules.filter(s => s.date === todayStr);
@@ -639,6 +675,8 @@ function renderParentDashboard(state, currentUser) {
   const mySchedules = (state.checkupSchedules || []).filter(s =>
     (s.userId && currentUser?.id && (s.userId === currentUser.id || s.userId === currentUser.authUserId)) ||
     (s.user_id && currentUser?.id && (s.user_id === currentUser.id || s.user_id === currentUser.authUserId)) ||
+    (s.maternalRecordId && myMaternal && s.maternalRecordId === myMaternal.id) ||
+    (s.infantRecordId && myInfants.some(inf => inf.id === s.infantRecordId)) ||
     (s.parentName && motherName && s.parentName.toLowerCase().trim() === motherName) ||
     (s.patientName && motherName && s.patientName.toLowerCase().trim() === motherName) ||
     isMatchingParentRecord({ patientName: s.patientName, parentName: s.parentName, fullName: s.patientName }, currentUser) ||

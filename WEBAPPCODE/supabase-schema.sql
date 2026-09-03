@@ -194,6 +194,7 @@ drop policy if exists "Allow authenticated read on monthly_reports" on public.mo
 drop policy if exists "Allow staff write on monthly_reports" on public.monthly_reports;
 drop policy if exists "Allow read on emergency_contacts" on public.emergency_contacts;
 drop policy if exists "Allow admin write on emergency_contacts" on public.emergency_contacts;
+drop policy if exists "Allow staff or admin write on emergency_contacts" on public.emergency_contacts;
 
 -- 8. CREATE ROBUST RLS POLICIES
 create policy "Allow authenticated read on profiles" on public.profiles for select using (auth.role() = 'authenticated');
@@ -276,8 +277,19 @@ create policy "Allow authenticated read on monthly_reports" on public.monthly_re
 create policy "Allow staff write on monthly_reports" on public.monthly_reports for all using (auth.role() = 'authenticated');
 
 create policy "Allow read on emergency_contacts" on public.emergency_contacts for select using (true);
-create policy "Allow admin write on emergency_contacts" on public.emergency_contacts for all
-using (exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Administrator'));
+create policy "Allow staff or admin write on emergency_contacts" on public.emergency_contacts for all
+using (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Administrator')
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Nurse / Midwife', 'Nurse', 'Midwife') and barangay = emergency_contacts.barangay)
+  )
+)
+with check (
+  auth.role() = 'authenticated' AND (
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Administrator')
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Nurse / Midwife', 'Nurse', 'Midwife') and barangay = emergency_contacts.barangay)
+  )
+);
 
 -- 9. IN-APP DIRECT PASSWORD RESET FUNCTION (Zero Email / Dummy Email Compatible)
 create extension if not exists "pgcrypto";

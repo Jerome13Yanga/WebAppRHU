@@ -26,7 +26,7 @@ function isMatchingParentRecord(record, currentUser) {
   return false;
 }
 
-export function renderInfantsView(state, selectedBarangay = "All Barangays", currentUser = null) {
+export function renderInfantsView(state, selectedBarangay = "All Barangays", currentUser = null, searchTerm = "") {
   const isUserNurse = isNurse(currentUser);
   const isUserParent = isParent(currentUser);
 
@@ -38,6 +38,20 @@ export function renderInfantsView(state, selectedBarangay = "All Barangays", cur
     records = records.filter(r => r.barangay === currentUser.barangay);
   } else if (selectedBarangay && selectedBarangay !== "All Barangays") {
     records = records.filter(r => r.barangay === selectedBarangay);
+  }
+
+  // Apply search query filter
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase().trim();
+    records = records.filter(i =>
+      (i.infantName && i.infantName.toLowerCase().includes(q)) ||
+      (i.parentName && i.parentName.toLowerCase().includes(q)) ||
+      (i.motherName && i.motherName.toLowerCase().includes(q)) ||
+      (i.barangay && i.barangay.toLowerCase().includes(q)) ||
+      (i.immunizationStatus && i.immunizationStatus.toLowerCase().includes(q)) ||
+      (i.assignedNurse && i.assignedNurse.toLowerCase().includes(q)) ||
+      (i.contact && i.contact.toLowerCase().includes(q))
+    );
   }
 
   return `
@@ -58,6 +72,17 @@ export function renderInfantsView(state, selectedBarangay = "All Barangays", cur
       </button>
     </div>
 
+    <!-- Search and Filter Toolbar -->
+    <div class="flex items-center justify-between gap-3 mb-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+      <div class="relative flex-1 max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+        <input type="search" id="infantSearchInput" placeholder="Search children by name, mother, status, barangay..." value="${escapeHtml(searchTerm)}" class="input-field pl-9 py-1.5 text-xs w-full">
+      </div>
+      <div class="text-xs text-slate-500 font-medium px-2 shrink-0">
+        ${searchTerm ? `Found <strong>${records.length}</strong> matching records` : `Total: <strong>${records.length}</strong> children`}
+      </div>
+    </div>
+
     <div class="panel">
       <div class="table-container overflow-x-auto">
         <table class="data-table text-xs">
@@ -75,9 +100,15 @@ export function renderInfantsView(state, selectedBarangay = "All Barangays", cur
           </thead>
           <tbody>
             ${records.length === 0 ? `
-              <tr><td colspan="8" class="text-center py-6 text-text-muted">No child immunization records found.</td></tr>
-            ` : records.map(i => `
               <tr>
+                <td colspan="8" class="text-center py-8 text-text-muted">
+                  <span class="material-symbols-outlined text-3xl text-indigo-300 block mb-1">child_care</span>
+                  <p class="font-semibold text-text mb-1">${searchTerm ? 'No matching child records found.' : 'No child immunization records found.'}</p>
+                  <p class="text-xs">${searchTerm ? `No records matched "${escapeHtml(searchTerm)}". Try clearing your search.` : 'No child records recorded for this station.'}</p>
+                </td>
+              </tr>
+            ` : records.map(i => `
+              <tr class="infant-record-row">
                 <td><strong>${escapeHtml(i.infantName)}</strong></td>
                 <td>${escapeHtml(i.parentName || i.motherName || 'N/A')}</td>
                 <td>${i.ageMonths || 0} mo</td>

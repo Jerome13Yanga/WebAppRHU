@@ -5,7 +5,7 @@
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
 import { isNurse, isParent, isMho, isAdmin } from '../auth.js';
 
-export function renderCheckupHistoryView(state, currentUser, selectedBarangay = "All Barangays") {
+export function renderCheckupHistoryView(state, currentUser, selectedBarangay = "All Barangays", searchTerm = "") {
   const isUserNurse = isNurse(currentUser);
   const isUserParent = isParent(currentUser);
 
@@ -28,6 +28,27 @@ export function renderCheckupHistoryView(state, currentUser, selectedBarangay = 
   } else if (selectedBarangay && selectedBarangay !== "All Barangays") {
     maternalHistory = maternalHistory.filter(h => h.barangay === selectedBarangay);
     infantHistory = infantHistory.filter(h => h.barangay === selectedBarangay);
+  }
+
+  // Apply search query filter
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase().trim();
+    maternalHistory = maternalHistory.filter(h =>
+      (h.patientName && h.patientName.toLowerCase().includes(q)) ||
+      (h.barangay && h.barangay.toLowerCase().includes(q)) ||
+      (h.bloodPressure && h.bloodPressure.toLowerCase().includes(q)) ||
+      (h.assessment && h.assessment.toLowerCase().includes(q)) ||
+      (h.treatmentIntervention && h.treatmentIntervention.toLowerCase().includes(q)) ||
+      (h.recordedBy && h.recordedBy.toLowerCase().includes(q))
+    );
+    infantHistory = infantHistory.filter(h =>
+      (h.infantName && h.infantName.toLowerCase().includes(q)) ||
+      (h.parentName && h.parentName.toLowerCase().includes(q)) ||
+      (h.barangay && h.barangay.toLowerCase().includes(q)) ||
+      (h.immunizationGiven && h.immunizationGiven.toLowerCase().includes(q)) ||
+      (h.assessment && h.assessment.toLowerCase().includes(q)) ||
+      (h.recordedBy && h.recordedBy.toLowerCase().includes(q))
+    );
   }
 
   // Sort descending by date
@@ -56,6 +77,17 @@ export function renderCheckupHistoryView(state, currentUser, selectedBarangay = 
       </div>
     </div>
 
+    <!-- Search and Filter Toolbar -->
+    <div class="flex items-center justify-between gap-3 mb-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+      <div class="relative flex-1 max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+        <input type="search" id="historySearchInput" placeholder="Search checkup logs by patient, barangay, vitals, provider..." value="${escapeHtml(searchTerm)}" class="input-field pl-9 py-1.5 text-xs w-full">
+      </div>
+      <div class="text-xs text-slate-500 font-medium px-2 shrink-0">
+        ${searchTerm ? `Filtered results for "${escapeHtml(searchTerm)}"` : `Total: <strong>${maternalHistory.length + infantHistory.length}</strong> visits`}
+      </div>
+    </div>
+
     <!-- History Tab Switcher -->
     <div class="flex items-center gap-2 mb-4 border-b border-line pb-2">
       <button type="button" class="primary-btn sm-btn" id="tabMaternalHistoryBtn">
@@ -64,7 +96,7 @@ export function renderCheckupHistoryView(state, currentUser, selectedBarangay = 
       </button>
       <button type="button" class="ghost-btn sm-btn" id="tabInfantHistoryBtn">
         <span class="material-symbols-outlined text-base">child_care</span>
-        <span>Infant & Child Visits (${infantHistory.length})</span>
+        <span>Infant Child Visits (${infantHistory.length})</span>
       </button>
     </div>
 
@@ -72,8 +104,8 @@ export function renderCheckupHistoryView(state, currentUser, selectedBarangay = 
     <div id="maternalHistorySection" class="panel">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-bold text-text flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-pink-600 text-lg">favorite</span>
-          <span>Maternal Care Visit Logs</span>
+          <span class="material-symbols-outlined text-pink-600 text-lg">pregnant_woman</span>
+          <span>Prenatal Maternal Checkup Logs</span>
         </h3>
         <span class="text-xs text-text-muted">${maternalHistory.length} total visits recorded</span>
       </div>
@@ -86,7 +118,7 @@ export function renderCheckupHistoryView(state, currentUser, selectedBarangay = 
               <th>Patient Name</th>
               <th>Barangay</th>
               <th>AOG (Wks)</th>
-              <th>BP (mmHg)</th>
+              <th>BP</th>
               <th>Weight</th>
               <th>Assessment & Findings</th>
               <th>Treatment / Meds</th>
@@ -96,9 +128,9 @@ export function renderCheckupHistoryView(state, currentUser, selectedBarangay = 
           </thead>
           <tbody>
             ${maternalHistory.length === 0 ? `
-              <tr><td colspan="10" class="text-center py-6 text-text-muted">No maternal checkup history recorded yet.</td></tr>
+              <tr><td colspan="10" class="text-center py-6 text-text-muted">${searchTerm ? 'No matching maternal visits found.' : 'No maternal checkup history recorded yet.'}</td></tr>
             ` : maternalHistory.map(h => `
-              <tr>
+              <tr class="history-record-row">
                 <td class="font-bold text-brand-primary whitespace-nowrap">${formatDate(h.checkupDate || h.createdAt)}</td>
                 <td><strong>${escapeHtml(h.patientName)}</strong></td>
                 <td><span class="badge badge-info text-[11px]">${escapeHtml(h.barangay)}</span></td>
@@ -148,9 +180,9 @@ export function renderCheckupHistoryView(state, currentUser, selectedBarangay = 
           </thead>
           <tbody>
             ${infantHistory.length === 0 ? `
-              <tr><td colspan="10" class="text-center py-6 text-text-muted">No infant checkup history recorded yet.</td></tr>
+              <tr><td colspan="10" class="text-center py-6 text-text-muted">${searchTerm ? 'No matching infant visits found.' : 'No infant checkup history recorded yet.'}</td></tr>
             ` : infantHistory.map(h => `
-              <tr>
+              <tr class="history-record-row">
                 <td class="font-bold text-brand-primary whitespace-nowrap">${formatDate(h.checkupDate || h.createdAt)}</td>
                 <td><strong>${escapeHtml(h.infantName)}</strong></td>
                 <td>${escapeHtml(h.parentName || '-')}</td>

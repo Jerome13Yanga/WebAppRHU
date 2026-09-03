@@ -5,7 +5,7 @@
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
 import { isNurse, isParent, isMatchingParentRecord } from '../auth.js';
 
-export function renderSchedulesView(state, selectedBarangay = "All Barangays", currentUser = null) {
+export function renderSchedulesView(state, selectedBarangay = "All Barangays", currentUser = null, searchTerm = "") {
   const isUserParent = isParent(currentUser);
   const isUserNurse = isNurse(currentUser);
   const parentName = (currentUser?.name || currentUser?.fullName || '').toLowerCase().trim();
@@ -19,6 +19,8 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
     schedules = schedules.filter(s =>
       (s.userId && (s.userId === currentUser?.id || s.userId === currentUser?.authUserId)) ||
       (s.user_id && (s.user_id === currentUser?.id || s.user_id === currentUser?.authUserId)) ||
+      (s.maternalRecordId && myMaternal && s.maternalRecordId === myMaternal.id) ||
+      (s.infantRecordId && myInfants.some(inf => inf.id === s.infantRecordId)) ||
       isMatchingParentRecord({ patientName: s.patientName, parentName: s.parentName, fullName: s.patientName }, currentUser) ||
       (s.patientName && s.patientName.toLowerCase().trim() === parentName) ||
       (s.parentName && s.parentName.toLowerCase().trim() === parentName) ||
@@ -28,6 +30,20 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
     schedules = schedules.filter(s => s.barangay === currentUser.barangay);
   } else if (selectedBarangay && selectedBarangay !== "All Barangays") {
     schedules = schedules.filter(s => s.barangay === selectedBarangay);
+  }
+
+  // Apply search query filter
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase().trim();
+    schedules = schedules.filter(s =>
+      (s.patientName && s.patientName.toLowerCase().includes(q)) ||
+      (s.parentName && s.parentName.toLowerCase().includes(q)) ||
+      (s.barangay && s.barangay.toLowerCase().includes(q)) ||
+      (s.type && s.type.toLowerCase().includes(q)) ||
+      (s.assignedNurse && s.assignedNurse.toLowerCase().includes(q)) ||
+      (s.status && s.status.toLowerCase().includes(q)) ||
+      (s.notes && s.notes.toLowerCase().includes(q))
+    );
   }
 
   // Sort by date ascending
@@ -51,6 +67,17 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
       </button>
     </div>
 
+    <!-- Search and Filter Toolbar -->
+    <div class="flex items-center justify-between gap-3 mb-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+      <div class="relative flex-1 max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+        <input type="search" id="scheduleSearchInput" placeholder="Search appointments by patient, barangay, status, provider..." value="${escapeHtml(searchTerm)}" class="input-field pl-9 py-1.5 text-xs w-full">
+      </div>
+      <div class="text-xs text-slate-500 font-medium px-2 shrink-0">
+        ${searchTerm ? `Found <strong>${schedules.length}</strong> matching visits` : `Total: <strong>${schedules.length}</strong> visits`}
+      </div>
+    </div>
+
     <div class="panel">
       <div class="table-container overflow-x-auto">
         <table class="data-table text-xs">
@@ -70,9 +97,9 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
               <tr>
                 <td colspan="${isUserParent ? 6 : 7}" class="text-center py-8 text-text-muted">
                   <span class="material-symbols-outlined text-3xl text-slate-300 block mb-1">event_available</span>
-                  <p class="font-semibold text-text mb-1">No Check-up Appointments Scheduled</p>
-                  <p class="text-xs mb-3">${isUserParent ? 'You can request an appointment for your prenatal check-up or your child\'s immunization.' : 'No scheduled checkups found for this barangay station.'}</p>
-                  ${isUserParent ? `
+                  <p class="font-semibold text-text mb-1">${searchTerm ? 'No matching check-up appointments found.' : 'No Check-up Appointments Scheduled'}</p>
+                  <p class="text-xs mb-3">${searchTerm ? `No appointments matched "${escapeHtml(searchTerm)}". Try clearing your search.` : (isUserParent ? 'You can request an appointment for your prenatal check-up or your child\'s immunization.' : 'No scheduled checkups found for this barangay station.')}</p>
+                  ${isUserParent && !searchTerm ? `
                     <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="emptyScheduleRequestBtn">
                       <span class="material-symbols-outlined text-sm">calendar_add_on</span>
                       <span>Request Check-up Appointment</span>
@@ -81,7 +108,7 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
                 </td>
               </tr>
             ` : schedules.map(s => `
-              <tr>
+              <tr class="schedule-record-row">
                 <td><strong>${escapeHtml(s.patientName)}</strong></td>
                 <td><span class="badge badge-info text-[10px]">${s.type === 'MC' ? 'Maternal Prenatal' : 'Child Immunization'}</span></td>
                 <td>${escapeHtml(s.barangay)}</td>

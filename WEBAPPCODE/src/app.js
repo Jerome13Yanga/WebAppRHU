@@ -3,7 +3,7 @@
  * Padre Burgos RHU Maternal & Infant Health Monitoring System
  */
 import { STORE_KEYS, pages, getDynamicBarangays, defaultBarangays, TABLES, isNativeMobileApp } from './config.js';
-import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow } from './db.js';
+import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow, saveLocal } from './db.js';
 import { initSyncEngine, queueOfflineAction, flushPendingSyncQueue } from './sync.js';
 import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, isParent, isNurse, isMho, isAdmin, isStaff } from './auth.js';
 import { toast, escapeHtml, formatDate } from './utils/sanitize.js';
@@ -227,14 +227,11 @@ function showApp(userData) {
   const rolePillEl = document.getElementById("rolePill");
   if (rolePillEl) rolePillEl.innerHTML = renderRolePill(userData.role);
 
-  // Hide system search for Mother / Parent
+  // Configure system search input
   const globalSearch = document.getElementById("globalSearch");
   if (globalSearch) {
-    if (isParent(userData)) {
-      globalSearch.classList.add("hidden");
-    } else {
-      globalSearch.classList.remove("hidden");
-    }
+    globalSearch.classList.remove("hidden");
+    globalSearch.placeholder = isParent(userData) ? "Search your health records..." : "Search patients, children, or records...";
   }
 
   // Trigger immunization & checkup appointment reminder check
@@ -327,19 +324,19 @@ function renderPage(pageId) {
       bindDashboardEvents();
       break;
     case "maternal":
-      contentEl.innerHTML = renderMaternalView(state, selectedBarangay, current);
+      contentEl.innerHTML = renderMaternalView(state, selectedBarangay, current, searchTerm);
       bindMaternalEvents();
       break;
     case "infants":
-      contentEl.innerHTML = renderInfantsView(state, selectedBarangay, current);
+      contentEl.innerHTML = renderInfantsView(state, selectedBarangay, current, searchTerm);
       bindInfantsEvents();
       break;
     case "history":
-      contentEl.innerHTML = renderCheckupHistoryView(state, current, selectedBarangay);
+      contentEl.innerHTML = renderCheckupHistoryView(state, current, selectedBarangay, searchTerm);
       bindCheckupHistoryEvents();
       break;
     case "schedules":
-      contentEl.innerHTML = renderSchedulesView(state, selectedBarangay, current);
+      contentEl.innerHTML = renderSchedulesView(state, selectedBarangay, current, searchTerm);
       bindSchedulesEvents();
       break;
     case "reminders":
@@ -358,7 +355,8 @@ function renderPage(pageId) {
       bindBackupEvents();
       break;
     case "contacts":
-      contentEl.innerHTML = renderContactsView(state);
+      contentEl.innerHTML = renderContactsView(state, current, searchTerm);
+      bindContactsEvents();
       break;
     default:
       contentEl.innerHTML = renderDashboardView(state, current, selectedBarangay, vis, searchTerm);
@@ -751,9 +749,15 @@ function bindShellEvents() {
     renderPage(activePage);
   });
 
-  document.getElementById("globalSearch")?.addEventListener("input", () => {
-    renderPage(activePage);
-  });
+  const globalSearchEl = document.getElementById("globalSearch");
+  if (globalSearchEl) {
+    globalSearchEl.addEventListener("input", () => {
+      renderPage(activePage);
+    });
+    globalSearchEl.addEventListener("search", () => {
+      renderPage(activePage);
+    });
+  }
 
   // Enable Web Push Notifications event listener
   document.addEventListener("click", async (e) => {
@@ -881,6 +885,27 @@ function bindCheckupHistoryEvents() {
   document.getElementById("recordNewCheckupBtn")?.addEventListener("click", () => {
     openRecordCheckupModal();
   });
+
+  const histSearch = document.getElementById("historySearchInput");
+  if (histSearch) {
+    histSearch.addEventListener("input", (e) => {
+      const q = (e.target.value || '').toLowerCase().trim();
+      const global = document.getElementById("globalSearch");
+      if (global) global.value = e.target.value;
+
+      document.querySelectorAll(".history-record-row").forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (!q || text.includes(q)) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+    histSearch.addEventListener("search", () => {
+      renderPage("history");
+    });
+  }
 
   document.querySelectorAll(".print-single-history-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1204,6 +1229,27 @@ function bindMaternalEvents() {
     openParentPregnancyIntakeModal();
   });
 
+  const matSearch = document.getElementById("maternalSearchInput");
+  if (matSearch) {
+    matSearch.addEventListener("input", (e) => {
+      const q = (e.target.value || '').toLowerCase().trim();
+      const global = document.getElementById("globalSearch");
+      if (global) global.value = e.target.value;
+
+      document.querySelectorAll(".maternal-record-row").forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (!q || text.includes(q)) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+    matSearch.addEventListener("search", () => {
+      renderPage("maternal");
+    });
+  }
+
   document.querySelectorAll(".edit-maternal-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
@@ -1469,6 +1515,27 @@ function bindInfantsEvents() {
       openDigitalImmunizationCardModal({}, false);
     }
   });
+
+  const infSearch = document.getElementById("infantSearchInput");
+  if (infSearch) {
+    infSearch.addEventListener("input", (e) => {
+      const q = (e.target.value || '').toLowerCase().trim();
+      const global = document.getElementById("globalSearch");
+      if (global) global.value = e.target.value;
+
+      document.querySelectorAll(".infant-record-row").forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (!q || text.includes(q)) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+    infSearch.addEventListener("search", () => {
+      renderPage("infants");
+    });
+  }
 
   document.querySelectorAll(".view-card-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -2044,43 +2111,292 @@ function openAddScheduleModal(current) {
     return;
   }
 
-  // Staff Schedule Modal
+  // Staff Schedule Modal (Midwife / Nurse / Admin)
+  const defaultBgy = isNurse(current) && current.barangay && current.barangay !== 'All Barangays'
+    ? current.barangay
+    : ((selectedBarangay && selectedBarangay !== "All Barangays") ? selectedBarangay : (current?.barangay || "Basiao (Poblacion)"));
+
+  function buildStaffPatientOptions(targetBgy) {
+    const maternalInBgy = (state.maternalRecords || []).filter(r => r.barangay === targetBgy);
+    const infantsInBgy = (state.infantRecords || []).filter(i => i.barangay === targetBgy);
+
+    const maternalOpts = maternalInBgy.map(r => `
+      <option value="mat_${escapeHtml(r.id)}" data-kind="maternal" data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(r.fullName)}" data-parent="${escapeHtml(r.fullName)}" data-contact="${escapeHtml(r.contact || '')}">
+        🤰 ${escapeHtml(r.fullName)} (LMP: ${formatDate(r.lmp)} • EDD: ${formatDate(r.edd)}${r.riskLevel ? ' • ' + escapeHtml(r.riskLevel) : ''})
+      </option>
+    `).join('');
+
+    const infantOpts = infantsInBgy.map(i => `
+      <option value="inf_${escapeHtml(i.id)}" data-kind="infant" data-id="${escapeHtml(i.id)}" data-name="${escapeHtml(i.infantName)}" data-parent="${escapeHtml(i.parentName || i.motherName || '')}" data-contact="${escapeHtml(i.contact || '')}">
+        👶 ${escapeHtml(i.infantName)} (${i.ageMonths || 0} mos • Mother: ${escapeHtml(i.parentName || i.motherName || 'Unknown')})
+      </option>
+    `).join('');
+
+    let html = `<option value="" disabled selected>-- Choose registered patient from ${escapeHtml(targetBgy)} --</option>`;
+    if (maternalInBgy.length > 0) {
+      html += `<optgroup label="🤰 Registered Pregnant Mothers (${maternalInBgy.length})">${maternalOpts}</optgroup>`;
+    }
+    if (infantsInBgy.length > 0) {
+      html += `<optgroup label="👶 Registered Children / Infants (${infantsInBgy.length})">${infantOpts}</optgroup>`;
+    }
+    if (maternalInBgy.length === 0 && infantsInBgy.length === 0) {
+      html += `<option value="" disabled>No registered mothers or infants found in ${escapeHtml(targetBgy)}</option>`;
+    }
+    html += `<optgroup label="Other / Unregistered">
+      <option value="__manual__">➕ Enter Unregistered Patient / Walk-in...</option>
+    </optgroup>`;
+    return { html, maternalCount: maternalInBgy.length, infantCount: infantsInBgy.length };
+  }
+
+  function findUserIdForMother(record, users = []) {
+    if (!record || !users || !users.length) return "";
+    const name = (record.fullName || record.parentName || record.name || '').toLowerCase().trim();
+    const contact = (record.contact || '').replace(/\D/g, '');
+    if (!name && !contact) return "";
+
+    const found = users.find(u => {
+      if (contact && u.contact && u.contact.replace(/\D/g, '') === contact) return true;
+      const uName = (u.name || u.fullName || '').toLowerCase().trim();
+      if (name && uName && (name === uName || name.includes(uName) || uName.includes(name))) return true;
+      return false;
+    });
+    return found?.id || found?.authUserId || "";
+  }
+
+  const initialPatientOpts = buildStaffPatientOptions(defaultBgy);
+  const isSingleStationNurse = isNurse(current) && current.barangay && current.barangay !== 'All Barangays';
+
   openModal("Schedule Check-up Appointment", `
-    <form id="schedForm" class="modal-form space-y-3 text-xs">
-      <label>Patient Name * <input type="text" id="sPatient" required placeholder="Patient full name"></label>
-      <label>Care Type 
-        <select id="sType" class="input-field">
-          <option value="MC">MC - Maternal Care</option>
-          <option value="CC">CC - Child Immunization</option>
+    <form id="schedForm" class="modal-form space-y-3.5 text-xs">
+      <div class="p-3 rounded-xl bg-blue-50/90 border border-blue-200 text-blue-950 text-xs">
+        <div class="flex items-center gap-1.5 font-bold text-blue-900 mb-0.5">
+          <span class="material-symbols-outlined text-base text-blue-600">sync_alt</span>
+          <span>Automatic Mother & Child Portal Synchronization</span>
+        </div>
+        <p class="text-[11px] text-blue-800 leading-relaxed">
+          Select a registered patient from the dropdown list. The appointment will link directly to the mother's record and instantly reflect on her dashboard, reminders, and appointment schedule.
+        </p>
+      </div>
+
+      <label class="block">Barangay Station *
+        <select id="sBarangay" class="input-field w-full font-medium" ${isSingleStationNurse ? 'disabled' : ''}>
+          ${getActiveBarangays().map(b => `<option value="${escapeHtml(b)}" ${b === defaultBgy ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('')}
+        </select>
+        ${isSingleStationNurse ? `<input type="hidden" id="sBarangayHidden" value="${escapeHtml(defaultBgy)}">` : ''}
+      </label>
+
+      <label class="block">Select Registered Patient (Mother or Child) *
+        <select id="sPatientSelect" class="input-field w-full" required>
+          ${initialPatientOpts.html}
         </select>
       </label>
-      <label>Barangay Assignment 
-        <select id="sBarangay" class="input-field">${bgyOptions}</select>
-      </label>
-      <div class="two-col">
-        <label>Check-up Date * <input type="date" id="sDate" required value="${new Date().toISOString().split('T')[0]}"></label>
-        <label>Time Slot <input type="time" id="sTime" value="08:30"></label>
+
+      <!-- Live Selection Feedback Chip -->
+      <div id="patientPreviewChip" class="hidden p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2">
+        <span class="material-symbols-outlined text-emerald-600 text-base shrink-0">check_circle</span>
+        <div id="patientPreviewText" class="text-[11px] font-medium leading-tight"></div>
       </div>
-      <button class="primary-btn full-btn mt-2" type="submit">Confirm Check-up Schedule</button>
+
+      <!-- Manual Fallback for Walk-in Patients -->
+      <div id="manualPatientWrap" class="hidden p-3 rounded-xl bg-amber-50/80 border border-amber-200 space-y-2.5">
+        <div class="text-[11px] font-bold text-amber-900 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">edit_note</span>
+          <span>Walk-in / Unregistered Patient Details</span>
+        </div>
+        <label class="block font-medium text-amber-900">Patient Full Name *
+          <input type="text" id="sPatientManual" placeholder="e.g. Maria Santos or Baby Carlo" class="input-field text-xs w-full">
+        </label>
+        <label class="block font-medium text-amber-900">Mother / Parent Full Name (for portal linkage)
+          <input type="text" id="sParentManual" placeholder="e.g. Maria Santos" class="input-field text-xs w-full">
+        </label>
+      </div>
+
+      <label class="block">Care Category *
+        <select id="sType" class="input-field w-full">
+          <option value="MC">MC - Maternal Prenatal Care</option>
+          <option value="CC">CC - Child Immunization & Pediatric Monitoring</option>
+        </select>
+      </label>
+
+      <div class="two-col">
+        <label class="block">Scheduled Date *
+          <input type="date" id="sDate" required value="${new Date().toISOString().split('T')[0]}" class="input-field w-full">
+        </label>
+        <label class="block">Time Slot
+          <select id="sTime" class="input-field w-full">
+            <option value="08:00 AM">08:00 AM - Morning Clinic</option>
+            <option value="08:30 AM" selected>08:30 AM - Morning Clinic</option>
+            <option value="09:00 AM">09:00 AM - Morning Clinic</option>
+            <option value="10:00 AM">10:00 AM - Mid Morning</option>
+            <option value="11:00 AM">11:00 AM - Late Morning</option>
+            <option value="01:30 PM">01:30 PM - Afternoon Clinic</option>
+            <option value="02:30 PM">02:30 PM - Afternoon Clinic</option>
+            <option value="03:30 PM">03:30 PM - Late Afternoon</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="block">Purpose / Clinical Notes (Optional)
+        <textarea id="sNotes" rows="2" placeholder="e.g. Routine 2nd Trimester Prenatal, Penta 2 & OPV 2 vaccination..." class="input-field w-full"></textarea>
+      </label>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
+        <button type="button" class="secondary-btn sm-btn text-xs py-2 px-3" onclick="closeModal()">Cancel</button>
+        <button class="primary-btn sm-btn text-xs py-2 px-4 flex items-center gap-1.5" type="submit" id="confirmSchedBtn">
+          <span class="material-symbols-outlined text-sm">calendar_month</span>
+          <span>Confirm & Link Schedule</span>
+        </button>
+      </div>
     </form>
   `);
 
+  const bgySelect = document.getElementById("sBarangay");
+  const patientSelect = document.getElementById("sPatientSelect");
+  const typeSelect = document.getElementById("sType");
+  const manualWrap = document.getElementById("manualPatientWrap");
+  const previewChip = document.getElementById("patientPreviewChip");
+  const previewText = document.getElementById("patientPreviewText");
+
+  // Dynamic refresh of patients when Barangay selection changes
+  bgySelect?.addEventListener("change", (e) => {
+    const newBgy = e.target.value;
+    const updated = buildStaffPatientOptions(newBgy);
+    if (patientSelect) {
+      patientSelect.innerHTML = updated.html;
+    }
+    if (previewChip) previewChip.classList.add("hidden");
+    if (manualWrap) manualWrap.classList.add("hidden");
+  });
+
+  // Dynamic feedback and Care Type auto-selection when choosing patient
+  patientSelect?.addEventListener("change", (e) => {
+    const selectedVal = e.target.value;
+    if (selectedVal === "__manual__") {
+      manualWrap?.classList.remove("hidden");
+      previewChip?.classList.add("hidden");
+      document.getElementById("sPatientManual")?.focus();
+    } else {
+      manualWrap?.classList.add("hidden");
+      const opt = e.target.selectedOptions[0];
+      const kind = opt?.getAttribute("data-kind");
+      const name = opt?.getAttribute("data-name");
+      const parent = opt?.getAttribute("data-parent");
+
+      if (kind === "maternal") {
+        if (typeSelect) typeSelect.value = "MC";
+        if (previewChip && previewText) {
+          previewText.innerHTML = `🤰 Mother: <strong>${escapeHtml(name)}</strong> • Maternal Prenatal Care • Directly linked to mother's portal`;
+          previewChip.classList.remove("hidden");
+        }
+      } else if (kind === "infant") {
+        if (typeSelect) typeSelect.value = "CC";
+        if (previewChip && previewText) {
+          previewText.innerHTML = `👶 Child: <strong>${escapeHtml(name)}</strong> (Mother: <strong>${escapeHtml(parent || 'Registered Parent')}</strong>) • Child Immunization • Directly linked to mother's portal`;
+          previewChip.classList.remove("hidden");
+        }
+      }
+    }
+  });
+
   document.getElementById("schedForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const newSched = {
-      id: `sch_${Date.now()}`,
-      patientName: document.getElementById("sPatient").value.trim(),
-      type: document.getElementById("sType").value,
-      barangay: document.getElementById("sBarangay").value,
-      date: document.getElementById("sDate").value,
-      time: document.getElementById("sTime").value,
-      status: "Scheduled",
-      assignedNurse: current?.fullName || current?.name || "Barangay Midwife"
-    };
-    await persistRecord("checkupSchedules", newSched);
-    closeModal();
-    toast("Check-up appointment scheduled.");
-    renderPage("schedules");
+    const confirmBtn = document.getElementById("confirmSchedBtn");
+    if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm">sync</span><span>Saving...</span>`; }
+
+    try {
+      const selectedVal = patientSelect ? patientSelect.value : "";
+      if (!selectedVal) {
+        toast("Please select a registered patient or choose manual walk-in.", true);
+        if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerHTML = `<span class="material-symbols-outlined text-sm">calendar_month</span><span>Confirm & Link Schedule</span>`; }
+        return;
+      }
+
+      const bgyVal = document.getElementById("sBarangayHidden")?.value || (bgySelect ? bgySelect.value : defaultBgy);
+      const dateVal = document.getElementById("sDate")?.value || new Date().toISOString().split('T')[0];
+      const timeVal = document.getElementById("sTime")?.value || "08:30 AM";
+      const typeVal = typeSelect ? typeSelect.value : "MC";
+      const notesVal = (document.getElementById("sNotes")?.value || "").trim();
+
+      let patientName = "";
+      let parentName = "";
+      let maternalRecordId = "";
+      let infantRecordId = "";
+      let targetUserId = "";
+
+      if (selectedVal === "__manual__") {
+        patientName = (document.getElementById("sPatientManual")?.value || "").trim();
+        parentName = (document.getElementById("sParentManual")?.value || "").trim() || patientName;
+
+        if (!patientName) {
+          toast("Please enter patient full name.", true);
+          if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerHTML = `<span class="material-symbols-outlined text-sm">calendar_month</span><span>Confirm & Link Schedule</span>`; }
+          return;
+        }
+
+        const matchMat = (state.maternalRecords || []).find(m =>
+          (m.fullName && m.fullName.toLowerCase().trim() === patientName.toLowerCase()) ||
+          (m.fullName && m.fullName.toLowerCase().trim() === parentName.toLowerCase())
+        );
+        const matchInf = (state.infantRecords || []).find(i =>
+          i.infantName && i.infantName.toLowerCase().trim() === patientName.toLowerCase()
+        );
+
+        maternalRecordId = matchMat?.id || matchInf?.maternalRecordId || "";
+        infantRecordId = matchInf?.id || "";
+        targetUserId = matchMat?.user_id || matchMat?.userId || matchInf?.user_id || findUserIdForMother({ fullName: parentName }, state.users) || "";
+      } else {
+        const opt = patientSelect.selectedOptions[0];
+        const kind = opt?.getAttribute("data-kind");
+        const recordId = opt?.getAttribute("data-id");
+
+        if (kind === "maternal") {
+          const matRec = (state.maternalRecords || []).find(r => r.id === recordId);
+          patientName = matRec?.fullName || opt?.getAttribute("data-name") || "Patient";
+          parentName = matRec?.fullName || patientName;
+          maternalRecordId = recordId;
+          infantRecordId = "";
+          targetUserId = matRec?.user_id || matRec?.userId || findUserIdForMother(matRec, state.users) || "";
+        } else if (kind === "infant") {
+          const infRec = (state.infantRecords || []).find(i => i.id === recordId);
+          patientName = infRec?.infantName || opt?.getAttribute("data-name") || "Child";
+          parentName = infRec?.parentName || infRec?.motherName || opt?.getAttribute("data-parent") || "";
+          infantRecordId = recordId;
+
+          const matchMat = (state.maternalRecords || []).find(m =>
+            (infRec?.maternalRecordId && m.id === infRec.maternalRecordId) ||
+            (parentName && m.fullName && m.fullName.toLowerCase().trim() === parentName.toLowerCase().trim())
+          );
+          maternalRecordId = matchMat?.id || infRec?.maternalRecordId || "";
+          targetUserId = infRec?.user_id || infRec?.userId || matchMat?.user_id || matchMat?.userId || findUserIdForMother({ fullName: parentName, contact: infRec?.contact }, state.users) || "";
+        }
+      }
+
+      const newSched = {
+        id: `sch_${Date.now()}`,
+        patientName,
+        parentName,
+        userId: targetUserId || "",
+        user_id: targetUserId || "",
+        maternalRecordId: maternalRecordId || "",
+        infantRecordId: infantRecordId || "",
+        type: typeVal,
+        barangay: bgyVal,
+        date: dateVal,
+        time: timeVal,
+        status: "Scheduled",
+        notes: notesVal,
+        assignedNurse: current?.fullName || current?.name || "Barangay Midwife"
+      };
+
+      await persistRecord("checkupSchedules", newSched);
+      closeModal();
+      toast(`Check-up appointment scheduled for ${patientName}! Linked to mother's portal (${parentName || patientName}).`);
+      renderPage(activePage === "dashboard" ? "dashboard" : "schedules");
+    } catch (err) {
+      console.error("Schedule creation error:", err);
+      toast(`Failed to save schedule: ${err.message || err}`, true);
+      if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerHTML = `<span class="material-symbols-outlined text-sm">calendar_month</span><span>Confirm & Link Schedule</span>`; }
+    }
   });
 }
 
@@ -2095,6 +2411,27 @@ function bindSchedulesEvents() {
 
   document.getElementById("addScheduleBtn")?.addEventListener("click", handleOpenScheduleModal);
   document.getElementById("emptyScheduleRequestBtn")?.addEventListener("click", handleOpenScheduleModal);
+
+  const schedSearch = document.getElementById("scheduleSearchInput");
+  if (schedSearch) {
+    schedSearch.addEventListener("input", (e) => {
+      const q = (e.target.value || '').toLowerCase().trim();
+      const global = document.getElementById("globalSearch");
+      if (global) global.value = e.target.value;
+
+      document.querySelectorAll(".schedule-record-row").forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (!q || text.includes(q)) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+    schedSearch.addEventListener("search", () => {
+      renderPage("schedules");
+    });
+  }
 
   document.querySelectorAll(".delete-schedule-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -2244,4 +2581,197 @@ function bindBackupEvents() {
     dlAnchor.click();
     dlAnchor.remove();
   });
+
+  const restoreBtn = document.getElementById("triggerRestoreBtn");
+  const restoreFileInput = document.getElementById("restoreFile");
+  if (restoreBtn && restoreFileInput) {
+    restoreBtn.addEventListener("click", () => {
+      restoreFileInput.click();
+    });
+
+    restoreFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!parsed || typeof parsed !== 'object') {
+          throw new Error("Invalid backup file format.");
+        }
+        if (!confirm("Are you sure you want to restore this backup? Existing records will be updated.")) {
+          restoreFileInput.value = "";
+          return;
+        }
+        for (const key of STORE_KEYS) {
+          if (Array.isArray(parsed[key])) {
+            state[key] = parsed[key];
+            await saveCollection(key, parsed[key]);
+            if (isOnlineMode() && TABLES[key]) {
+              for (const item of parsed[key]) {
+                try {
+                  await db.from(TABLES[key]).upsert(cleanRemoteRow(key, item), { onConflict: "id" });
+                } catch (err) {
+                  // Ignore single row conflicts during bulk restore
+                }
+              }
+            }
+          }
+        }
+        state.backupMeta = { date: new Date().toISOString(), filename: file.name };
+        await saveLocal("backupMeta", state.backupMeta);
+        toast("Backup restored successfully!");
+        renderPage("backup");
+      } catch (err) {
+        toast("Restore failed: " + err.message, true);
+      } finally {
+        restoreFileInput.value = "";
+      }
+    });
+  }
 }
+
+// -------------------------------------------------------------
+// Emergency Contacts Binders & Modal Handlers
+// -------------------------------------------------------------
+function bindContactsEvents() {
+  const current = getCurrentUser();
+  const userIsAdmin = isAdmin(current);
+  const userIsNurse = isNurse(current);
+  const userBarangay = current?.barangay || '';
+
+  // Real-time search filter for emergency contacts
+  const searchInput = document.getElementById("contactsSearchInput");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      const q = (e.target.value || '').toLowerCase().trim();
+      document.querySelectorAll(".contact-card-item").forEach(card => {
+        const bgy = card.getAttribute("data-barangay-name") || '';
+        const nurse = card.getAttribute("data-nurse-name") || '';
+        const clinic = card.getAttribute("data-clinic") || '';
+        if (!q || bgy.includes(q) || nurse.includes(q) || clinic.includes(q)) {
+          card.style.display = "";
+        } else {
+          card.style.display = "none";
+        }
+      });
+    });
+  }
+
+  // Edit / Add Emergency Contact Buttons
+  document.querySelectorAll("[data-action='edit-contact'], [data-action='add-contact']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      let targetBarangay = btn.getAttribute("data-barangay") || "";
+      // If nurse, strictly restrict to their assigned barangay
+      if (userIsNurse && !userIsAdmin) {
+        targetBarangay = userBarangay;
+      }
+      if (!targetBarangay && defaultBarangays.length > 0) {
+        targetBarangay = userBarangay || defaultBarangays[0];
+      }
+
+      const existing = (state.emergencyContacts || []).find(c => c && c.barangay === targetBarangay);
+      openEmergencyContactModal(targetBarangay, existing);
+    });
+  });
+}
+
+function openEmergencyContactModal(targetBarangay, existing) {
+  const current = getCurrentUser();
+  const userIsAdmin = isAdmin(current);
+  const userIsNurse = isNurse(current);
+  const userBarangay = current?.barangay || '';
+
+  const modalHtml = `
+    <form id="emergencyContactForm" class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">Barangay Station</label>
+        ${userIsAdmin ? `
+          <select id="modalContactBarangay" class="input-field w-full text-xs" required>
+            ${defaultBarangays.map(b => `<option value="${escapeHtml(b)}" ${b === targetBarangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('')}
+          </select>
+        ` : `
+          <input type="text" id="modalContactBarangay" class="input-field w-full text-xs bg-slate-100 cursor-not-allowed font-semibold text-slate-700" value="${escapeHtml(targetBarangay)}" readonly required>
+          <p class="text-[11px] text-emerald-600 font-medium mt-1">Assigned to your registered health station (${escapeHtml(targetBarangay)}).</p>
+        `}
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">Assigned Nurse / Midwife Name *</label>
+        <input type="text" id="modalContactNurseName" class="input-field w-full text-xs" required placeholder="e.g. Nurse Elena Ramos, RN" value="${escapeHtml(existing?.nurseName || (userIsNurse ? current?.name || '' : ''))}">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">Direct Station Phone / Mobile *</label>
+        <input type="tel" id="modalContactNumber" class="input-field w-full text-xs" required placeholder="e.g. 0917-123-4567 or (042) 717-XXXX" value="${escapeHtml(existing?.contactNumber || '')}">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">Clinic / Station Location *</label>
+        <input type="text" id="modalContactClinicLocation" class="input-field w-full text-xs" required placeholder="e.g. Near Barangay Hall, Basiao" value="${escapeHtml(existing?.clinicLocation || `${targetBarangay} Barangay Health Station`)}">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">24/7 Emergency Hotline *</label>
+        <input type="text" id="modalContactHotline" class="input-field w-full text-xs" required placeholder="e.g. Padre Burgos RHU: (042) 717-3211 / MDRRMO: 0919-000-0000" value="${escapeHtml(existing?.hotline || 'Padre Burgos RHU: (042) 717-3211 / MDRRMO Hotline')}">
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+        <button type="button" class="ghost-btn text-xs py-2 px-3" id="cancelContactModalBtn">Cancel</button>
+        <button type="submit" class="primary-btn text-xs py-2 px-4 flex items-center gap-1.5" id="saveContactBtn">
+          <span class="material-symbols-outlined text-sm">save</span>
+          <span>Save Contact Details</span>
+        </button>
+      </div>
+    </form>
+  `;
+
+  openModal(`Emergency Contact — ${targetBarangay}`, modalHtml);
+
+  document.getElementById("cancelContactModalBtn")?.addEventListener("click", closeModal);
+
+  const form = document.getElementById("emergencyContactForm");
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const selectedBgy = document.getElementById("modalContactBarangay")?.value?.trim() || targetBarangay;
+    const nurseName = document.getElementById("modalContactNurseName")?.value?.trim() || "";
+    const contactNumber = document.getElementById("modalContactNumber")?.value?.trim() || "";
+    const clinicLocation = document.getElementById("modalContactClinicLocation")?.value?.trim() || "";
+    const hotline = document.getElementById("modalContactHotline")?.value?.trim() || "";
+
+    // Enforce authorization: Nurse can only save for their own assigned barangay
+    if (userIsNurse && !userIsAdmin && selectedBgy.toLowerCase() !== userBarangay.toLowerCase()) {
+      toast("Unauthorized: You can only edit emergency contacts for your assigned barangay.", true);
+      return;
+    }
+
+    if (!nurseName || !contactNumber || !clinicLocation) {
+      toast("Please fill in all required fields.", true);
+      return;
+    }
+
+    // Match existing contact by barangay or ID
+    const matchedExisting = (state.emergencyContacts || []).find(c => c && c.barangay === selectedBgy);
+    const contactId = matchedExisting?.id || existing?.id || `contact_${selectedBgy.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+
+    const contactData = {
+      id: contactId,
+      nurseName,
+      barangay: selectedBgy,
+      contactNumber,
+      clinicLocation,
+      hotline
+    };
+
+    await persistRecord("emergencyContacts", contactData);
+    closeModal();
+    toast(`Emergency contact for ${selectedBgy} saved successfully.`);
+
+    const contentEl = document.getElementById("content");
+    if (contentEl) {
+      contentEl.innerHTML = renderContactsView(state, current);
+      bindContactsEvents();
+    }
+  });
+}
+
