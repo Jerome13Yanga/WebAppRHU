@@ -58,6 +58,10 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
       </div>
 
       <div class="flex items-center gap-2">
+        <button type="button" class="secondary-btn flex items-center gap-1.5 text-xs py-2 px-3 sync-data-btn" title="Refresh Schedules">
+          <span class="material-symbols-outlined text-base">sync</span>
+          <span>Refresh</span>
+        </button>
         <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5 open-request-appointment-modal-btn" id="addScheduleBtn" data-action="${isUserParent ? 'request-checkup' : 'add-schedule'}">
           <span class="material-symbols-outlined text-base">${isUserParent ? 'calendar_add_on' : 'add_circle'}</span>
           <span>${isUserParent ? 'Request Check-up Appointment' : 'Schedule Check-up'}</span>

@@ -96,10 +96,6 @@ function renderParentRemindersView(state, currentUser, isApk) {
                 <span class="material-symbols-outlined text-xs">check_circle</span>
                 <span>Active</span>
               </span>
-              <button type="button" class="btn btn-secondary sm-btn text-xs py-1 px-2.5 inline-flex items-center gap-1 shrink-0" id="testReminderNotificationBtn">
-                <span class="material-symbols-outlined text-xs">notifications_active</span>
-                <span>Test Alert</span>
-              </button>
             </div>
           ` : `
             <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3 inline-flex items-center gap-1 shrink-0" id="enablePushNotificationsBtn">

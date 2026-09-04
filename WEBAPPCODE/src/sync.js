@@ -24,7 +24,7 @@ export async function queueOfflineAction(collectionKey, actionType, payload) {
 
 // Flush pending queue to Supabase
 export async function flushPendingSyncQueue() {
-  if (!isOnlineMode() || !navigator.onLine || isSyncing) return;
+  if (!isOnlineMode() || isSyncing) return;
   const idb = await openIndexedDB();
   if (!idb) return;
 

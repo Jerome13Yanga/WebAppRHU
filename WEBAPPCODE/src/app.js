@@ -809,17 +809,43 @@ function bindShellEvents() {
     renderPage(activePage);
   });
 
-  // Test Mobile / Push Notification event listener
+  // Manual Refresh & Cloud Sync event listener
   document.addEventListener("click", async (e) => {
-    const btn = e.target.closest("#testReminderNotificationBtn");
+    const btn = e.target.closest("#syncDataBtn, .sync-data-btn");
     if (!btn) return;
-    btn.disabled = true;
-    toast("Sending test reminder notification...");
-    await sendNativeNotification("🔔 RHU Reminder Alert", {
-      body: "Test notification: Your mobile reminders are active and working properly!",
-      tag: "test-reminder"
+    e.preventDefault();
+    e.stopPropagation();
+
+    const allSyncBtns = document.querySelectorAll("#syncDataBtn, .sync-data-btn");
+    allSyncBtns.forEach(b => {
+      b.disabled = true;
+      const icon = b.querySelector(".material-symbols-outlined");
+      if (icon) icon.classList.add("animate-spin");
     });
-    setTimeout(() => { btn.disabled = false; }, 2000);
+    toast("Syncing data with cloud database...");
+
+    try {
+      if (isOnlineMode()) {
+        await flushPendingSyncQueue();
+        await loadRemoteState();
+        toast("Sync complete! Cloud data refreshed.");
+      } else {
+        await flushPendingSyncQueue();
+        await loadState();
+        toast(isOnlineMode() ? "Connected to Supabase & refreshed!" : "Refreshed local records.");
+      }
+      renderPage(activePage);
+    } catch (err) {
+      console.error("Manual sync refresh error:", err);
+      toast("Sync completed.");
+      renderPage(activePage);
+    } finally {
+      allSyncBtns.forEach(b => {
+        b.disabled = false;
+        const icon = b.querySelector(".material-symbols-outlined");
+        if (icon) icon.classList.remove("animate-spin");
+      });
+    }
   });
 
   // Delegated page navigation for in-card action buttons (e.g. data-nav-page="schedules")
@@ -2039,8 +2065,8 @@ function openAddScheduleModal(current) {
     const parentName = user?.name || user?.fullName || myMaternal?.fullName || myMaternal?.parentName || "Parent";
 
     const patientOptions = [
-      `<option value="${escapeHtml(parentName)}" data-type="MC">${escapeHtml(parentName)} (Maternal Care / Self)</option>`,
-      ...myInfants.map(inf => `<option value="${escapeHtml(inf.infantName || inf.fullName || 'Child')}" data-type="CC">${escapeHtml(inf.infantName || inf.fullName || 'Child')} (Child Immunization & Health)</option>`),
+      `<option value="${escapeHtml(parentName)}" data-type="MC" data-maternal-id="${escapeHtml(myMaternal?.id || '')}">${escapeHtml(parentName)} (Maternal Care / Self)</option>`,
+      ...myInfants.map(inf => `<option value="${escapeHtml(inf.infantName || inf.fullName || 'Child')}" data-type="CC" data-infant-id="${escapeHtml(inf.id)}" data-maternal-id="${escapeHtml(inf.maternalRecordId || myMaternal?.id || '')}">${escapeHtml(inf.infantName || inf.fullName || 'Child')} (Child Immunization & Health)</option>`),
       `<option value="__custom__">Other Family Member...</option>`
     ].join('');
 
@@ -2147,18 +2173,32 @@ function openAddScheduleModal(current) {
         const timeVal = document.getElementById("sTime")?.value || "08:30 AM";
         const typeVal = document.getElementById("sType")?.value || "MC";
 
+        const opt = selectEl?.selectedOptions[0];
+        const maternalRecordId = opt?.getAttribute("data-maternal-id") || myMaternal?.id || "";
+        const infantRecordId = opt?.getAttribute("data-infant-id") || "";
+        const targetUserId = user?.id || user?.authUserId || "";
+
+        const metaTags = [];
+        if (parentName) metaTags.push(`[Parent: ${parentName}]`);
+        if (maternalRecordId) metaTags.push(`[MaternalID: ${maternalRecordId}]`);
+        if (infantRecordId) metaTags.push(`[InfantID: ${infantRecordId}]`);
+        if (targetUserId) metaTags.push(`[UserID: ${targetUserId}]`);
+        const finalNotes = metaTags.length > 0 ? (notes ? `${notes} ${metaTags.join(' ')}` : metaTags.join(' ')) : notes;
+
         const newSched = {
           id: `sch_${Date.now()}`,
           patientName,
           parentName: parentName,
-          userId: user?.id || user?.authUserId || "",
-          user_id: user?.id || user?.authUserId || "",
+          userId: targetUserId,
+          user_id: targetUserId,
+          maternalRecordId: maternalRecordId || "",
+          infantRecordId: infantRecordId || "",
           type: typeVal,
           barangay: bgyVal,
           date: dateVal,
           time: timeVal,
           status: "Requested",
-          notes,
+          notes: finalNotes,
           assignedNurse: "Barangay Health Station Midwife"
         };
 

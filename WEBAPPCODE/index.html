@@ -276,6 +276,9 @@
         </div>
         <div class="topbar-actions">
           <input id="globalSearch" type="search" placeholder="Search records...">
+          <button id="syncDataBtn" class="icon-btn flex items-center justify-center sync-data-btn" title="Refresh & Sync Data" aria-label="Refresh & Sync Data">
+            <span class="material-symbols-outlined text-xl">sync</span>
+          </button>
           <div class="user-chip">
             <div class="user-avatar" id="userInitials">U</div>
             <div class="hidden sm:block">
@@ -304,9 +307,9 @@
   </div>
 
   <input id="restoreFile" class="hidden" type="file" accept="application/json">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="supabase.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'"></script>
+  <script src="exceljs.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'"></script>
+  <script src="lucide.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/lucide@latest'"></script>
   <script type="module" src="src/app.js?v=2.0.9"></script>
 </body>
 

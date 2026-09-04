@@ -4,6 +4,8 @@
  */
 import { SUPABASE_URL, SUPABASE_ANON_KEY, TABLES, STORE_KEYS } from './config.js';
 
+let _dbInstance = null;
+
 export const isSupabaseConfigured = () =>
   typeof window.supabase !== "undefined" &&
   SUPABASE_URL.startsWith("https://") &&
@@ -11,8 +13,29 @@ export const isSupabaseConfigured = () =>
   SUPABASE_ANON_KEY.length > 30 &&
   !SUPABASE_ANON_KEY.includes("PASTE_YOUR");
 
-export const db = isSupabaseConfigured() ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-export const isOnlineMode = () => Boolean(db);
+export function getDb() {
+  if (_dbInstance) return _dbInstance;
+  if (isSupabaseConfigured()) {
+    try {
+      _dbInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return _dbInstance;
+    } catch (err) {
+      console.error("Failed to create Supabase client:", err);
+    }
+  }
+  return null;
+}
+
+export const db = new Proxy({}, {
+  get(target, prop) {
+    const client = getDb();
+    if (!client) return undefined;
+    const val = client[prop];
+    return typeof val === 'function' ? val.bind(client) : val;
+  }
+});
+
+export const isOnlineMode = () => Boolean(getDb());
 
 const DB_NAME = 'rhu_health_indexed_db';
 const DB_VERSION = 2;
@@ -139,12 +162,9 @@ export function cleanRemoteRow(key, row) {
       copy.notes = copy.notes ? `${copy.notes} ${metaTags.join(' ')}` : metaTags.join(' ');
     }
 
-    // Delete local-only matching helper fields before Supabase upsert to prevent schema errors
+    // Normalize userId into user_id column
+    if (!copy.user_id && copy.userId) copy.user_id = copy.userId;
     delete copy.userId;
-    delete copy.user_id;
-    delete copy.parentName;
-    delete copy.maternalRecordId;
-    delete copy.infantRecordId;
   }
 
   // Clean empty string dates/timestamps to null
