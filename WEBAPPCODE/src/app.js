@@ -21,7 +21,7 @@ import { renderTodoLigtasImmunizationCardHtml } from './ui/infantCardForm.js';
 import { renderPrenatalClinicalRecordHtml } from './ui/prenatalClinicalForm.js';
 import { renderBackupView, renderContactsView } from './ui/backup.js';
 import { renderRemindersView } from './ui/reminders.js';
-import { requestNotificationPermission, checkImmunizationAndScheduleReminders, isNotificationGranted } from './utils/notifications.js';
+import { requestNotificationPermission, checkImmunizationAndScheduleReminders, sendNativeNotification } from './utils/notifications.js';
 
 let state = {
   users: [],
@@ -807,6 +807,19 @@ function bindShellEvents() {
       await checkImmunizationAndScheduleReminders(state, getCurrentUser());
     }
     renderPage(activePage);
+  });
+
+  // Test Mobile / Push Notification event listener
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest("#testReminderNotificationBtn");
+    if (!btn) return;
+    btn.disabled = true;
+    toast("Sending test reminder notification...");
+    await sendNativeNotification("🔔 RHU Reminder Alert", {
+      body: "Test notification: Your mobile reminders are active and working properly!",
+      tag: "test-reminder"
+    });
+    setTimeout(() => { btn.disabled = false; }, 2000);
   });
 
   // Delegated page navigation for in-card action buttons (e.g. data-nav-page="schedules")
@@ -2764,10 +2777,6 @@ function bindRemindersEvents() {
     e.preventDefault();
     e.stopPropagation();
     openAddScheduleModal(getCurrentUser());
-  });
-
-  document.getElementById("enablePushNotificationsBtn")?.addEventListener("click", async () => {
-    await requestNotificationPermission();
   });
 }
 

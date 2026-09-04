@@ -8,7 +8,7 @@
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
 import { isParent, isNurse, isMho, isAdmin, isMatchingParentRecord, isScheduleForParent } from '../auth.js';
-import { isNotificationSupported, isNotificationGranted } from '../utils/notifications.js';
+import { isNotificationSupported, isNotificationPermissionGrantedSync } from '../utils/notifications.js';
 import { isNativeMobileApp } from '../config.js';
 
 export function renderRemindersView(state, currentUser) {
@@ -25,6 +25,7 @@ export function renderRemindersView(state, currentUser) {
 // 1. MOTHER / PARENT & MOBILE APK VIEW
 // ============================================================================
 function renderParentRemindersView(state, currentUser, isApk) {
+  const notifGranted = isNotificationPermissionGrantedSync();
   const parentName = (currentUser?.name || currentUser?.fullName || '').toLowerCase().trim();
   const myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, currentUser));
   const myInfants = (state.infantRecords || []).filter(i =>
@@ -74,18 +75,39 @@ function renderParentRemindersView(state, currentUser, isApk) {
       </div>
 
       <!-- Mobile / Push Notification Enablement Banner -->
-      <div class="p-3.5 rounded-2xl border border-sky-200 bg-sky-50/70 text-xs flex items-center justify-between flex-wrap gap-2 shadow-2xs">
+      <div class="p-3.5 rounded-2xl border ${notifGranted ? 'border-emerald-200 bg-emerald-50/70' : 'border-sky-200 bg-sky-50/70'} text-xs flex items-center justify-between flex-wrap gap-2 shadow-2xs">
         <div class="flex items-center gap-2.5">
-          <span class="material-symbols-outlined text-sky-600 text-xl">notifications_active</span>
+          <span class="material-symbols-outlined ${notifGranted ? 'text-emerald-600' : 'text-sky-600'} text-xl">
+            ${notifGranted ? 'notifications_active' : 'notifications'}
+          </span>
           <div>
-            <strong class="text-slate-900 text-xs block">Pop-up Mobile Alerts</strong>
-            <span class="text-[11px] text-slate-600">Receive reminder pop-ups on your phone for upcoming check-ups & child vaccines.</span>
+            <strong class="text-slate-900 text-xs block">${notifGranted ? 'Mobile Health Reminders Active' : 'Pop-up Mobile Alerts'}</strong>
+            <span class="text-[11px] text-slate-600">
+              ${notifGranted 
+                ? 'Your device is set to receive reminder alerts for upcoming appointments and child vaccines.' 
+                : 'Receive reminder pop-ups on your phone for upcoming check-ups & child vaccines.'}
+            </span>
           </div>
         </div>
-        <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3 inline-flex items-center gap-1 shrink-0" id="enablePushNotificationsBtn">
-          <span class="material-symbols-outlined text-sm">notifications</span>
-          <span>Enable Alerts</span>
-        </button>
+        <div>
+          ${notifGranted ? `
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] px-2.5 py-1 rounded-xl font-semibold">
+                <span class="material-symbols-outlined text-xs">check_circle</span>
+                <span>Active</span>
+              </span>
+              <button type="button" class="btn btn-secondary sm-btn text-xs py-1 px-2.5 inline-flex items-center gap-1 shrink-0" id="testReminderNotificationBtn">
+                <span class="material-symbols-outlined text-xs">notifications_active</span>
+                <span>Test Alert</span>
+              </button>
+            </div>
+          ` : `
+            <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3 inline-flex items-center gap-1 shrink-0" id="enablePushNotificationsBtn">
+              <span class="material-symbols-outlined text-sm">notifications</span>
+              <span>Enable Alerts</span>
+            </button>
+          `}
+        </div>
       </div>
 
       <!-- Overdue Appointments Notice (if any) -->
@@ -256,7 +278,7 @@ function renderStaffRemindersView(state, currentUser) {
   const userBgy = currentUser?.barangay || '';
   const isUserNurse = isNurse(currentUser);
   const notifSupported = isNotificationSupported();
-  const notifGranted = isNotificationGranted();
+  const notifGranted = isNotificationPermissionGrantedSync();
 
   // Filter schedules based on nurse barangay
   let filteredSchedules = schedules;

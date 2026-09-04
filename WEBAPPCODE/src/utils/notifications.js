@@ -3,12 +3,26 @@
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 
-import { toast, formatDate } from './sanitize.js';
+import { toast, formatDate, escapeHtml } from './sanitize.js';
 import { isParent, isMatchingParentRecord, isScheduleForParent } from '../auth.js';
+import { openModal, closeModal } from '../ui/components.js';
 
 function getNativePlugin() {
-  if (typeof window !== 'undefined' && window.Capacitor?.Plugins?.LocalNotifications) {
-    return window.Capacitor.Plugins.LocalNotifications;
+  if (typeof window !== 'undefined') {
+    if (window.Capacitor?.Plugins?.LocalNotifications) {
+      return window.Capacitor.Plugins.LocalNotifications;
+    }
+    if (typeof window.Capacitor?.registerPlugin === 'function') {
+      try {
+        const plugin = window.Capacitor.registerPlugin('LocalNotifications');
+        if (plugin) return plugin;
+      } catch (e) {
+        // ignore
+      }
+    }
+    if (window.LocalNotifications) {
+      return window.LocalNotifications;
+    }
   }
   return null;
 }
@@ -16,6 +30,13 @@ function getNativePlugin() {
 export function isNotificationSupported() {
   if (getNativePlugin()) return true;
   return typeof window !== 'undefined' && 'Notification' in window;
+}
+
+export function isNotificationPermissionGrantedSync() {
+  if (typeof window === 'undefined') return false;
+  if (localStorage.getItem('rhu_notif_permission_granted') === 'true') return true;
+  if ('Notification' in window && Notification.permission === 'granted') return true;
+  return false;
 }
 
 export async function getNotificationPermission() {
@@ -37,12 +58,16 @@ export async function isNotificationGranted() {
   if (plugin) {
     try {
       const res = await plugin.checkPermissions();
-      return res.display === 'granted';
+      const granted = res.display === 'granted';
+      if (granted) localStorage.setItem('rhu_notif_permission_granted', 'true');
+      return granted;
     } catch (e) {
       return false;
     }
   }
-  return isNotificationSupported() && Notification.permission === 'granted';
+  const granted = isNotificationSupported() && Notification.permission === 'granted';
+  if (granted) localStorage.setItem('rhu_notif_permission_granted', 'true');
+  return granted;
 }
 
 export async function requestNotificationPermission() {
@@ -51,6 +76,7 @@ export async function requestNotificationPermission() {
     try {
       const res = await plugin.requestPermissions();
       if (res.display === 'granted') {
+        localStorage.setItem('rhu_notif_permission_granted', 'true');
         toast('Mobile notifications enabled! You will receive check-up and vaccine alerts.');
         await sendNativeNotification('RHU Health Notifications Active', {
           body: 'Padre Burgos RHU will keep you updated on maternal appointments and child immunization schedules.'
@@ -73,6 +99,7 @@ export async function requestNotificationPermission() {
   try {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
+      localStorage.setItem('rhu_notif_permission_granted', 'true');
       toast('Notifications enabled! You will receive immunization & checkup alerts.');
       await sendNativeNotification('RHU Health Notifications Active', {
         body: 'Padre Burgos RHU will keep you updated on upcoming maternal and child checkup schedules.',
@@ -96,21 +123,28 @@ export async function sendNativeNotification(title, options = {}) {
   const plugin = getNativePlugin();
   if (plugin) {
     try {
-      await plugin.schedule({
-        notifications: [
-          {
-            title: title,
-            body: options.body || '',
-            id: Math.floor(Math.random() * 1000000) + 1,
-            schedule: { at: new Date(Date.now() + 300) },
-            sound: null,
-            attachments: null,
-            actionTypeId: '',
-            extra: null
-          }
-        ]
-      });
-      return true;
+      let perm = await plugin.checkPermissions();
+      if (perm && perm.display === 'prompt') {
+        perm = await plugin.requestPermissions();
+      }
+      if (!perm || perm.display === 'granted') {
+        await plugin.schedule({
+          notifications: [
+            {
+              title: title,
+              body: options.body || '',
+              id: Math.floor(Math.random() * 1000000) + 1,
+              schedule: { at: new Date(Date.now() + 300) },
+              sound: null,
+              attachments: null,
+              actionTypeId: '',
+              extra: null
+            }
+          ]
+        });
+        localStorage.setItem('rhu_notif_permission_granted', 'true');
+        return true;
+      }
     } catch (err) {
       console.warn('LocalNotifications.schedule error, falling back:', err);
     }
@@ -159,14 +193,7 @@ export function checkAndShowInAppReminderPopup(notifications) {
 
   sessionStorage.setItem('rhu_reminder_popup_date', todayStr);
 
-  const modal = document.getElementById("genericModal");
-  const modalTitle = document.getElementById("modalTitle");
-  const modalBody = document.getElementById("modalBody");
-  if (!modal || !modalBody) return;
-
-  if (modalTitle) modalTitle.textContent = "Health Reminders & Updates";
-
-  modalBody.innerHTML = `
+  const bodyHtml = `
     <div class="space-y-3 text-xs">
       <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 flex items-start gap-2.5">
         <span class="material-symbols-outlined text-emerald-600 text-2xl shrink-0">notifications_active</span>
@@ -175,22 +202,23 @@ export function checkAndShowInAppReminderPopup(notifications) {
           <p class="text-[11px] text-emerald-800">You have important maternal and child health schedules:</p>
         </div>
       </div>
-      <div class="space-y-2">
+      <div class="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
         ${notifications.map(n => `
           <div class="p-3 bg-surface border border-line rounded-xl shadow-2xs">
-            <strong class="text-text block font-bold mb-1">${n.title}</strong>
-            <p class="text-text-muted text-[11px] leading-relaxed">${n.body}</p>
+            <strong class="text-text block font-bold mb-1">${escapeHtml(n.title)}</strong>
+            <p class="text-text-muted text-[11px] leading-relaxed">${escapeHtml(n.body)}</p>
           </div>
         `).join('')}
       </div>
       <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
-        <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-4" onclick="document.getElementById('genericModal').classList.add('hidden')">
+        <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-4" onclick="closeModal()">
           Understood, Close
         </button>
       </div>
     </div>
   `;
-  modal.classList.remove("hidden");
+
+  openModal("Health Reminders & Updates", bodyHtml);
 }
 
 /**
