@@ -4,7 +4,7 @@
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
-import { isParent, isNurse, isMho, isAdmin, isMatchingParentRecord } from '../auth.js';
+import { isParent, isNurse, isMho, isAdmin, isMatchingParentRecord, isScheduleForParent } from '../auth.js';
 import { isNativeMobileApp } from '../config.js';
 import { renderPixelParentChild, renderPixelHeart, renderPixelCross, renderPixelRattle } from './pixelArt.js';
 
@@ -692,16 +692,12 @@ function renderParentDashboard(state, currentUser) {
     (myMaternal && i.maternalRecordId === myMaternal.id)
   );
 
-  const mySchedules = (state.checkupSchedules || []).filter(s =>
-    (s.userId && currentUser?.id && (s.userId === currentUser.id || s.userId === currentUser.authUserId)) ||
-    (s.user_id && currentUser?.id && (s.user_id === currentUser.id || s.user_id === currentUser.authUserId)) ||
-    (s.maternalRecordId && myMaternal && s.maternalRecordId === myMaternal.id) ||
-    (s.infantRecordId && myInfants.some(inf => inf.id === s.infantRecordId)) ||
-    (s.parentName && motherName && s.parentName.toLowerCase().trim() === motherName) ||
-    (s.patientName && motherName && s.patientName.toLowerCase().trim() === motherName) ||
-    isMatchingParentRecord({ patientName: s.patientName, parentName: s.parentName, fullName: s.patientName }, currentUser) ||
-    (myInfants.some(inf => inf.infantName && s.patientName && s.patientName.toLowerCase().trim() === inf.infantName.toLowerCase().trim()))
-  );
+  const mySchedules = (state.checkupSchedules || []).filter(s => isScheduleForParent(s, currentUser, state));
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todaySchedules = mySchedules.filter(s => s.date === todayStr && s.status !== 'Cancelled' && s.status !== 'Declined');
+  const upcomingSchedules = mySchedules.filter(s => s.date && s.date > todayStr && s.status !== 'Completed' && s.status !== 'Done' && s.status !== 'Cancelled' && s.status !== 'Declined')
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   const completedVisits = myMaternal?.checkupsCompleted || 0;
   const visitProgress = Math.min(100, Math.round((completedVisits / 8) * 100));
@@ -720,13 +716,48 @@ function renderParentDashboard(state, currentUser) {
               <span class="text-xs text-slate-500 font-medium">Barangay ${escapeHtml(currentUser?.barangay || 'Padre Burgos')}</span>
             </div>
             <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Welcome, ${escapeHtml(currentUser?.name || 'Mother')}!</h2>
-            <p class="text-xs text-slate-600 mt-1">Your personal maternal care timeline and digital child immunization health cards.</p>
+            <p class="text-xs text-slate-600 mt-1">Your personal maternal care timeline, clinical appointment alerts, and digital child health cards.</p>
           </div>
           <div class="flex items-center gap-3 p-2 bg-white/90 rounded-2xl border border-pink-100 shadow-2xs">
             ${renderPixelParentChild(52)}
           </div>
         </div>
       </div>
+
+      <!-- Live Clinical Appointment Alert & Reminder Banner -->
+      ${todaySchedules.length > 0 ? `
+        <div class="p-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs shadow-sm flex items-center justify-between flex-wrap gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-2xl">today</span>
+            </div>
+            <div>
+              <strong class="text-sm font-extrabold block">Check-up Appointment Scheduled Today!</strong>
+              <p class="text-xs text-emerald-50 mt-0.5">
+                ${todaySchedules.map(s => `<strong>${escapeHtml(s.patientName)}</strong> at ${s.time || '08:30 AM'} (${s.type === 'MC' ? 'Maternal Care' : 'Child Health'})`).join(' • ')}
+              </p>
+            </div>
+          </div>
+          <button type="button" class="px-3.5 py-1.5 bg-white text-emerald-800 hover:bg-emerald-50 font-bold rounded-lg text-xs shadow-2xs inline-flex items-center gap-1 shrink-0" data-nav-page="reminders">
+            <span class="material-symbols-outlined text-sm">notifications_active</span>
+            <span>View in Reminders</span>
+          </button>
+        </div>
+      ` : (upcomingSchedules.length > 0 ? `
+        <div class="p-3.5 rounded-2xl bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 text-xs shadow-2xs flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2.5">
+            <span class="material-symbols-outlined text-sky-600 text-xl">event_upcoming</span>
+            <div>
+              <strong class="text-slate-900 text-xs block">Upcoming Clinic Appointment: ${formatDate(upcomingSchedules[0].date)} (${upcomingSchedules[0].time || '08:30 AM'})</strong>
+              <span class="text-[11px] text-slate-600">${escapeHtml(upcomingSchedules[0].patientName)} • Assigned Midwife: ${escapeHtml(upcomingSchedules[0].assignedNurse || 'Barangay Midwife')}</span>
+            </div>
+          </div>
+          <button type="button" class="text-xs font-bold text-sky-700 hover:underline inline-flex items-center gap-1 shrink-0" data-nav-page="reminders">
+            <span>Open Reminders</span>
+            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+          </button>
+        </div>
+      ` : '')}
 
       <!-- Maternal Care Milestone Card -->
       <div class="panel p-5 rounded-2xl border border-pink-100 bg-surface">

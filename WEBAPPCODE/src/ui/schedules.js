@@ -2,30 +2,16 @@
  * Check-up Schedules UI Module
  * Padre Burgos RHU Maternal and Infant Health Monitoring System
  */
-import { escapeHtml, formatDate } from '../utils/sanitize.js';
-import { isNurse, isParent, isMatchingParentRecord } from '../auth.js';
+import { escapeHtml, formatDate, cleanDisplayNotes } from '../utils/sanitize.js';
+import { isNurse, isParent, isMatchingParentRecord, isScheduleForParent } from '../auth.js';
 
 export function renderSchedulesView(state, selectedBarangay = "All Barangays", currentUser = null, searchTerm = "") {
   const isUserParent = isParent(currentUser);
   const isUserNurse = isNurse(currentUser);
-  const parentName = (currentUser?.name || currentUser?.fullName || '').toLowerCase().trim();
 
   let schedules = state.checkupSchedules || [];
   if (isUserParent) {
-    const myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, currentUser));
-    const myInfants = (state.infantRecords || []).filter(i =>
-      isMatchingParentRecord(i, currentUser) || (myMaternal && i.maternalRecordId === myMaternal.id)
-    );
-    schedules = schedules.filter(s =>
-      (s.userId && (s.userId === currentUser?.id || s.userId === currentUser?.authUserId)) ||
-      (s.user_id && (s.user_id === currentUser?.id || s.user_id === currentUser?.authUserId)) ||
-      (s.maternalRecordId && myMaternal && s.maternalRecordId === myMaternal.id) ||
-      (s.infantRecordId && myInfants.some(inf => inf.id === s.infantRecordId)) ||
-      isMatchingParentRecord({ patientName: s.patientName, parentName: s.parentName, fullName: s.patientName }, currentUser) ||
-      (s.patientName && s.patientName.toLowerCase().trim() === parentName) ||
-      (s.parentName && s.parentName.toLowerCase().trim() === parentName) ||
-      myInfants.some(inf => inf.infantName && s.patientName && s.patientName.toLowerCase().trim() === inf.infantName.toLowerCase().trim())
-    );
+    schedules = schedules.filter(s => isScheduleForParent(s, currentUser, state));
   } else if (isUserNurse && currentUser?.barangay) {
     schedules = schedules.filter(s => s.barangay === currentUser.barangay);
   } else if (selectedBarangay && selectedBarangay !== "All Barangays") {
@@ -160,7 +146,7 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
                       <div>
                         <strong class="text-slate-900 block">${escapeHtml(s.patientName)}</strong>
                         ${s.parentName && s.parentName !== s.patientName ? `<span class="text-[11px] text-slate-500 block">Mother: ${escapeHtml(s.parentName)}</span>` : ''}
-                        ${s.notes ? `<span class="text-[11px] text-slate-500 block italic">Reason: "${escapeHtml(s.notes)}"</span>` : ''}
+                        ${s.notes && cleanDisplayNotes(s.notes) ? `<span class="text-[11px] text-slate-500 block italic">Reason: "${escapeHtml(cleanDisplayNotes(s.notes))}"</span>` : ''}
                         ${s.instructions ? `<span class="text-[11px] text-emerald-700 block font-medium">Midwife Note: "${escapeHtml(s.instructions)}"</span>` : ''}
                       </div>
                     </div>

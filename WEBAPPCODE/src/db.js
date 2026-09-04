@@ -129,10 +129,22 @@ export function cleanRemoteRow(key, row) {
     } else {
       copy.time = "08:30:00";
     }
-    // Delete local-only matching helper fields before Supabase upsert
+    // Embed parentName, maternalRecordId, infantRecordId, userId into notes so it's NEVER lost across Supabase
+    const metaTags = [];
+    if (copy.parentName && !copy.notes?.includes('[Parent:')) metaTags.push(`[Parent: ${copy.parentName}]`);
+    if (copy.maternalRecordId && !copy.notes?.includes('[MaternalID:')) metaTags.push(`[MaternalID: ${copy.maternalRecordId}]`);
+    if (copy.infantRecordId && !copy.notes?.includes('[InfantID:')) metaTags.push(`[InfantID: ${copy.infantRecordId}]`);
+    if ((copy.user_id || copy.userId) && !copy.notes?.includes('[UserID:')) metaTags.push(`[UserID: ${copy.user_id || copy.userId}]`);
+    if (metaTags.length > 0) {
+      copy.notes = copy.notes ? `${copy.notes} ${metaTags.join(' ')}` : metaTags.join(' ');
+    }
+
+    // Delete local-only matching helper fields before Supabase upsert to prevent schema errors
     delete copy.userId;
     delete copy.user_id;
     delete copy.parentName;
+    delete copy.maternalRecordId;
+    delete copy.infantRecordId;
   }
 
   // Clean empty string dates/timestamps to null

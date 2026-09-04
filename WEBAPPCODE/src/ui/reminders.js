@@ -7,7 +7,7 @@
  * Padre Burgos RHU Maternal & Infant Health Monitoring System
  */
 import { escapeHtml, formatDate } from '../utils/sanitize.js';
-import { isParent, isNurse, isMho, isAdmin, isMatchingParentRecord } from '../auth.js';
+import { isParent, isNurse, isMho, isAdmin, isMatchingParentRecord, isScheduleForParent } from '../auth.js';
 import { isNotificationSupported, isNotificationGranted } from '../utils/notifications.js';
 import { isNativeMobileApp } from '../config.js';
 
@@ -32,16 +32,7 @@ function renderParentRemindersView(state, currentUser, isApk) {
   );
 
   // Schedules matching mother or her children
-  const mySchedules = (state.checkupSchedules || []).filter(s =>
-    (s.userId && (s.userId === currentUser?.id || s.userId === currentUser?.authUserId)) ||
-    (s.user_id && (s.user_id === currentUser?.id || s.user_id === currentUser?.authUserId)) ||
-    (s.maternalRecordId && myMaternal && s.maternalRecordId === myMaternal.id) ||
-    (s.infantRecordId && myInfants.some(inf => inf.id === s.infantRecordId)) ||
-    (s.parentName && parentName && s.parentName.toLowerCase().trim() === parentName) ||
-    isMatchingParentRecord({ patientName: s.patientName, parentName: s.parentName, fullName: s.patientName }, currentUser) ||
-    (s.patientName && s.patientName.toLowerCase().trim() === parentName) ||
-    myInfants.some(inf => inf.infantName && s.patientName && s.patientName.toLowerCase().trim() === inf.infantName.toLowerCase().trim())
-  );
+  const mySchedules = (state.checkupSchedules || []).filter(s => isScheduleForParent(s, currentUser, state));
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todaySchedules = mySchedules.filter(s => s.date === todayStr);

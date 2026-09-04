@@ -51,3 +51,10 @@ export function toast(msg, isError = false) {
     setTimeout(() => div.remove(), 400);
   }, 3500);
 }
+
+export function cleanDisplayNotes(notes) {
+  if (!notes) return '';
+  return String(notes)
+    .replace(/\[(?:Parent|Mother|InfantID|MaternalID|UserID):\s*[^\]]+\]/gi, '')
+    .trim();
+}

@@ -5,7 +5,7 @@
 import { STORE_KEYS, pages, getDynamicBarangays, defaultBarangays, TABLES, isNativeMobileApp } from './config.js';
 import { db, isOnlineMode, loadCollection, saveCollection, cleanRemoteRow, saveLocal } from './db.js';
 import { initSyncEngine, queueOfflineAction, flushPendingSyncQueue } from './sync.js';
-import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, isParent, isNurse, isMho, isAdmin, isStaff, isMatchingParentRecord } from './auth.js';
+import { getCurrentUser, setCurrentUser, getOrCreateCurrentProfile, isParent, isNurse, isMho, isAdmin, isStaff, isMatchingParentRecord, isScheduleForParent, isNamesMatching } from './auth.js';
 import { toast, escapeHtml, formatDate } from './utils/sanitize.js';
 import { exportMcCcReportToExcel } from './utils/excelExport.js';
 import { initTheme, toggleTheme } from './utils/theme.js';
@@ -122,10 +122,35 @@ async function init() {
   current ? showApp(current) : showAuth();
 }
 
+function hydrateScheduleMetadata(sched) {
+  if (!sched || !sched.notes) return sched;
+  if (!sched.parentName) {
+    const p = sched.notes.match(/\[(?:Parent|Mother):\s*([^\]]+)\]/i);
+    if (p) sched.parentName = p[1].trim();
+  }
+  if (!sched.maternalRecordId) {
+    const m = sched.notes.match(/\[MaternalID:\s*([^\]]+)\]/i);
+    if (m) sched.maternalRecordId = m[1].trim();
+  }
+  if (!sched.infantRecordId) {
+    const inf = sched.notes.match(/\[InfantID:\s*([^\]]+)\]/i);
+    if (inf) sched.infantRecordId = inf[1].trim();
+  }
+  if (!sched.user_id && !sched.userId) {
+    const u = sched.notes.match(/\[UserID:\s*([^\]]+)\]/i);
+    if (u) { sched.user_id = u[1].trim(); sched.userId = sched.user_id; }
+  }
+  return sched;
+}
+
 async function loadState() {
   for (const key of STORE_KEYS) {
     if (key === "currentUser" || key === "backupMeta") continue;
-    state[key] = await loadCollection(key, []);
+    let col = await loadCollection(key, []);
+    if (key === "checkupSchedules" && Array.isArray(col)) {
+      col.forEach(hydrateScheduleMetadata);
+    }
+    state[key] = col;
   }
 
   if (isOnlineMode()) {
@@ -138,6 +163,9 @@ async function loadRemoteState() {
     try {
       const { data, error } = await db.from(table).select("*");
       if (!error && data) {
+        if (key === "checkupSchedules" && Array.isArray(data)) {
+          data.forEach(hydrateScheduleMetadata);
+        }
         state[key] = data;
         await saveCollection(key, data);
       }
@@ -148,6 +176,9 @@ async function loadRemoteState() {
 }
 
 async function persistRecord(key, row) {
+  if (key === "checkupSchedules") {
+    hydrateScheduleMetadata(row);
+  }
   const arr = state[key] || [];
   const idx = arr.findIndex(item => item.id === row.id);
   if (idx >= 0) arr[idx] = row;
@@ -322,6 +353,9 @@ function renderPage(pageId) {
     case "dashboard":
       contentEl.innerHTML = renderDashboardView(state, current, selectedBarangay, vis, searchTerm);
       bindDashboardEvents();
+      if (isUserParent) {
+        checkImmunizationAndScheduleReminders(state, current).catch(err => console.warn('Reminder scan:', err));
+      }
       break;
     case "maternal":
       contentEl.innerHTML = renderMaternalView(state, selectedBarangay, current, searchTerm);
@@ -342,6 +376,9 @@ function renderPage(pageId) {
     case "reminders":
       contentEl.innerHTML = renderRemindersView(state, current);
       bindRemindersEvents();
+      if (isUserParent) {
+        checkImmunizationAndScheduleReminders(state, current).catch(err => console.warn('Reminder scan:', err));
+      }
       break;
     case "reports":
       contentEl.innerHTML = renderReportsView(state, selectedBarangay, selectedReportMonth, selectedReportYear);
@@ -1145,11 +1182,16 @@ function openRecordCheckupModal(targetMaternalId = null) {
         const newSched = {
           id: `sch_${Date.now()}`,
           patientName: matRec.fullName,
+          parentName: matRec.fullName,
+          maternalRecordId: matRec.id,
+          userId: matRec.user_id || matRec.userId || "",
+          user_id: matRec.user_id || matRec.userId || "",
           type: "MC",
           barangay: matRec.barangay,
           date: nextCheckupDate,
-          time: "08:30",
+          time: "08:30 AM",
           status: "Scheduled",
+          notes: `Next prenatal check-up visit [Parent: ${matRec.fullName}] [MaternalID: ${matRec.id}]`,
           assignedNurse: recorderName
         };
         await persistRecord("checkupSchedules", newSched);
@@ -1196,14 +1238,21 @@ function openRecordCheckupModal(targetMaternalId = null) {
       await persistRecord("infantRecords", updatedInfant);
 
       if (nextCheckupDate) {
+        const parentOfChild = infRec.parentName || infRec.motherName || "Parent";
         const newSched = {
           id: `sch_${Date.now()}`,
           patientName: infRec.infantName,
+          parentName: parentOfChild,
+          infantRecordId: infRec.id,
+          maternalRecordId: infRec.maternalRecordId || "",
+          userId: infRec.user_id || infRec.userId || "",
+          user_id: infRec.user_id || infRec.userId || "",
           type: "CC",
           barangay: infRec.barangay,
           date: nextCheckupDate,
-          time: "08:30",
+          time: "08:30 AM",
           status: "Scheduled",
+          notes: `Next routine child immunization & growth monitoring visit [Parent: ${parentOfChild}] [InfantID: ${infRec.id}]`,
           assignedNurse: recorderName
         };
         await persistRecord("checkupSchedules", newSched);
@@ -2377,6 +2426,16 @@ function openAddScheduleModal(current) {
         }
       }
 
+      let finalNotes = notesVal;
+      const metaTags = [];
+      if (parentName) metaTags.push(`[Parent: ${parentName}]`);
+      if (maternalRecordId) metaTags.push(`[MaternalID: ${maternalRecordId}]`);
+      if (infantRecordId) metaTags.push(`[InfantID: ${infantRecordId}]`);
+      if (targetUserId) metaTags.push(`[UserID: ${targetUserId}]`);
+      if (metaTags.length > 0) {
+        finalNotes = finalNotes ? `${finalNotes} ${metaTags.join(' ')}` : metaTags.join(' ');
+      }
+
       const newSched = {
         id: `sch_${Date.now()}`,
         patientName,
@@ -2390,7 +2449,7 @@ function openAddScheduleModal(current) {
         date: dateVal,
         time: timeVal,
         status: "Scheduled",
-        notes: notesVal,
+        notes: finalNotes,
         assignedNurse: current?.fullName || current?.name || "Barangay Midwife"
       };
 
