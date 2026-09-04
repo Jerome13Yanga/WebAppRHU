@@ -59,6 +59,8 @@ export function openModal(title, bodyHtml) {
   titleEl.textContent = title;
   bodyEl.innerHTML = bodyHtml;
   modal.classList.remove('hidden');
+  modal.scrollTop = 0;
+  bodyEl.scrollTop = 0;
   refreshLucideIcons();
 }
 

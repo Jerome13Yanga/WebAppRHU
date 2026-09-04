@@ -72,7 +72,7 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
       </div>
 
       <div class="flex items-center gap-2">
-        <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addScheduleBtn">
+        <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5 open-request-appointment-modal-btn" id="addScheduleBtn" data-action="${isUserParent ? 'request-checkup' : 'add-schedule'}">
           <span class="material-symbols-outlined text-base">${isUserParent ? 'calendar_add_on' : 'add_circle'}</span>
           <span>${isUserParent ? 'Request Check-up Appointment' : 'Schedule Check-up'}</span>
         </button>
@@ -139,7 +139,7 @@ export function renderSchedulesView(state, selectedBarangay = "All Barangays", c
                   <p class="font-semibold text-text mb-1">${searchTerm ? 'No matching check-up appointments found.' : 'No Check-up Appointments Scheduled'}</p>
                   <p class="text-xs mb-3">${searchTerm ? `No appointments matched "${escapeHtml(searchTerm)}". Try clearing your search.` : (isUserParent ? 'You can request an appointment for your prenatal check-up or your child\'s immunization.' : 'No scheduled checkups found for this barangay station.')}</p>
                   ${isUserParent && !searchTerm ? `
-                    <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="emptyScheduleRequestBtn">
+                    <button type="button" class="primary-btn sm-btn text-xs py-2 px-4 inline-flex items-center gap-1.5 open-request-appointment-modal-btn" id="emptyScheduleRequestBtn" data-action="request-checkup">
                       <span class="material-symbols-outlined text-sm">calendar_add_on</span>
                       <span>Request Check-up Appointment</span>
                     </button>

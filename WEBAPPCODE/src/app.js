@@ -786,11 +786,12 @@ function bindShellEvents() {
     }
   });
 
-  // Delegated check-up appointment request trigger for any screen
+  // Delegated check-up appointment request trigger for any screen (mobile web, desktop, APK)
   document.addEventListener("click", (e) => {
-    const reqBtn = e.target.closest("#addScheduleBtn, #emptyScheduleRequestBtn, #parentRequestAppointmentBtn, #parentRequestAppointmentEmptyBtn, #reminderRequestAppointmentBtn, [data-action='request-checkup']");
+    const reqBtn = e.target.closest("#addScheduleBtn, #emptyScheduleRequestBtn, #parentRequestAppointmentBtn, #parentRequestAppointmentEmptyBtn, #reminderRequestAppointmentBtn, [data-action='request-checkup'], .open-request-appointment-modal-btn");
     if (!reqBtn) return;
     e.preventDefault();
+    e.stopPropagation();
     const current = getCurrentUser();
     openAddScheduleModal(current);
   });
@@ -820,11 +821,13 @@ function bindDashboardEvents() {
 
   document.getElementById("parentRequestAppointmentBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     openAddScheduleModal(getCurrentUser());
   });
 
   document.getElementById("parentRequestAppointmentEmptyBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     openAddScheduleModal(getCurrentUser());
   });
 
@@ -1960,17 +1963,18 @@ function openDigitalImmunizationCardModal(infant = {}, readOnly = false) {
 }
 
 function openAddScheduleModal(current) {
-  const isUserParent = isParent(current) || isNativeMobileApp();
-  const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}" ${b === current?.barangay ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
+  const user = current || getCurrentUser() || state.currentUser;
+  const isUserParent = isParent(user) || isNativeMobileApp();
+  const bgyOptions = getActiveBarangays().map(b => `<option value="${escapeHtml(b)}" ${b === (user?.barangay || '') ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
 
   if (isUserParent) {
-    const myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, current));
+    const myMaternal = (state.maternalRecords || []).find(r => isMatchingParentRecord(r, user));
     const myInfants = (state.infantRecords || []).filter(i =>
-      isMatchingParentRecord(i, current) || (myMaternal && i.maternalRecordId === myMaternal.id)
+      isMatchingParentRecord(i, user) || (myMaternal && i.maternalRecordId === myMaternal.id)
     );
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const parentName = current?.name || current?.fullName || myMaternal?.fullName || myMaternal?.parentName || "Parent";
+    const parentName = user?.name || user?.fullName || myMaternal?.fullName || myMaternal?.parentName || "Parent";
 
     const patientOptions = [
       `<option value="${escapeHtml(parentName)}" data-type="MC">${escapeHtml(parentName)} (Maternal Care / Self)</option>`,
@@ -2027,12 +2031,14 @@ function openAddScheduleModal(current) {
           <textarea id="sNotes" rows="2" placeholder="e.g. 2nd prenatal check-up, Penta 2 vaccination, vitamins refill..."></textarea>
         </label>
 
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-line">
-          <button type="button" class="secondary-btn sm-btn text-xs py-2 px-3" onclick="closeModal()">Cancel</button>
-          <button class="primary-btn sm-btn text-xs py-2 px-4" type="submit" id="submitSchedRequestBtn">Submit Appointment Request</button>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-line mt-2">
+          <button type="button" class="secondary-btn sm-btn text-xs py-2 px-3.5" id="cancelSchedRequestBtn">Cancel</button>
+          <button class="primary-btn sm-btn text-xs py-2 px-4 font-bold" type="submit" id="submitSchedRequestBtn">Submit Appointment Request</button>
         </div>
       </form>
     `);
+
+    document.getElementById("cancelSchedRequestBtn")?.addEventListener("click", closeModal);
 
     const selectEl = document.getElementById("sPatientSelect");
     const customWrap = document.getElementById("sPatientCustomWrap");
@@ -2074,7 +2080,7 @@ function openAddScheduleModal(current) {
         }
 
         const notes = (document.getElementById("sNotes")?.value || "").trim();
-        const bgyVal = document.getElementById("sBarangay")?.value || current?.barangay || "Basiao (Poblacion)";
+        const bgyVal = document.getElementById("sBarangay")?.value || user?.barangay || "Basiao (Poblacion)";
         const dateVal = document.getElementById("sDate")?.value || todayStr;
         const timeVal = document.getElementById("sTime")?.value || "08:30 AM";
         const typeVal = document.getElementById("sType")?.value || "MC";
@@ -2083,8 +2089,8 @@ function openAddScheduleModal(current) {
           id: `sch_${Date.now()}`,
           patientName,
           parentName: parentName,
-          userId: current?.id || current?.authUserId || "",
-          user_id: current?.id || current?.authUserId || "",
+          userId: user?.id || user?.authUserId || "",
+          user_id: user?.id || user?.authUserId || "",
           type: typeVal,
           barangay: bgyVal,
           date: dateVal,
@@ -2112,9 +2118,9 @@ function openAddScheduleModal(current) {
   }
 
   // Staff Schedule Modal (Midwife / Nurse / Admin)
-  const defaultBgy = isNurse(current) && current.barangay && current.barangay !== 'All Barangays'
-    ? current.barangay
-    : ((selectedBarangay && selectedBarangay !== "All Barangays") ? selectedBarangay : (current?.barangay || "Basiao (Poblacion)"));
+  const defaultBgy = isNurse(user) && user?.barangay && user.barangay !== 'All Barangays'
+    ? user.barangay
+    : ((selectedBarangay && selectedBarangay !== "All Barangays") ? selectedBarangay : (user?.barangay || "Basiao (Poblacion)"));
 
   function buildStaffPatientOptions(targetBgy) {
     const maternalInBgy = (state.maternalRecords || []).filter(r => r.barangay === targetBgy);
@@ -2566,7 +2572,11 @@ function openReviewScheduleModal(scheduleId) {
 // Schedules Module Binders
 // -------------------------------------------------------------
 function bindSchedulesEvents() {
-  const handleOpenScheduleModal = () => {
+  const handleOpenScheduleModal = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const current = getCurrentUser();
     openAddScheduleModal(current);
   };
@@ -2583,11 +2593,7 @@ function bindSchedulesEvents() {
 
       document.querySelectorAll(".schedule-record-row").forEach(row => {
         const text = row.textContent.toLowerCase();
-        if (!q || text.includes(q)) {
-          row.style.display = "";
-        } else {
-          row.style.display = "none";
-        }
+        row.classList.toggle("hidden", !(!q || text.includes(q)));
       });
     });
     schedSearch.addEventListener("search", () => {
@@ -2697,6 +2703,7 @@ function bindSchedulesEvents() {
 function bindRemindersEvents() {
   document.getElementById("reminderRequestAppointmentBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     openAddScheduleModal(getCurrentUser());
   });
 

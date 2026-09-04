@@ -849,7 +849,7 @@ function renderParentDashboard(state, currentUser) {
             <span class="material-symbols-outlined text-emerald-600 text-xl">event_available</span>
             <span>Upcoming Checkup Schedules & Appointments</span>
           </h3>
-          <button type="button" class="primary-btn sm-btn text-xs py-1 px-3 flex items-center gap-1" id="parentRequestAppointmentBtn">
+          <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3 flex items-center gap-1.5 open-request-appointment-modal-btn" id="parentRequestAppointmentBtn" data-action="request-checkup">
             <span class="material-symbols-outlined text-sm">calendar_add_on</span>
             <span>Request Appointment</span>
           </button>
@@ -859,7 +859,7 @@ function renderParentDashboard(state, currentUser) {
             <span class="material-symbols-outlined text-3xl text-emerald-300 block mb-1">calendar_month</span>
             <p class="font-semibold text-text mb-1">No Upcoming Appointments Scheduled</p>
             <p class="mb-3">Request a prenatal check-up consultation or child routine immunization with your barangay midwife.</p>
-            <button type="button" class="primary-btn sm-btn text-xs py-1.5 px-3.5 inline-flex items-center gap-1.5" id="parentRequestAppointmentEmptyBtn">
+            <button type="button" class="primary-btn sm-btn text-xs py-2 px-4 inline-flex items-center gap-1.5 open-request-appointment-modal-btn" id="parentRequestAppointmentEmptyBtn" data-action="request-checkup">
               <span class="material-symbols-outlined text-sm">calendar_add_on</span>
               <span>Request Check-up Appointment</span>
             </button>
