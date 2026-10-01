@@ -138,11 +138,11 @@ function renderAdminDashboard(state, currentUser, searchTerm = '') {
                   ${maternal.length === 0 ? `
                     <tr><td colspan="4" class="text-center py-4 text-text-muted">No maternal records recorded yet.</td></tr>
                   ` : maternal.slice(0, 4).map(m => `
-                    <tr>
+                    <tr class="cursor-not-allowed opacity-80" title="Admin view: record access restricted">
                       <td class="font-bold text-text">${escapeHtml(m.fullName)}</td>
                       <td><span class="badge badge-info text-[10px]">${escapeHtml(m.barangay)}</span></td>
                       <td><span class="badge ${(m.riskLevel || '').toLowerCase().includes('high') ? 'badge-high' : 'badge-info'} text-[10px]">${escapeHtml(m.riskLevel || 'Normal')}</span></td>
-                      <td>${m.checkupsCompleted || 0} / 8 visits</td>
+                      <td>${m.checkupsCompleted || 0} visits</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -164,7 +164,7 @@ function renderAdminDashboard(state, currentUser, searchTerm = '') {
                   ${infants.length === 0 ? `
                     <tr><td colspan="4" class="text-center py-4 text-text-muted">No infant records recorded yet.</td></tr>
                   ` : infants.slice(0, 4).map(i => `
-                    <tr>
+                    <tr class="cursor-not-allowed opacity-80" title="Admin view: record access restricted">
                       <td class="font-bold text-text">${escapeHtml(i.infantName)}</td>
                       <td><span class="badge badge-info text-[10px]">${escapeHtml(i.barangay)}</span></td>
                       <td>${i.ageMonths || 0} mos</td>
@@ -420,11 +420,11 @@ function renderMhoDashboard(state, currentUser, selectedBarangay, searchTerm = '
 
         <div class="stat-card">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-text-muted">Submissions Pending Review</span>
+            <span class="text-xs font-semibold text-text-muted">Submissions Review</span>
             <span class="material-symbols-outlined text-amber-600 text-xl">pending_actions</span>
           </div>
           <strong class="text-2xl font-bold text-amber-600">${pendingReports.length}</strong>
-          <small class="text-[11px] text-amber-600 font-semibold mt-1 block">Awaiting MHO sign-off</small>
+          <small class="text-[11px] text-amber-600 font-semibold mt-1 block">Monthly Summary Report</small>
         </div>
 
         <div class="stat-card">
@@ -433,7 +433,7 @@ function renderMhoDashboard(state, currentUser, selectedBarangay, searchTerm = '
             <span class="material-symbols-outlined text-emerald-600 text-xl">task_alt</span>
           </div>
           <strong class="text-2xl font-bold text-emerald-600">${reviewedReports.length}</strong>
-          <small class="text-[11px] text-emerald-600 font-semibold mt-1 block">Completed DOH submissions</small>
+          <small class="text-[11px] text-emerald-600 font-semibold mt-1 block">MHO-signed DOH submissions</small>
         </div>
       </div>
 
