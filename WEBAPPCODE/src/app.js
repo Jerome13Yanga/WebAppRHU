@@ -22,6 +22,7 @@ import { renderPrenatalClinicalRecordHtml } from './ui/prenatalClinicalForm.js';
 import { renderBackupView, renderContactsView } from './ui/backup.js';
 import { renderRemindersView } from './ui/reminders.js';
 import { requestNotificationPermission, checkImmunizationAndScheduleReminders, sendNativeNotification } from './utils/notifications.js';
+import { openMaternalRecordPrintWindow, openImmunizationCardPrintWindow } from './utils/printPdf.js';
 
 let state = {
   users: [],
@@ -1529,19 +1530,30 @@ function openPadreBurgosMaternalModal(record = {}, readOnly = false) {
   const html = `
     <form id="pbMaternalModalForm" class="space-y-4">
       ${renderPadreBurgosMaternalFormHtml(currentRec)}
-      <div class="flex items-center justify-end gap-2 border-t border-line pt-3 mt-2 no-print">
-        <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Close</button>
-        ${!isReadOnly ? `
-          <button type="submit" class="primary-btn text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
-            <span class="material-symbols-outlined text-sm">save</span>
-            <span>Save Maternal Record</span>
-          </button>
-        ` : ''}
+      <div class="flex items-center justify-between border-t border-line pt-3 mt-2 no-print">
+        <button type="button" id="saveMaternalPdfBtn" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+          <span>Save as PDF</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Close</button>
+          ${!isReadOnly ? `
+            <button type="submit" class="primary-btn text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">save</span>
+              <span>Save Maternal Record</span>
+            </button>
+          ` : ''}
+        </div>
       </div>
     </form>
   `;
 
   openModal(`DOH Maternal Record - ${escapeHtml(currentRec.fullName || 'New Record')}`, html);
+
+  // Wire up Save as PDF button
+  document.getElementById('saveMaternalPdfBtn')?.addEventListener('click', () => {
+    openMaternalRecordPrintWindow(currentRec);
+  });
 
   if (!isReadOnly) {
     document.getElementById("pbMaternalModalForm")?.addEventListener("submit", async (e) => {
@@ -1938,9 +1950,9 @@ function openDigitalImmunizationCardModal(infant = {}, readOnly = false) {
     <form id="todoLigtasModalForm" class="space-y-4">
       ${renderTodoLigtasImmunizationCardHtml(currentRec, isReadOnly)}
       <div class="flex items-center justify-between border-t border-line pt-3 mt-2 no-print">
-        <button type="button" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1" onclick="window.print()">
-          <span class="material-symbols-outlined text-sm">print</span>
-          <span>Print Physical Card</span>
+        <button type="button" id="saveImmunCardPdfBtn" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+          <span>Save as PDF</span>
         </button>
         <div class="flex items-center gap-2">
           <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Close</button>
@@ -1956,6 +1968,11 @@ function openDigitalImmunizationCardModal(infant = {}, readOnly = false) {
   `;
 
   openModal(`DOH Todo Ligtas Immunization Card - ${escapeHtml(currentRec.infantName || 'Child Record')}`, html);
+
+  // Wire up Save as PDF button
+  document.getElementById('saveImmunCardPdfBtn')?.addEventListener('click', () => {
+    openImmunizationCardPrintWindow(currentRec);
+  });
 
   if (!isReadOnly) {
     document.getElementById("todoLigtasModalForm")?.addEventListener("submit", async (e) => {
