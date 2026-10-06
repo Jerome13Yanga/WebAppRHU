@@ -407,10 +407,23 @@ function hydrateAuthOptions() {
   if (regBgy) {
     regBgy.innerHTML = bgyList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
   }
-  const staffRegBgy = document.getElementById("staffRegBarangay");
-  if (staffRegBgy) {
-    staffRegBgy.innerHTML = bgyList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+  const staffRegRoleEl = document.getElementById("staffRegRole");
+  const staffRegBgyEl = document.getElementById("staffRegBarangay");
+
+  const updateStaffBgyOptions = () => {
+    if (!staffRegRoleEl || !staffRegBgyEl) return;
+    if (staffRegRoleEl.value === "MHO") {
+      staffRegBgyEl.innerHTML = `<option value="All Quezon" selected>All Quezon</option>`;
+    } else {
+      staffRegBgyEl.innerHTML = bgyList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+    }
+  };
+
+  if (staffRegRoleEl) {
+    staffRegRoleEl.addEventListener("change", updateStaffBgyOptions);
+    updateStaffBgyOptions();
   }
+
   const forgotBgy = document.getElementById("forgotBarangay");
   if (forgotBgy) {
     forgotBgy.innerHTML = `<option value="">Select your Barangay Station</option>` + bgyList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
@@ -677,7 +690,7 @@ function bindAuthEvents() {
     const name = document.getElementById("staffRegName").value.trim();
     const email = document.getElementById("staffRegEmail").value.trim();
     const role = document.getElementById("staffRegRole").value;
-    const barangay = document.getElementById("staffRegBarangay").value;
+    const barangay = role === "MHO" ? "All Quezon" : document.getElementById("staffRegBarangay").value;
     const password = document.getElementById("staffRegPassword").value;
     const confirm = document.getElementById("staffRegConfirm").value;
 
@@ -1379,19 +1392,20 @@ function bindMaternalEvents() {
 
 function openPrenatalClinicalRecordModal(record = {}) {
   const currentRec = record || {};
-  const isUserParent = isParent(getCurrentUser());
+  const currentU = getCurrentUser();
+  const isReadOnly = isParent(currentU) || isAdmin(currentU);
 
   const html = `
     <form id="prenatalClinicalModalForm" class="space-y-4">
       ${renderPrenatalClinicalRecordHtml(currentRec)}
       <div class="flex items-center justify-between border-t border-line pt-3 mt-2 no-print">
-        <button type="button" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1" onclick="window.print()">
+        <button type="button" id="printPrenatalClinicalBtn" class="secondary-btn text-xs py-1.5 px-3 flex items-center gap-1">
           <span class="material-symbols-outlined text-sm">print</span>
           <span>Print Clinical Record</span>
         </button>
         <div class="flex items-center gap-2">
           <button type="button" class="secondary-btn text-xs py-1.5 px-3" onclick="closeModal()">Close</button>
-          ${!isUserParent ? `
+          ${!isReadOnly ? `
             <button type="submit" class="primary-btn text-xs font-semibold py-1.5 px-4 rounded flex items-center gap-1">
               <span class="material-symbols-outlined text-sm">save</span>
               <span>Save Clinical Record</span>
@@ -1404,14 +1418,29 @@ function openPrenatalClinicalRecordModal(record = {}) {
 
   openModal(`Prenatal Clinical Record - ${escapeHtml(currentRec.fullName || 'Patient')}`, html);
 
-  if (!isUserParent) {
+  // Wire up Print button to call openMaternalRecordPrintWindow
+  document.getElementById("printPrenatalClinicalBtn")?.addEventListener("click", () => {
+    openMaternalRecordPrintWindow(currentRec);
+  });
+
+  if (isReadOnly) {
+    const form = document.getElementById("prenatalClinicalModalForm");
+    if (form) {
+      form.querySelectorAll("input, select, textarea").forEach(el => {
+        el.disabled = true;
+      });
+    }
+  } else {
     document.getElementById("prenatalClinicalModalForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const current = getCurrentUser();
 
       const surname = document.getElementById("pc_surname")?.value.trim() || "";
       const firstName = document.getElementById("pc_first_name")?.value.trim() || "";
       const fullName = `${firstName} ${surname}`.trim() || currentRec.fullName || "Maternal Patient";
+
+      const overallRisk = document.querySelector('input[name="pc_overall_risk"]:checked')?.value || "NOT_HIGH_RISK";
+      const isHighRisk = overallRisk === "HIGH_RISK";
+      const highRiskNotes = document.getElementById("pc_high_risk_notes")?.value.trim() || "";
 
       const formDetails = {
         ...(currentRec.formDetails || {}),
@@ -1459,8 +1488,10 @@ function openPrenatalClinicalRecordModal(record = {}) {
         famHeart: document.getElementById("pc_fam_heart")?.checked || false,
         famDystocia: document.getElementById("pc_fam_dystocia")?.checked || false,
         famPsych: document.getElementById("pc_fam_psych")?.checked || false,
+        fpMethod: document.getElementById("pc_fp_method")?.value || "",
+        fpMethodNotes: document.getElementById("pc_fp_method_notes")?.value.trim() || "",
         probNausea: document.getElementById("pc_prob_nausea")?.checked || false,
-        probBleeding: document.getElementById("pc_prob_bleeding")?.checked || false,
+        probBleeding: document.getElementById("pc_prob_bleeding_v")?.checked || false,
         probPelvic: document.getElementById("pc_prob_pelvic")?.checked || false,
         probHeadache: document.getElementById("pc_prob_headache")?.checked || false,
         probDischarge: document.getElementById("pc_prob_discharge")?.checked || false,
@@ -1471,36 +1502,53 @@ function openPrenatalClinicalRecordModal(record = {}) {
         probDizziness: document.getElementById("pc_prob_dizziness")?.checked || false,
         probHpn: document.getElementById("pc_prob_hpn")?.checked || false,
         probBackache: document.getElementById("pc_prob_backache")?.checked || false,
+        probSyncope: document.getElementById("pc_prob_syncope")?.checked || false,
+        probAbdominal: document.getElementById("pc_prob_abdominal")?.checked || false,
+        probConstipation: document.getElementById("pc_prob_constipation")?.checked || false,
+        probBleedingGen: document.getElementById("pc_prob_bleeding_gen")?.checked || false,
+        probOthers: document.getElementById("pc_prob_others")?.value.trim() || "",
         risk_1: document.getElementById("pc_risk_1")?.value.trim() || "",
         risk_2: document.getElementById("pc_risk_2")?.value.trim() || "",
-        risk_3: document.getElementById("pc_risk_3")?.value.trim() || ""
+        risk_3: document.getElementById("pc_risk_3")?.value.trim() || "",
+        highRiskStatus: overallRisk,
+        highRiskNotes: highRiskNotes
       };
 
-      for (let n = 1; n <= 3; n++) {
-        formDetails[`ob_no_${n}`] = document.getElementById(`pc_ob_no_${n}`)?.value.trim() || "";
-        formDetails[`ob_yr_${n}`] = document.getElementById(`pc_ob_yr_${n}`)?.value.trim() || "";
-        formDetails[`ob_aog_${n}`] = document.getElementById(`pc_ob_aog_${n}`)?.value.trim() || "";
-        formDetails[`ob_place_${n}`] = document.getElementById(`pc_ob_place_${n}`)?.value.trim() || "";
-        formDetails[`ob_comp_${n}`] = document.getElementById(`pc_ob_comp_${n}`)?.value.trim() || "";
-        formDetails[`ob_dur_${n}`] = document.getElementById(`pc_ob_dur_${n}`)?.value.trim() || "";
-        formDetails[`ob_wt_${n}`] = document.getElementById(`pc_ob_wt_${n}`)?.value.trim() || "";
-        formDetails[`ob_rem_${n}`] = document.getElementById(`pc_ob_rem_${n}`)?.value.trim() || "";
+      for (let n = 1; n <= 9; n++) {
+        if (n <= 3) {
+          formDetails[`ob_no_${n}`] = document.getElementById(`pc_ob_no_${n}`)?.value.trim() || "";
+          formDetails[`ob_yr_${n}`] = document.getElementById(`pc_ob_yr_${n}`)?.value.trim() || "";
+          formDetails[`ob_aog_${n}`] = document.getElementById(`pc_ob_aog_${n}`)?.value.trim() || "";
+          formDetails[`ob_place_${n}`] = document.getElementById(`pc_ob_place_${n}`)?.value.trim() || "";
+          formDetails[`ob_comp_${n}`] = document.getElementById(`pc_ob_comp_${n}`)?.value.trim() || "";
+          formDetails[`ob_dur_${n}`] = document.getElementById(`pc_ob_dur_${n}`)?.value.trim() || "";
+          formDetails[`ob_wt_${n}`] = document.getElementById(`pc_ob_wt_${n}`)?.value.trim() || "";
+          formDetails[`ob_rem_${n}`] = document.getElementById(`pc_ob_rem_${n}`)?.value.trim() || "";
+        }
 
         formDetails[`vDate_${n}`] = document.getElementById(`pc_vDate_${n}`)?.value || null;
         formDetails[`vAog_${n}`] = document.getElementById(`pc_vAog_${n}`)?.value.trim() || "";
         formDetails[`vBp_${n}`] = document.getElementById(`pc_vBp_${n}`)?.value.trim() || "";
         formDetails[`vPr_${n}`] = document.getElementById(`pc_vPr_${n}`)?.value.trim() || "";
+        formDetails[`vRr_${n}`] = document.getElementById(`pc_vRr_${n}`)?.value.trim() || "";
+        formDetails[`vO2sat_${n}`] = document.getElementById(`pc_vO2sat_${n}`)?.value.trim() || "";
         formDetails[`vWt_${n}`] = document.getElementById(`pc_vWt_${n}`)?.value.trim() || "";
+        formDetails[`vFh_${n}`] = document.getElementById(`pc_vFh_${n}`)?.value.trim() || "";
         formDetails[`vFht_${n}`] = document.getElementById(`pc_vFht_${n}`)?.value.trim() || "";
         formDetails[`vTemp_${n}`] = document.getElementById(`pc_vTemp_${n}`)?.value.trim() || "";
         formDetails[`sym_bleeding_${n}`] = document.getElementById(`pc_sym_bleeding_${n}`)?.checked || false;
         formDetails[`sym_bp_${n}`] = document.getElementById(`pc_sym_bp_${n}`)?.checked || false;
         formDetails[`sym_rupture_${n}`] = document.getElementById(`pc_sym_rupture_${n}`)?.checked || false;
+        formDetails[`sym_rupture_color_${n}`] = document.getElementById(`pc_sym_rupture_color_${n}`)?.value.trim() || "";
         formDetails[`sym_fever_${n}`] = document.getElementById(`pc_sym_fever_${n}`)?.checked || false;
         formDetails[`sym_pallor_${n}`] = document.getElementById(`pc_sym_pallor_${n}`)?.checked || false;
         formDetails[`sym_vision_${n}`] = document.getElementById(`pc_sym_vision_${n}`)?.checked || false;
         formDetails[`sym_edema_${n}`] = document.getElementById(`pc_sym_edema_${n}`)?.checked || false;
         formDetails[`sym_fht_${n}`] = document.getElementById(`pc_sym_fht_${n}`)?.checked || false;
+        formDetails[`sym_abn_pres_${n}`] = document.getElementById(`pc_sym_abn_pres_${n}`)?.checked || false;
+
+        const visitRiskRadio = document.querySelector(`input[name="pc_risk_status_${n}"]:checked`);
+        formDetails[`riskStatus_${n}`] = visitRiskRadio ? visitRiskRadio.value : "NOT_HIGH_RISK";
         formDetails[`remarks_${n}`] = document.getElementById(`pc_remarks_${n}`)?.value.trim() || "";
       }
 
@@ -1508,15 +1556,19 @@ function openPrenatalClinicalRecordModal(record = {}) {
         ...currentRec,
         id: currentRec.id || `mat_${Date.now()}`,
         fullName,
+        address: formDetails.address || currentRec.address,
+        age: formDetails.age ? parseInt(formDetails.age, 10) : currentRec.age,
+        contact: document.getElementById("pc_contact_number")?.value.trim() || currentRec.contact,
         lmp: formDetails.lmp || currentRec.lmp,
         edd: formDetails.edc || currentRec.edd,
+        riskLevel: isHighRisk ? "High Risk" : "Normal",
         verification_status: "Verified",
         formDetails
       };
 
       await persistRecord("maternalRecords", updatedRec);
       closeModal();
-      toast(`Prenatal Clinical Record saved for ${updatedRec.fullName}.`);
+      toast(`Prenatal Clinical Record saved for ${updatedRec.fullName} (${updatedRec.riskLevel}).`);
       renderPage("maternal");
     });
   }
@@ -1524,8 +1576,8 @@ function openPrenatalClinicalRecordModal(record = {}) {
 
 function openPadreBurgosMaternalModal(record = {}, readOnly = false) {
   const currentRec = record || {};
-  const isUserParent = isParent(getCurrentUser());
-  const isReadOnly = readOnly || isUserParent;
+  const currentU = getCurrentUser();
+  const isReadOnly = readOnly || isParent(currentU) || isAdmin(currentU);
 
   const html = `
     <form id="pbMaternalModalForm" class="space-y-4">
@@ -1943,8 +1995,8 @@ function openParentPregnancyIntakeModal() {
 
 function openDigitalImmunizationCardModal(infant = {}, readOnly = false) {
   const currentRec = infant || {};
-  const isUserParent = isParent(getCurrentUser());
-  const isReadOnly = readOnly || isUserParent;
+  const currentU = getCurrentUser();
+  const isReadOnly = readOnly || isParent(currentU) || isAdmin(currentU);
 
   const html = `
     <form id="todoLigtasModalForm" class="space-y-4">

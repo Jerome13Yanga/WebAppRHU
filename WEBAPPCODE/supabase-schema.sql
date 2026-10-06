@@ -205,7 +205,7 @@ create policy "Allow staff or owner read on maternal_records" on public.maternal
 using (
   auth.role() = 'authenticated' AND (
     exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
-    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = maternal_records.barangay)
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Nurse / Midwife', 'Nurse', 'Midwife') and (barangay = maternal_records.barangay or barangay = 'All Quezon'))
     OR user_id = auth.uid()
   )
 );
@@ -213,8 +213,8 @@ using (
 create policy "Allow staff write on maternal_records" on public.maternal_records for all
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
-    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = maternal_records.barangay)
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'MHO')
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Nurse / Midwife', 'Nurse', 'Midwife') and (barangay = maternal_records.barangay or barangay = 'All Quezon'))
   )
 );
 
@@ -223,7 +223,7 @@ create policy "Allow staff or parent read on infant_records" on public.infant_re
 using (
   auth.role() = 'authenticated' AND (
     exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
-    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = infant_records.barangay)
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Nurse / Midwife', 'Nurse', 'Midwife') and (barangay = infant_records.barangay or barangay = 'All Quezon'))
     OR user_id = auth.uid()
   )
 );
@@ -231,8 +231,8 @@ using (
 create policy "Allow staff write on infant_records" on public.infant_records for all
 using (
   auth.role() = 'authenticated' AND (
-    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Administrator', 'MHO'))
-    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'Nurse / Midwife' and barangay = infant_records.barangay)
+    exists (select 1 from public.profiles where "authUserId" = auth.uid() and role = 'MHO')
+    OR exists (select 1 from public.profiles where "authUserId" = auth.uid() and role in ('Nurse / Midwife', 'Nurse', 'Midwife') and (barangay = infant_records.barangay or barangay = 'All Quezon'))
   )
 );
 

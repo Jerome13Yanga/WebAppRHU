@@ -245,7 +245,11 @@ export function renderBarangayMonitoringDashboard(state, currentUser, selectedBa
   const mRecs = allMaternal.filter(r => matchBgy(r.barangay, selectedBarangay));
   const iRecs = allInfants.filter(r => matchBgy(r.barangay, selectedBarangay));
 
-  const highRisk = mRecs.filter(r => (r.riskLevel || "").toLowerCase().includes("high") || (r.riskLevel || "").toLowerCase().includes("elevated"));
+  const highRisk = mRecs.filter(r =>
+    (r.riskLevel || "").toLowerCase().includes("high") ||
+    (r.riskLevel || "").toLowerCase().includes("elevated") ||
+    r.formDetails?.highRiskStatus === "HIGH_RISK"
+  );
   const ficCount = iRecs.filter(i => (i.immunizationStatus || "").includes("FIC") || (i.immunizationStatus || "").includes("Fully")).length;
 
   return `
@@ -310,13 +314,13 @@ export function renderBarangayMonitoringDashboard(state, currentUser, selectedBa
       </div>
 
       <!-- High-Risk Maternal Priority Triage -->
-      <div class="panel">
+      <div class="panel border-2 border-red-200">
         <div class="flex items-center justify-between mb-4 pb-2 border-b border-line">
-          <h3 class="text-sm font-bold text-text flex items-center gap-2">
+          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
             <span class="material-symbols-outlined text-red-600 text-lg">emergency</span>
-            <span>High-Risk Maternal Patient Priority Queue</span>
+            <span>Doctor / MHO High-Risk Maternal Priority Queue</span>
           </h3>
-          <span class="badge badge-high text-[10px]">${highRisk.length} Alert Cases</span>
+          <span class="badge badge-high text-[10px] px-2.5 py-1 font-bold">${highRisk.length} High Risk Alert(s)</span>
         </div>
         <div class="table-container overflow-x-auto">
           <table class="data-table text-xs">
@@ -325,26 +329,38 @@ export function renderBarangayMonitoringDashboard(state, currentUser, selectedBa
                 <th>Patient Name</th>
                 <th>Barangay</th>
                 <th>Age</th>
-                <th>EDD (Expected Delivery)</th>
-                <th>Risk Level</th>
+                <th>EDD / Last Visit</th>
+                <th>Risk Status & Reason</th>
                 <th>Assigned Midwife</th>
-                <th>Clinical Action</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               ${highRisk.length === 0 ? `
                 <tr><td colspan="7" class="text-center py-6 text-emerald-600 font-semibold">No high-risk maternal alerts for ${escapeHtml(selectedBarangay)}.</td></tr>
               ` : highRisk.map(r => `
-                <tr>
-                  <td class="font-bold text-text">${escapeHtml(r.fullName)}</td>
+                <tr class="bg-red-50/40">
+                  <td class="font-bold text-slate-900">
+                    <div>${escapeHtml(r.fullName)}</div>
+                    <div class="text-[11px] text-slate-500 font-normal">${escapeHtml(r.contact || 'No contact')}</div>
+                  </td>
                   <td><span class="badge badge-info text-[10px]">${escapeHtml(r.barangay)}</span></td>
                   <td>${r.age || '-'}</td>
-                  <td>${formatDate(r.edd)}</td>
-                  <td><span class="badge badge-high text-[10px]">${escapeHtml(r.riskLevel || 'High Risk')}</span></td>
+                  <td>
+                    <div class="text-[11px]">
+                      <div>EDD: <strong>${formatDate(r.edd)}</strong></div>
+                      ${r.formDetails?.vDate_1 ? `<div class="text-slate-500">Visit 1: ${formatDate(r.formDetails.vDate_1)}</div>` : ''}
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge badge-high text-[10px] font-bold">🔴 ${escapeHtml(r.riskLevel || 'High Risk')}</span>
+                    ${r.formDetails?.highRiskNotes ? `<div class="text-[11px] text-red-700 italic mt-0.5 max-w-xs">${escapeHtml(r.formDetails.highRiskNotes)}</div>` : ''}
+                  </td>
                   <td class="text-text-muted">${escapeHtml(r.assignedNurse || 'RHU Staff')}</td>
                   <td>
-                    <button type="button" class="primary-btn sm-btn text-[11px] py-1 px-2.5" onclick="document.querySelector('[data-page=maternal]')?.click()">
-                      Review Clinical Record
+                    <button type="button" class="primary-btn sm-btn open-prenatal-clinical-modal-btn text-[11px] py-1 px-2.5 bg-red-600 hover:bg-red-700 text-white" data-id="${escapeHtml(r.id)}" title="Review High-Risk Clinical Record">
+                      <span class="material-symbols-outlined text-sm">clinical_notes</span>
+                      <span>Review Record</span>
                     </button>
                   </td>
                 </tr>

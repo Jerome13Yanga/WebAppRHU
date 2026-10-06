@@ -72,12 +72,12 @@ export function renderMaternalView(state, selectedBarangay = "All Barangays", cu
             <span>Register My Pregnancy</span>
           </button>
         ` : ''}
-      ` : `
+      ` : isUserNurse ? `
         <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addMaternalBtn">
           <span class="material-symbols-outlined text-base">person_add</span>
           <span>Register Pregnant Mother</span>
         </button>
-      `}
+      ` : ''}
     </div>
 
     <!-- Search and Filter Toolbar -->
@@ -147,16 +147,14 @@ export function renderMaternalView(state, selectedBarangay = "All Barangays", cu
                     <span class="material-symbols-outlined text-sm">edit_document</span>
                     <span>Card</span>
                   </button>
-                  ${!isUserParent ? `
+                  ${isUserNurse ? `
                     <button type="button" class="primary-btn sm-btn record-visit-maternal-btn bg-pink-700 hover:bg-pink-800 text-white text-[11px] py-1 px-2.5" data-id="${escapeHtml(r.id)}" title="Record Checkup Visit">
                       <span class="material-symbols-outlined text-sm">add</span>
                       <span>Visit</span>
                     </button>
-                    ${isAdmin(currentUser) || isNurse(currentUser) ? `
-                      <button type="button" class="icon-btn delete-maternal-btn p-1 text-red-600 hover:bg-red-50" data-id="${escapeHtml(r.id)}" title="Delete">
-                        <span class="material-symbols-outlined text-base">delete</span>
-                      </button>
-                    ` : ''}
+                    <button type="button" class="icon-btn delete-maternal-btn p-1 text-red-600 hover:bg-red-50" data-id="${escapeHtml(r.id)}" title="Delete">
+                      <span class="material-symbols-outlined text-base">delete</span>
+                    </button>
                   ` : ''}
                 </td>
               </tr>

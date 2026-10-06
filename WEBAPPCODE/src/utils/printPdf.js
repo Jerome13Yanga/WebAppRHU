@@ -34,7 +34,17 @@ function rhuHeader() {
 export function openMaternalRecordPrintWindow(record = {}) {
   const d = record.formDetails || {};
 
+  const nameParts = (record.fullName || '').split(' ');
+  const surname = d.surname || (nameParts.length > 1 ? nameParts[nameParts.length - 1] : record.fullName || '');
+  const firstName = d.firstName || (nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : '');
+  const mi = d.mi || '';
+
+  const isHighRisk = d.highRiskStatus === 'HIGH_RISK' ||
+    (record.riskLevel && record.riskLevel.toLowerCase().includes('high'));
+
   const yn = (val) => {
+    if (val === true) return 'YES';
+    if (val === false) return 'NO';
     if (!val) return '';
     const v = String(val).toUpperCase();
     return v === 'YES' ? 'YES' : v === 'NO' ? 'NO' : val;
@@ -44,323 +54,272 @@ export function openMaternalRecordPrintWindow(record = {}) {
     if (!val) return '';
     try {
       const dt = new Date(val);
-      if (isNaN(dt)) return val;
-      return dt.toLocaleDateString('en-PH', { year:'numeric', month:'2-digit', day:'2-digit' });
+      if (isNaN(dt.getTime())) return val;
+      return dt.toLocaleDateString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit' });
     } catch { return val || ''; }
   };
 
-  const ppRows = [
-    ['Exclusive Breastfeeding (Y/N)', yn(d.ppExclusiveBreastfeeding)],
-    ['Intends to use Family Planning (Y/N)', yn(d.ppIntendsFp)],
-    ['Fever >39C (Y/N)', yn(d.ppFever)],
-    ['Foul Smelling Vaginal Discharge (Y/N)', yn(d.ppFoulDischarge)],
-    ['Excessive Bleeding (Y/N)', yn(d.ppExcessiveBleeding)],
-    ['Pallor (Y/N)', yn(d.ppPallor)],
-    ['Cord OK?(Y/N)', yn(d.ppCordOk)],
+  const check = (val) => val ? '&#10003;' : '';
+
+  const medicalHistoryList = [
+    ['Diabetes', d.medDm],
+    ['Heart Disease', d.medHeart],
+    ['Tuberculosis (TB)', d.medTb],
+    ['Anemia', d.medAnemia],
+    ['Hypertension (HPN)', d.medHpn],
+    ['Pneumonia', d.medPneumo],
+    ['Allergy', d.medAllergy],
+    ['Blood Transfusion', d.medTransfusion],
+    ['Renal Disease', d.medRenal],
+    ['Rheumatic Heart Disease', d.medRhd],
+    ['Jaundice', d.medJaundice],
+    ['STD', d.medStd]
   ];
 
-  const healthProblems = [
-    ['Tuberculosis (14 days +of cough)', 'probTb'],
-    ['Heart Disease', 'probHeart'],
-    ['Diabetes', 'probDiabetes'],
-    ['Bronchial Asthma', 'probAsthma'],
-    ['Goiter', 'probGoiter'],
-    ['Hypertension', 'probHypertension'],
+  const familyHistoryList = [
+    ['Hypertension (HPN)', d.famHpn],
+    ['Diabetes (DM)', d.famDm],
+    ['Multiple Pregnancy', d.famMulti],
+    ['Tuberculosis (TB)', d.famTb],
+    ['Heart Disease', d.famHeart],
+    ['Dystocia', d.famDystocia],
+    ['Psychiatric', d.famPsych]
   ];
 
-  const visitFields = [
-    ['AOG in Months',          null],
-    ['Date of Visit',          'vDate'],
-    ['Vaginal Bleeding (Y/N)', null],
-    ['Urinary Tract Infection',null],
-    ['Weight in Kg',           'vWeight'],
-    ['Blood Pressure',         'vBp'],
-    ['BP 140/90 and above (Y/N)', null],
-    ['Fever 39 and above (Y/N)',  null],
-    ['Pallor (Y/N)',           null],
+  const presentProblemsList = [
+    ['Nausea / Vomiting', d.probNausea],
+    ['Vaginal Bleeding', d.probBleeding],
+    ['Pelvic Pain', d.probPelvic],
+    ['Headache', d.probHeadache],
+    ['Vaginal Discharge', d.probDischarge],
+    ['Edema', d.probEdema],
+    ['Easy Fatigability', d.probFatigue],
+    ['Visual Disturbance', d.probVisual],
+    ['Fever / Chills', d.probFever],
+    ['Dizziness', d.probDizziness],
+    ['Hypertension (HPN)', d.probHpn],
+    ['Backache', d.probBackache],
+    ['Syncope', d.probSyncope],
+    ['Abdominal Pain', d.probAbdominal],
+    ['Constipation', d.probConstipation],
+    ['Bleeding', d.probBleedingGen]
   ];
-
-  const actionFields = [
-    'Iron/Folate #',
-    'Iodine Supplementation in High Risk Areas',
-    'Calcium Carbonate #',
-    'Mother intends to breastfeed?(Y/N)',
-    'Advice on 4 danger signs (Y/N)',
-    'Dental Check-up?(Y/N)',
-    'Emergency plans and place of delivery (Y/N)',
-    'Risk?(Y/N)',
-    'Date of next visit',
-  ];
-
-  function visitRow(label, keyPrefix) {
-    return `<tr>
-      <td class="rl">${label}</td>
-      ${[1,2,3,4,5,6,7,8,9].map(n => {
-        const key = keyPrefix ? `${keyPrefix}_${n}` : null;
-        const val = key && d[key] ? (key.startsWith('vDate') ? fmtDate(d[key]) : d[key]) : '';
-        return `<td class="tc">${val}</td>`;
-      }).join('')}
-    </tr>`;
-  }
 
   const html = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
-<title>Maternal Health Record – ${record.fullName || 'Patient'}</title>
+<title>Prenatal Clinical Record – ${record.fullName || 'Patient'}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:Arial,Helvetica,sans-serif;font-size:8.5pt;color:#000;background:#fff;}
-@page{size:A4 portrait;margin:10mm 12mm;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:8pt;color:#000;background:#fff;}
+@page{size:A4 portrait;margin:8mm 10mm;}
 .page{width:100%;page-break-after:always;}
 .page:last-child{page-break-after:auto;}
 /* header */
-.rhu-header{display:flex;align-items:center;gap:12px;margin-bottom:5px;padding-bottom:5px;border-bottom:2px solid #000;}
-.rhu-logo{width:60px;height:60px;object-fit:contain;}
+.rhu-header{display:flex;align-items:center;gap:12px;margin-bottom:6px;padding-bottom:5px;border-bottom:2px solid #000;}
+.rhu-logo{width:54px;height:54px;object-fit:contain;}
 .rhu-header-text{flex:1;}
-.rhu-sub{font-size:7.5pt;}
-.rhu-unit{font-size:10pt;font-weight:bold;}
-.rhu-place{font-size:8.5pt;font-weight:bold;}
-.rhu-contact{font-size:7pt;}
+.rhu-sub{font-size:7pt;}
+.rhu-unit{font-size:9.5pt;font-weight:bold;}
+.rhu-place{font-size:8pt;font-weight:bold;}
+.rhu-contact{font-size:6.5pt;}
 /* section boxes */
-.sbox{border:1.5px solid #000;margin-bottom:3px;}
-.stitle{font-weight:bold;font-size:8.5pt;text-align:center;padding:2px 4px;
-        text-transform:uppercase;letter-spacing:.4px;color:#fff;}
-.stitle.orange{background:#c0392b;}
-.stitle.dark{background:#555;}
+.sbox{border:1.5px solid #000;margin-bottom:4px;}
+.stitle{font-weight:bold;font-size:8pt;text-align:center;padding:2.5px 4px;
+        text-transform:uppercase;letter-spacing:.4px;color:#fff;background:#0f172a;}
+.stitle.orange{background:#1e3a8a;}
+.stitle.red{background:#991b1b;}
 .stitle.left{text-align:left;padding-left:6px;}
 /* tables */
 table{width:100%;border-collapse:collapse;}
-td,th{border:1px solid #000;padding:1.5px 3px;vertical-align:middle;}
-th{background:#f0f0f0;font-weight:bold;text-align:center;font-size:7.5pt;}
-.rl{font-size:7.5pt;white-space:nowrap;min-width:130px;}
-.tc{text-align:center;font-size:7.5pt;}
-.yc{width:36px;text-align:center;font-weight:bold;}
-.trim-th{background:#666;color:#fff;text-align:center;font-size:7pt;}
-.act-hd{background:#ccc;font-weight:bold;}
-/* personal info */
-.info-row{display:flex;gap:6px;border-bottom:1px solid #ccc;padding:2px 4px;font-size:8pt;}
-.il{font-weight:bold;min-width:76px;}
-.iv{flex:1;border-bottom:1px dotted #999;min-height:13px;}
+td,th{border:1px solid #000;padding:2px 3px;vertical-align:middle;}
+th{background:#f1f5f9;font-weight:bold;text-align:center;font-size:7pt;}
+.rl{font-size:7pt;white-space:nowrap;}
+.tc{text-align:center;font-size:7pt;}
+.yc{width:32px;text-align:center;font-weight:bold;}
+/* info grid */
+.igrid{display:grid;grid-template-columns:repeat(4, 1fr);gap:4px;padding:4px;font-size:7.5pt;}
+.ifield{display:flex;gap:4px;align-items:baseline;}
+.ilabel{font-weight:bold;color:#334155;white-space:nowrap;}
+.ival{border-bottom:1px dotted #64748b;flex:1;min-height:12px;font-weight:600;}
+/* visit table */
+.vtable th{font-size:6.5pt;padding:2px 1px;}
+.vtable td{font-size:6.5pt;padding:1.5px 1px;text-align:center;}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
 </style></head><body>
 
-<!-- ===== PAGE 1 ===== -->
+<!-- ===== PAGE 1: PATIENT PROFILE & HISTORIES ===== -->
 <div class="page">
   ${rhuHeader()}
 
-  <!-- PERSONAL INFORMATION -->
   <div class="sbox">
-    <div class="stitle orange">PERSONAL INFORMATION</div>
-    <div class="info-row"><span class="il">Blood Type:</span><span class="iv">${d.bloodType||''}</span></div>
-    <div class="info-row"><span class="il">Name:</span><span class="iv">${record.fullName||''}</span></div>
-    <div class="info-row"><span class="il">Address:</span><span class="iv">${record.address||''}</span></div>
+    <div class="stitle orange">DOH PRENATAL CLINICAL RECORD — PATIENT IDENTIFICATION</div>
+    <div class="igrid">
+      <div class="ifield" style="grid-column: span 2;"><span class="ilabel">Surname:</span><span class="ival">${surname}</span></div>
+      <div class="ifield" style="grid-column: span 2;"><span class="ilabel">First Name:</span><span class="ival">${firstName}</span></div>
+      <div class="ifield"><span class="ilabel">M.I.:</span><span class="ival">${mi}</span></div>
+      <div class="ifield"><span class="ilabel">Age:</span><span class="ival">${record.age || d.age || ''}</span></div>
+      <div class="ifield"><span class="ilabel">Contact:</span><span class="ival">${record.contact || d.contactNumber || ''}</span></div>
+      <div class="ifield"><span class="ilabel">Civil Status:</span><span class="ival">${d.civilStatus || 'Married'}</span></div>
+      <div class="ifield" style="grid-column: span 2;"><span class="ilabel">Husband Name:</span><span class="ival">${d.husbandName || ''}</span></div>
+      <div class="ifield"><span class="ilabel">Occupation:</span><span class="ival">${d.occupation || ''}</span></div>
+      <div class="ifield"><span class="ilabel">Birthday:</span><span class="ival">${fmtDate(d.birthday)}</span></div>
+      <div class="ifield" style="grid-column: span 4;"><span class="ilabel">Address:</span><span class="ival">${record.address || d.address || ''} (${record.barangay || ''})</span></div>
+    </div>
   </div>
 
-  <!-- TETANUS TOXOID -->
   <div class="sbox">
-    <div class="stitle dark left">TETANUS TOXOID</div>
-    <table>
-      <tr>
-        <th>Date Given</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
-      </tr>
-      <tr>
-        <td>Age/Bday:</td>
-        <td colspan="2" class="tc">Below 18</td>
-        <td colspan="2" class="tc">18-34</td>
-        <td class="tc">35+</td>
-      </tr>
-      <tr>
-        <td>Td Dose Dates</td>
-        ${[1,2,3,4,5].map(n=>`<td class="tc">${fmtDate(d[`td${n}Date`])||''}</td>`).join('')}
-      </tr>
-      <tr>
-        <td>Height</td><td colspan="2">${d.heightCm||''} cm</td>
-        <td>Weight</td><td colspan="2">${d.weightKg||''} kg</td>
-      </tr>
-      <tr>
-        <td>Age Category</td><td colspan="2">${d.ageCategory||'18-34'}</td>
-        <td>BMI</td><td colspan="2">${d.bmi||''}</td>
-      </tr>
-    </table>
+    <div class="stitle left">MENSTRUAL & OBSTETRICAL HISTORY</div>
+    <div class="igrid" style="grid-template-columns: repeat(6, 1fr);">
+      <div class="ifield"><span class="ilabel">Menarche:</span><span class="ival">${d.menarche || ''}</span></div>
+      <div class="ifield"><span class="ilabel">Duration:</span><span class="ival">${d.durationDays || ''} days</span></div>
+      <div class="ifield"><span class="ilabel">Cycle:</span><span class="ival">${d.cycleDays || ''} days</span></div>
+      <div class="ifield"><span class="ilabel">Regular:</span><span class="ival">${d.regularMens || 'YES'}</span></div>
+      <div class="ifield"><span class="ilabel">Dysmenorrhea:</span><span class="ival">${d.painMens || 'NO'}</span></div>
+      <div class="ifield"><span class="ilabel">OB Code:</span><span class="ival">${d.obCode || ''}</span></div>
+      <div class="ifield" style="grid-column: span 2;"><span class="ilabel">LMP:</span><span class="ival">${fmtDate(record.lmp || d.lmp)}</span></div>
+      <div class="ifield" style="grid-column: span 2;"><span class="ilabel">EDC / EDD:</span><span class="ival">${fmtDate(record.edd || d.edc)}</span></div>
+      <div class="ifield"><span class="ilabel">Gravida:</span><span class="ival">${d.gravida || '1'}</span></div>
+      <div class="ifield"><span class="ilabel">Para:</span><span class="ival">${d.para || '0'}</span></div>
+    </div>
   </div>
 
-  <!-- OBSTETRICAL HISTORY -->
-  <div class="sbox">
-    <div class="stitle dark left">OBSTETRICAL HISTORY</div>
-    <table>
-      <tr>
-        <td colspan="2">G_<b>${d.obG||'_'}</b>&nbsp;P_<b>${d.obP||'_'}</b>&nbsp;
-            (T_<b>${d.obT||'_'}</b>&nbsp;P_<b>${d.obPreterm||'_'}</b>&nbsp;
-            A_<b>${d.obA||'_'}</b>&nbsp;L_<b>${d.obL||'_'}</b>)</td>
-      </tr>
-      <tr><td>Previous Pregnancies</td><td>${d.previousPregnancies||''}</td></tr>
-      <tr><td>Caesarean Section</td><td>${yn(d.caesarean)||''}</td></tr>
-      <tr><td>Stillbirth</td><td>${yn(d.stillbirth)||''}</td></tr>
-      <tr><td>Post-partum Hemorrhage</td><td>${yn(d.postpartumHemorrhage)||''}</td></tr>
-      <tr>
-        <td>3 Consecutive Miscarriages</td>
-        <td>YES&nbsp;&nbsp;&nbsp;NO&nbsp;&nbsp;&nbsp;<b>${yn(d.consecutiveMiscarriages)||''}</b></td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- PRESENT HEALTH PROBLEMS -->
-  <div class="sbox">
-    <div class="stitle dark">PRESENT HEALTH PROBLEMS</div>
-    <table>
-      <tr><th>Condition</th><th class="yc">NO</th><th class="yc">YES</th></tr>
-      ${healthProblems.map(([label,key])=>{
-        const v=yn(d[key]);
-        return `<tr>
-          <td>${label}</td>
-          <td class="yc">${v==='NO'?'&#10003;':''}</td>
-          <td class="yc">${v==='YES'?'&#10003;':''}</td>
-        </tr>`;
-      }).join('')}
-    </table>
-  </div>
-
-  <!-- POST PARTUM -->
-  <div class="sbox">
-    <div class="stitle dark">POST PARTUM</div>
-    <table>
-      <tr>
-        <th rowspan="2" style="width:32%">Timing of Post Partum Visit</th>
-        <th colspan="3">HOME VISITS</th>
-        <th rowspan="2">CLINIC VISIT</th>
-      </tr>
-      <tr><th>24 hrs</th><th>1 week</th><th>2-4 weeks</th></tr>
-      <tr><td>Date of Visit</td><td></td><td></td><td></td><td></td></tr>
-      ${ppRows.map(([label,val])=>`
+  <!-- MEDICAL & FAMILY HISTORY GRID -->
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 4px;">
+    <div class="sbox" style="margin-bottom:0;">
+      <div class="stitle left">MEDICAL HISTORY</div>
+      <table>
+        <tr><th>Condition</th><th class="yc">Status</th></tr>
+        ${medicalHistoryList.map(([label, val]) => `
+          <tr>
+            <td class="rl">${label}</td>
+            <td class="yc">${check(val)}</td>
+          </tr>
+        `).join('')}
         <tr>
-          <td>${label}</td>
-          <td colspan="3" class="tc">${val}</td>
-          <td></td>
-        </tr>`).join('')}
-    </table>
-  </div>
-
-  <!-- POST PARTUM supplement -->
-  <div class="sbox">
-    <div class="stitle dark">POST PARTUM (Supplement)</div>
-    <table>
-      <tr>
-        <td>Vitamin A 200,000 IU (Y/N)&nbsp;<b>${yn(d.ppVitA)||''}</b></td>
-        <td>Iron / Folate / Date #&nbsp;<b>${fmtDate(d.ppIronDate)||''}</b>&nbsp;Qty:&nbsp;<b>${d.ppIronQty||''}</b></td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- FAMILY PLANNING -->
-  <div class="sbox">
-    <div class="stitle dark">FAMILY PLANNING</div>
-    <table>
-      <tr><th>Date of Visit</th><th>Date of Follow-Up</th><th>Method</th><th>Quantity Given</th><th>Remarks</th></tr>
-      <tr>
-        <td>${fmtDate(d.ppFpDate)||''}</td>
-        <td>${fmtDate(d.ppFpFollowUp)||''}</td>
-        <td>${d.ppFpMethod||''}</td>
-        <td></td><td></td>
-      </tr>
-      <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
-      <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
-    </table>
-  </div>
-
-  <!-- FOOTNOTE -->
-  <div style="display:flex;gap:0;border:1px solid #000;margin-top:3px;font-size:7pt;">
-    <div style="flex:1;padding:3px 5px;border-right:1px solid #000;">
-      Refer to Physician/RHU (and follow-up)<br>
-      <em>You may wish to consider a permanent method of Family Planning</em>
+          <td colspan="2" style="font-size:6.5pt; padding:2px;">
+            <b>Others:</b> ${d.medOthers || 'None'} | <b>Operation:</b> ${d.medOperation || 'None'}
+          </td>
+        </tr>
+      </table>
     </div>
-    <div style="flex:1;padding:3px 5px;border-right:1px solid #000;">
-      Close observation or action by midwife/nurse:<br>${d.nurseObservations||''}
+
+    <div class="sbox" style="margin-bottom:0;">
+      <div class="stitle left">FAMILY HISTORY</div>
+      <table>
+        <tr><th>Condition</th><th class="yc">Status</th></tr>
+        ${familyHistoryList.map(([label, val]) => `
+          <tr>
+            <td class="rl">${label}</td>
+            <td class="yc">${check(val)}</td>
+          </tr>
+        `).join('')}
+      </table>
+
+      <div class="stitle left" style="margin-top:4px;">FAMILY PLANNING METHOD</div>
+      <div style="padding:4px; font-size:7.5pt;">
+        <div><b>Method:</b> ${d.fpMethod || 'None / Not Selected'}</div>
+        <div style="margin-top:2px;"><b>Notes:</b> ${d.fpMethodNotes || 'None'}</div>
+      </div>
     </div>
-    <div style="flex:1;padding:3px 5px;">
-      Hospital delivery recommended:&nbsp;<b>${yn(d.hospitalDeliveryRecommended)||''}</b>
+  </div>
+
+  <!-- PRESENT PROBLEMS & RISK FACTORS -->
+  <div class="sbox">
+    <div class="stitle left">PRESENT PROBLEMS & RISK FACTORS</div>
+    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 3px;">
+      ${presentProblemsList.map(([label, val]) => `
+        <div style="font-size:7pt; display:flex; gap:3px; align-items:center;">
+          <span>[${val ? '<b>&#10003;</b>' : '&nbsp;'}]</span>
+          <span>${label}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div style="padding:3px; border-top:1px solid #ccc; font-size:7pt;">
+      <b>Other Symptoms:</b> ${d.probOthers || 'None'} &bull;
+      <b>Risk Factors:</b> 1. ${d.risk_1 || 'None'} | 2. ${d.risk_2 || 'None'} | 3. ${d.risk_3 || 'None'}
+    </div>
+  </div>
+
+  <!-- OVERALL RISK CLASSIFICATION -->
+  <div class="sbox" style="border: 2px solid ${isHighRisk ? '#991b1b' : '#15803d'};">
+    <div class="stitle ${isHighRisk ? 'red' : 'orange'}">OVERALL MATERNAL RISK CLASSIFICATION</div>
+    <div style="padding:5px; font-size:8pt; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div>
+        <b>CLASSIFICATION:</b>
+        <span style="font-weight:bold; color:${isHighRisk ? '#991b1b' : '#15803d'}; font-size:9pt; text-transform:uppercase;">
+          ${isHighRisk ? '🔴 HIGH RISK — Flagged to Doctor / MHO' : '🟢 NOT HIGH RISK — Normal Monitoring'}
+        </span>
+      </div>
+      <div><b>High Risk Notes / Reason:</b> ${d.highRiskNotes || 'None'}</div>
     </div>
   </div>
 </div>
 
-<!-- ===== PAGE 2 – PRESENT PREGNANCY ===== -->
+<!-- ===== PAGE 2: PRENATAL VISIT LOGS (VISIT 1 TO VISIT 9) ===== -->
 <div class="page">
   ${rhuHeader()}
 
   <div class="sbox">
-    <div class="stitle orange">PRESENT PREGNANCY</div>
-    <table>
-      <tr>
-        <th style="width:10%">LMP</th>
-        <td>MONTH:&nbsp;&nbsp;DAY:&nbsp;&nbsp;YEAR:</td>
-        <td rowspan="2" style="width:22%;text-align:center;font-size:7.5pt;">
-          Refer to Hospital<br>Refer to Physician /RHU
-        </td>
-      </tr>
-      <tr>
-        <th>EDC</th>
-        <td>MONTH: ${record.lmp ? new Date(record.lmp).toLocaleString('en-PH',{month:'long'}) : ''}&nbsp;
-            DAY: ${record.lmp ? new Date(record.lmp).getDate() : ''}&nbsp;
-            YEAR: ${record.lmp ? new Date(record.lmp).getFullYear() : ''}</td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- TRIMESTER TABLE -->
-  <div class="sbox">
-    <table>
+    <div class="stitle orange">PRENATAL CLINICAL MONITORING & VISIT LOGS (VISITS 1 – 9)</div>
+    <table class="vtable">
       <thead>
         <tr>
-          <th rowspan="2" class="rl">Visit Item</th>
-          <th class="trim-th" colspan="4">1st Trimester</th>
-          <th class="trim-th" colspan="4">2nd Trimester</th>
-          <th class="trim-th" colspan="1">3rd</th>
-        </tr>
-        <tr>
-          ${[1,2,3,4,5,6,7,8,9].map(n=>`<th style="font-size:7pt;text-align:center;">${n}</th>`).join('')}
+          <th style="width:20%; text-align:left; padding-left:4px;">Clinical Parameter / Item</th>
+          ${[1,2,3,4,5,6,7,8,9].map(n => `<th style="width:8.8%;">Visit ${n}</th>`).join('')}
         </tr>
       </thead>
       <tbody>
-        ${visitFields.map(([label,keyPfx])=>visitRow(label,keyPfx)).join('')}
-        <tr>
-          <td class="rl">Abnormal Fundal Height (Y/N)</td>
-          <td></td><td></td><td></td><td></td>
-          <td class="tc" style="font-size:6.5pt;">20 cm</td>
-          <td class="tc" style="font-size:6.5pt;">21-24 cm</td>
-          <td class="tc" style="font-size:6.5pt;">25-28 cM</td>
-          <td class="tc" style="font-size:6.5pt;">28-30 cm</td>
-          <td class="tc" style="font-size:6.5pt;">30-34 cm</td>
+        <!-- VISIT DATE -->
+        <tr style="background:#f8fafc; font-weight:bold;">
+          <td style="text-align:left; padding-left:4px;">Date of Visit</td>
+          ${[1,2,3,4,5,6,7,8,9].map(n => `<td>${fmtDate(d[`vDate_${n}`])}</td>`).join('')}
         </tr>
-        ${['Abnormal Presentation (Y/N)','Missing Fetal Heartbeat (Y/N)',
-           'Edema (Y/N)','Vaginal Infection (Y/N)',
-           'Lab Test Results (e.g.HGB,Urine,VDRL)'].map(label=>
-          `<tr><td class="rl">${label}</td>${[1,2,3,4,5,6,7,8,9].map(()=>'<td></td>').join('')}</tr>`
-        ).join('')}
 
-        <!-- ACTION -->
-        <tr><td colspan="10" class="act-hd" style="text-align:left;padding-left:6px;">ACTION</td></tr>
-        ${actionFields.map(label=>
-          `<tr><td class="rl">${label}</td>${[1,2,3,4,5,6,7,8,9].map(()=>'<td></td>').join('')}</tr>`
-        ).join('')}
+        <!-- VITALS -->
+        <tr><td colspan="10" style="background:#e2e8f0; font-weight:bold; text-align:left; padding-left:4px;">PHYSICAL MEASUREMENTS & VITALS</td></tr>
+        <tr><td style="text-align:left; padding-left:4px;">AOG (Weeks)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vAog_${n}`] || ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Blood Pressure (BP)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vBp_${n}`] || ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Pulse Rate (PR)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vPr_${n}`] || ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Respiratory Rate (RR)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vRr_${n}`] || ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">O2 Saturation (%)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vO2sat_${n}`] || ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Weight (WT in kg)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vWt_${n}`] || d[`vWeight_${n}`] || ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Fundal Height (FH in cm)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vFh_${n}`] || ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Fetal Heart Rate (FHT)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vFht_${n}`] || ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Temperature (°C)</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`vTemp_${n}`] || ''}</td>`).join('')}</tr>
+
+        <!-- SYMPTOMS & CLINICAL FINDINGS -->
+        <tr><td colspan="10" style="background:#e2e8f0; font-weight:bold; text-align:left; padding-left:4px;">SYMPTOMS & CLINICAL FINDINGS</td></tr>
+        <tr><td style="text-align:left; padding-left:4px;">Vaginal Bleeding</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${check(d[`sym_bleeding_${n}`])}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Elevated BP</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${check(d[`sym_bp_${n}`])}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Premature Rupture of Membrane Color</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${d[`sym_rupture_${n}`] ? (d[`sym_rupture_color_${n}`] || 'Yes') : ''}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Fever</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${check(d[`sym_fever_${n}`])}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Pallor</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${check(d[`sym_pallor_${n}`])}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Blurring Vision</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${check(d[`sym_vision_${n}`])}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Edema</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${check(d[`sym_edema_${n}`])}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Missing Heart Rate</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${check(d[`sym_fht_${n}`])}</td>`).join('')}</tr>
+        <tr><td style="text-align:left; padding-left:4px;">Abnormal Presentation</td>${[1,2,3,4,5,6,7,8,9].map(n => `<td>${check(d[`sym_abn_pres_${n}`])}</td>`).join('')}</tr>
+
+        <!-- HIGH RISK & TREATMENTS -->
+        <tr><td colspan="10" style="background:#e2e8f0; font-weight:bold; text-align:left; padding-left:4px;">RISK CLASSIFICATION & TREATMENTS / REMARKS</td></tr>
+        <tr>
+          <td style="text-align:left; padding-left:4px;">Visit Risk Status</td>
+          ${[1,2,3,4,5,6,7,8,9].map(n => {
+            const st = d[`riskStatus_${n}`];
+            return `<td style="font-weight:bold; color:${st === 'HIGH_RISK' ? '#991b1b' : '#15803d'}">${st === 'HIGH_RISK' ? 'HIGH' : st ? 'NORMAL' : ''}</td>`;
+          }).join('')}
+        </tr>
+        <tr>
+          <td style="text-align:left; padding-left:4px;">Treatments & Clinical Remarks</td>
+          ${[1,2,3,4,5,6,7,8,9].map(n => `<td style="font-size:5.5pt; text-align:left; vertical-align:top;">${d[`remarks_${n}`] || ''}</td>`).join('')}
+        </tr>
       </tbody>
     </table>
   </div>
-
-  <!-- LABORATORY -->
-  <div class="sbox">
-    <div class="stitle dark left">LABORATORY</div>
-    <table>
-      <tr><th style="width:50%">Type of Laboratory</th><th style="width:20%">Date</th><th>Remarks</th></tr>
-      <tr><td>&nbsp;</td><td></td><td></td></tr>
-      <tr><td>&nbsp;</td><td></td><td></td></tr>
-      <tr><td>&nbsp;</td><td></td><td></td></tr>
-      <tr><td>&nbsp;</td><td></td><td></td></tr>
-    </table>
-  </div>
 </div>
-
 </body></html>`;
 
-  openPrintWindow(html, `Maternal Record – ${record.fullName || 'Patient'}`);
+  openPrintWindow(html, `Prenatal Clinical Record – ${record.fullName || 'Patient'}`);
 }
 
 /* ──────────────────────────────────────────────────────────

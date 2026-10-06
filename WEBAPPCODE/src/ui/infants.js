@@ -66,10 +66,12 @@ export function renderInfantsView(state, selectedBarangay = "All Barangays", cur
         </p>
       </div>
 
-      <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addInfantBtn">
-        <span class="material-symbols-outlined text-base">person_add</span>
-        <span>${isUserParent ? 'Register My Child' : 'Register Child Health Record'}</span>
-      </button>
+      ${isUserParent || isUserNurse ? `
+        <button class="primary-btn flex items-center gap-1.5 text-xs py-2 px-3.5" id="addInfantBtn">
+          <span class="material-symbols-outlined text-base">person_add</span>
+          <span>${isUserParent ? 'Register My Child' : 'Register Child Health Record'}</span>
+        </button>
+      ` : ''}
     </div>
 
     <!-- Search and Filter Toolbar -->
@@ -121,15 +123,13 @@ export function renderInfantsView(state, selectedBarangay = "All Barangays", cur
                     <span class="material-symbols-outlined text-sm">badge</span>
                     <span>Todo Ligtas Card</span>
                   </button>
-                  ${!isUserParent ? `
+                  ${isUserNurse ? `
                     <button type="button" class="secondary-btn sm-btn edit-infant-btn text-[11px] py-1 px-2" data-id="${escapeHtml(i.id)}" title="Edit Infant Details">
                       <span class="material-symbols-outlined text-sm">edit</span>
                     </button>
-                    ${isAdmin(currentUser) || isNurse(currentUser) ? `
-                      <button type="button" class="icon-btn delete-infant-btn p-1 text-red-600 hover:bg-red-50" data-id="${escapeHtml(i.id)}" title="Delete">
-                        <span class="material-symbols-outlined text-base">delete</span>
-                      </button>
-                    ` : ''}
+                    <button type="button" class="icon-btn delete-infant-btn p-1 text-red-600 hover:bg-red-50" data-id="${escapeHtml(i.id)}" title="Delete">
+                      <span class="material-symbols-outlined text-base">delete</span>
+                    </button>
                   ` : ''}
                 </td>
               </tr>
